@@ -918,8 +918,8 @@
   </div>
 
   <script>
-    const API_BASE = (window.location.origin && window.location.origin.includes(':8000')) 
-      ? `${window.location.origin}/api` 
+    const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
+      ? `${window.location.origin}/api`
       : 'http://localhost:8000/api';
 
     let filtroAtual = '';
