@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinTrack - Planejamento Financeiro Doméstico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-main: #0B0F19;
+      --bg-card: rgba(18, 24, 38, 0.75);
+      --bg-card-hover: rgba(26, 34, 52, 0.9);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(59, 130, 246, 0.5);
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      --accent-blue: #3B82F6;
+      --accent-blue-glow: rgba(59, 130, 246, 0.25);
+      --accent-green: #10B981;
+      --accent-green-glow: rgba(16, 185, 129, 0.2);
+      --accent-red: #EF4444;
+      --accent-red-glow: rgba(239, 68, 68, 0.2);
+      --accent-amber: #F59E0B;
+      --accent-amber-glow: rgba(245, 158, 11, 0.2);
+      --accent-purple: #8B5CF6;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.09) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(139, 92, 246, 0.08) 0px, transparent 50%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      color: var(--text-main);
+      padding: 32px 20px 60px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+
+    /* HEADER */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 46px;
+      height: 46px;
+      background: linear-gradient(135deg, #2563EB, #1D4ED8);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px var(--accent-blue-glow);
+    }
+
+    .brand-icon svg {
+      width: 26px;
+      height: 26px;
+      fill: none;
+      stroke: #fff;
+      stroke-width: 2.2;
+    }
+
+    .brand h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(180deg, #FFFFFF, #CBD5E1);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34D399;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #10B981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10B981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* CARDS DE PLANEJAMENTO DOMÉSTICO */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .stat-card.receita::before { background: linear-gradient(90deg, #10B981, #34D399); }
+    .stat-card.fixa::before { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+    .stat-card.variavel::before { background: linear-gradient(90deg, #EC4899, #F472B6); }
+    .stat-card.saldo::before { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .stat-header span {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .stat-card.receita .stat-value { color: #34D399; }
+    .stat-card.fixa .stat-value { color: #FBBF24; }
+    .stat-card.variavel .stat-value { color: #F472B6; }
+    .stat-card.saldo .stat-value { color: #60A5FA; }
+
+    .stat-sub {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* GLASS PANEL */
+    .glass-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+
+    .panel-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* WHATSAPP SMART BAR */
+    .smart-bar {
+      margin-bottom: 24px;
+      background: rgba(30, 41, 59, 0.65);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .smart-bar-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #34D399;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .smart-input-wrap {
+      flex: 1;
+      display: flex;
+      gap: 8px;
+      min-width: 260px;
+    }
+
+    .smart-input {
+      flex: 1;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      padding: 10px 14px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .smart-input:focus {
+      border-color: #10B981;
+    }
+
+    .btn-whatsapp {
+      background: rgba(16, 185, 129, 0.18);
+      color: #6EE7B7;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+
+    .btn-whatsapp:hover {
+      background: rgba(16, 185, 129, 0.3);
+    }
+
+    /* FORM STYLES */
+    form.tx-form {
+      display: grid;
+      grid-template-columns: 160px 130px 1fr 140px 120px 1.4fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    @media (max-width: 990px) {
+      form.tx-form {
+        grid-template-columns: 1fr 1fr;
+      }
+      form.tx-form button {
+        grid-column: span 2;
+      }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-control {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      color: var(--text-main);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      width: 100%;
+    }
+
+    .form-control:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px var(--accent-blue-glow);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #2563EB, #1D4ED8);
+      color: white;
+      border: none;
+      padding: 11px 20px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px var(--accent-blue-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px var(--accent-blue-glow);
+    }
+
+    /* FILTRO DE ABAS / TABS */
+    .filter-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active, .tab-btn:hover {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: var(--accent-blue);
+      color: #93C5FD;
+    }
+
+    /* CATEGORIES PROGRESS */
+    .cat-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .cat-item-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .cat-progress-bg {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .cat-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3B82F6, #60A5FA);
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+
+    /* TABLE */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    td {
+      padding: 14px 16px;
+      font-size: 13.5px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #E2E8F0;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-receita {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-despesa_fixa {
+      background: rgba(245, 158, 11, 0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-despesa_variavel {
+      background: rgba(236, 72, 153, 0.15);
+      color: #F472B6;
+      border: 1px solid rgba(236, 72, 153, 0.3);
+    }
+
+    .badge-source {
+      background: rgba(255, 255, 255, 0.06);
+      color: #CBD5E1;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .val-receita { color: #34D399; font-weight: 700; }
+    .val-fixa { color: #FBBF24; font-weight: 700; }
+    .val-variavel { color: #F472B6; font-weight: 700; }
+
+    .actions-cell {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .btn-edit {
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #93C5FD;
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-edit:hover {
+      background: var(--accent-blue);
+      color: white;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 10px var(--accent-blue-glow);
+    }
+
+    .btn-delete {
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #F87171;
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-delete:hover {
+      background: var(--accent-red);
+      color: white;
+      border-color: var(--accent-red);
+    }
+
+    .btn-cancel {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+      padding: 11px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: none;
+    }
+
+    .btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: var(--text-main);
+    }
+
+    .form-actions-wrap {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .edit-mode-highlight {
+      animation: highlightGlow 1.5s ease infinite alternate;
+    }
+
+    @keyframes highlightGlow {
+      0% { border-color: rgba(59, 130, 246, 0.4); box-shadow: 0 0 10px rgba(59, 130, 246, 0.15); }
+      100% { border-color: rgba(59, 130, 246, 0.8); box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+    }
+
+    /* EMPTY STATE */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-dim);
+    }
+
+    .empty-icon {
+      width: 44px;
+      height: 44px;
+      margin: 0 auto 12px;
+      stroke: var(--text-dim);
+      opacity: 0.6;
+    }
+
+    .empty-state h4 {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .empty-state p {
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- HEADER -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>FinTrack Planejamento Doméstico</h1>
+          <p>Receitas Fixas &middot; Contas Fixas &middot; Gastos WhatsApp &middot; Saldo Livre</p>
+        </div>
+      </div>
+      <div class="status-badge" id="api-status">
+        <span class="status-dot"></span>
+        <span id="status-text">Base Zerada / Pronta</span>
+      </div>
+    </header>
+
+    <!-- CARDS DE MÉTRICAS DOMÉSTICAS -->
+    <div class="cards-grid">
+      <div class="stat-card receita">
+        <div class="stat-header">
+          <span>Receitas Totais</span>
+        </div>
+        <div class="stat-value" id="card-receitas">R$ 0,00</div>
+        <div class="stat-sub">Entradas fixas, salários e rendas</div>
+      </div>
+
+      <div class="stat-card fixa">
+        <div class="stat-header">
+          <span>Contas Fixas a Pagar</span>
+        </div>
+        <div class="stat-value" id="card-fixas">R$ 0,00</div>
+        <div class="stat-sub">Aluguel, condomínio, luz, água, etc</div>
+      </div>
+
+      <div class="stat-card variavel">
+        <div class="stat-header">
+          <span>Gastos do WhatsApp</span>
+        </div>
+        <div class="stat-value" id="card-whatsapp">R$ 0,00</div>
+        <div class="stat-sub">Despesas do dia a dia capturadas</div>
+      </div>
+
+      <div class="stat-card saldo">
+        <div class="stat-header">
+          <span>Saldo Livre</span>
+        </div>
+        <div class="stat-value" id="card-saldo-livre">R$ 0,00</div>
+        <div class="stat-sub">Receitas - (Fixas + Variáveis)</div>
+      </div>
+    </div>
+
+    <!-- BARRA RÁPIDA WHATSAPP -->
+    <div class="smart-bar">
+      <div class="smart-bar-label">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        Captura Rápida WhatsApp:
+      </div>
+      <div class="smart-input-wrap">
+        <input type="text" id="smart-text" class="smart-input" placeholder="Ex: Almoço 42,50 ou Uber 28,90 ou Luz 210 vencimento dia 15">
+        <button type="button" class="btn-whatsapp" onclick="preencherPorMensagem()">Interpretar e Preencher</button>
+      </div>
+    </div>
+
+    <!-- FORMULÁRIO DE CADASTRO / EDIÇÃO -->
+    <div class="glass-panel" id="panel-form">
+      <div class="panel-title" id="form-title">
+        <svg id="form-icon" width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2.2" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        <span id="form-title-text">Cadastrar Lançamento Doméstico</span>
+      </div>
+
+      <form id="form-transacao" class="tx-form">
+        <input type="hidden" id="edit-id" value="">
+
+        <div class="form-group">
+          <label for="tipo">Tipo de Registro</label>
+          <select id="tipo" class="form-control" onchange="aoMudarTipo()" required>
+            <option value="receita">Receita (Salário/Entrada)</option>
+            <option value="despesa_fixa">Despesa Fixa (Conta do Mês)</option>
+            <option value="despesa_variavel" selected>Despesa Variável (WhatsApp)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="valor">Valor (R$)</label>
+          <input type="number" step="0.01" min="0.01" id="valor" class="form-control" placeholder="0,00" required>
+        </div>
+
+        <div class="form-group">
+          <label for="categoria">Categoria</label>
+          <input type="text" id="categoria" class="form-control" placeholder="Ex: Moradia, Alimentação" required list="sugestoes-categorias">
+          <datalist id="sugestoes-categorias">
+            <option value="Salário/Renda"></option>
+            <option value="Moradia (Aluguel/Condomínio)"></option>
+            <option value="Contas de Consumo (Luz/Água)"></option>
+            <option value="Alimentação"></option>
+            <option value="Transporte"></option>
+            <option value="Saúde"></option>
+            <option value="Lazer"></option>
+            <option value="Educação"></option>
+            <option value="Outros"></option>
+          </datalist>
+        </div>
+
+        <div class="form-group">
+          <label for="data">Data</label>
+          <input type="date" id="data" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="vencimento">Vencimento</label>
+          <input type="text" id="vencimento" class="form-control" placeholder="Ex: Dia 10">
+        </div>
+
+        <div class="form-group">
+          <label for="descricao">Descrição</label>
+          <input type="text" id="descricao" class="form-control" placeholder="Ex: Conta Enel / Supermercado">
+        </div>
+
+        <div class="form-actions-wrap">
+          <button type="submit" id="btn-submit" class="btn-primary">
+            Salvar
+          </button>
+          <button type="button" id="btn-cancelar" class="btn-cancel" onclick="cancelarEdicao()">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- DISTRIBUIÇÃO POR CATEGORIA -->
+    <div class="glass-panel" id="panel-categorias">
+      <div class="panel-title">
+        <svg width="20" height="20" fill="none" stroke="#60A5FA" stroke-width="2.2" viewBox="0 0 24 24">
+          <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"></path>
+        </svg>
+        Distribuição de Despesas por Categoria (Fixas + Variáveis)
+      </div>
+      <div id="categorias-container">
+        <div class="empty-state" style="padding: 20px 0;">
+          <p>Nenhuma despesa registrada até o momento (0 despesas).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTÓRICO COM FILTROS DE ABAS -->
+    <div class="glass-panel">
+      <div class="panel-title" style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <svg width="20" height="20" fill="none" stroke="#10B981" stroke-width="2.2" viewBox="0 0 24 24">
+            <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          Histórico Financeiro
+        </div>
+
+        <div class="filter-tabs">
+          <button class="tab-btn active" onclick="filtrarTabela('')">Todos</button>
+          <button class="tab-btn" onclick="filtrarTabela('receita')">Receitas</button>
+          <button class="tab-btn" onclick="filtrarTabela('despesa_fixa')">Despesas Fixas</button>
+          <button class="tab-btn" onclick="filtrarTabela('despesa_variavel')">Gastos Variáveis</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tipo</th>
+              <th>Categoria</th>
+              <th>Descrição</th>
+              <th>Vencimento</th>
+              <th>Origem</th>
+              <th>Valor</th>
+              <th style="text-align: right;">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-corpo">
+            <tr>
+              <td colspan="8">
+                <div class="empty-state">
+                  <svg class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                  </svg>
+                  <h4>Base de dados vazia</h4>
+                  <p>Cadastre sua primeira receita, conta fixa ou despesa variável acima.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = (window.location.origin && window.location.origin.includes(':8000')) 
+      ? `${window.location.origin}/api` 
+      : 'http://localhost:8000/api';
+
+    let filtroAtual = '';
+    document.getElementById('data').valueAsDate = new Date();
+
+    function formatBRL(valor) {
+      const num = Number(valor) || 0;
+      return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function formatDateBR(dateStr) {
+      if (!dateStr) return '-';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    }
+
+    function badgeTipo(tipo) {
+      if (tipo === 'receita') {
+        return '<span class="badge badge-receita">Receita</span>';
+      } else if (tipo === 'despesa_fixa') {
+        return '<span class="badge badge-despesa_fixa">Conta Fixa</span>';
+      } else {
+        return '<span class="badge badge-despesa_variavel">Variável (Chat)</span>';
+      }
+    }
+
+    function classValor(tipo) {
+      if (tipo === 'receita') return 'val-receita';
+      if (tipo === 'despesa_fixa') return 'val-fixa';
+      return 'val-variavel';
+    }
+
+    function sinalValor(tipo) {
+      return tipo === 'receita' ? '+' : '-';
+    }
+
+    function aoMudarTipo() {
+      const tipo = document.getElementById('tipo').value;
+      const vencInput = document.getElementById('vencimento');
+      if (tipo === 'despesa_fixa') {
+        vencInput.placeholder = 'Ex: Dia 10';
+      } else {
+        vencInput.placeholder = 'Opcional';
+      }
+    }
+
+    function filtrarTabela(tipo) {
+      filtroAtual = tipo;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      const buttons = Array.from(document.querySelectorAll('.tab-btn'));
+      const activeBtn = buttons.find(b => {
+        if (!tipo && b.innerText === 'Todos') return true;
+        if (tipo === 'receita' && b.innerText === 'Receitas') return true;
+        if (tipo === 'despesa_fixa' && b.innerText === 'Despesas Fixas') return true;
+        if (tipo === 'despesa_variavel' && b.innerText === 'Gastos Variáveis') return true;
+        return false;
+      });
+      if (activeBtn) activeBtn.classList.add('active');
+      carregarDados();
+    }
+
+    async function carregarDados() {
+      try {
+        const urlTrans = filtroAtual ? `${API_BASE}/transactions?tipo=${filtroAtual}` : `${API_BASE}/transactions`;
+        const [resMetrics, resTrans] = await Promise.all([
+          fetch(`${API_BASE}/metrics`),
+          fetch(urlTrans)
+        ]);
+
+        if (!resMetrics.ok || !resTrans.ok) {
+          throw new Error('Falha ao comunicar com os endpoints da API');
+        }
+
+        const metrics = await resMetrics.json();
+        const trans = await resTrans.json();
+
+        // 1. Atualização dos Cards de Planejamento Doméstico
+        document.getElementById('card-receitas').innerText = formatBRL(metrics.receitas_totais || 0);
+        document.getElementById('card-fixas').innerText = formatBRL(metrics.contas_fixas || 0);
+        document.getElementById('card-whatsapp').innerText = formatBRL(metrics.gastos_whatsapp || 0);
+        document.getElementById('card-saldo-livre').innerText = formatBRL(metrics.saldo_livre || 0);
+
+        // Ajusta cor do saldo livre se negativo
+        const cardSaldoEl = document.getElementById('card-saldo-livre');
+        if (metrics.saldo_livre < 0) {
+          cardSaldoEl.style.color = '#F87171';
+        } else {
+          cardSaldoEl.style.color = '#60A5FA';
+        }
+
+        // 2. Renderização de Categorias
+        const catBox = document.getElementById('categorias-container');
+        if (metrics.categorias && metrics.categorias.length > 0) {
+          catBox.innerHTML = `
+            <div class="cat-bars">
+              ${metrics.categorias.map(c => `
+                <div>
+                  <div class="cat-item-header">
+                    <span><strong>${c.categoria}</strong> &middot; ${c.percentual}%</span>
+                    <span>${formatBRL(c.total)}</span>
+                  </div>
+                  <div class="cat-progress-bg">
+                    <div class="cat-progress-fill" style="width: ${Math.min(c.percentual, 100)}%;"></div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        } else {
+          catBox.innerHTML = `
+            <div class="empty-state" style="padding: 20px 0;">
+              <p>Nenhuma despesa cadastrada até o momento (0 despesas).</p>
+            </div>
+          `;
+        }
+
+        // Guarda cache local das transações para preenchimento fluído na edição
+        window._transacoesAtuais = trans || [];
+
+        // 3. Renderização da Tabela de Transações
+        const tbody = document.getElementById('tabela-corpo');
+        if (trans && trans.length > 0) {
+          tbody.innerHTML = trans.map(t => `
+            <tr>
+              <td>${formatDateBR(t.data)}</td>
+              <td>${badgeTipo(t.tipo)}</td>
+              <td>${t.categoria}</td>
+              <td>${t.descricao || '-'}</td>
+              <td>${t.vencimento ? `<strong>${t.vencimento}</strong>` : '-'}</td>
+              <td><span class="badge-source">${t.source || 'Manual'}</span></td>
+              <td class="${classValor(t.tipo)}">
+                ${sinalValor(t.tipo)} ${formatBRL(t.valor)}
+              </td>
+              <td style="text-align: right;">
+                <div class="actions-cell">
+                  <button class="btn-edit" onclick="iniciarEdicao(${t.id})" title="Editar este lançamento">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    Editar
+                  </button>
+                  <button class="btn-delete" onclick="deletar(${t.id})" title="Excluir este lançamento">Excluir</button>
+                </div>
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8">
+                <div class="empty-state">
+                  <svg class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                  </svg>
+                  <h4>Nenhum registro encontrado</h4>
+                  <p>A base está limpa. Adicione um lançamento para começar.</p>
+                </div>
+              </td>
+            </tr>
+          `;
+        }
+
+        document.getElementById('status-text').innerText = 'Base Conectada';
+      } catch (err) {
+        console.error('Erro ao conectar à API:', err);
+        document.getElementById('status-text').innerText = 'Backend Desconectado';
+        document.getElementById('api-status').style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        document.getElementById('api-status').style.color = '#F87171';
+      }
+    }
+
+    // Edição Fluida de Registro
+    function iniciarEdicao(id) {
+      const transacao = (window._transacoesAtuais || []).find(t => t.id === id);
+      if (!transacao) {
+        alert('Registro não encontrado.');
+        return;
+      }
+
+      document.getElementById('edit-id').value = transacao.id;
+      document.getElementById('tipo').value = transacao.tipo;
+      document.getElementById('valor').value = transacao.valor;
+      document.getElementById('categoria').value = transacao.categoria;
+      document.getElementById('data').value = transacao.data;
+      document.getElementById('vencimento').value = transacao.vencimento || '';
+      document.getElementById('descricao').value = transacao.descricao || '';
+
+      aoMudarTipo();
+
+      // Ajuste visual do formulário para modo edição
+      document.getElementById('form-title-text').innerText = `Editar Lançamento #${transacao.id}`;
+      document.getElementById('btn-submit').innerText = 'Atualizar Lançamento';
+      document.getElementById('btn-cancelar').style.display = 'inline-block';
+
+      const panel = document.getElementById('panel-form');
+      panel.classList.add('edit-mode-highlight');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('valor').focus();
+    }
+
+    function cancelarEdicao() {
+      document.getElementById('edit-id').value = '';
+      document.getElementById('form-transacao').reset();
+      document.getElementById('data').valueAsDate = new Date();
+      aoMudarTipo();
+
+      document.getElementById('form-title-text').innerText = 'Cadastrar Lançamento Doméstico';
+      document.getElementById('btn-submit').innerText = 'Salvar';
+      document.getElementById('btn-cancelar').style.display = 'none';
+
+      const panel = document.getElementById('panel-form');
+      panel.classList.remove('edit-mode-highlight');
+    }
+
+    // Formulário de Cadastro / Edição
+    document.getElementById('form-transacao').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('edit-id').value;
+      const isEditing = Boolean(editId);
+
+      const payload = {
+        tipo: document.getElementById('tipo').value,
+        valor: parseFloat(document.getElementById('valor').value),
+        categoria: document.getElementById('categoria').value,
+        data: document.getElementById('data').value,
+        vencimento: document.getElementById('vencimento').value || null,
+        descricao: document.getElementById('descricao').value || null
+      };
+
+      const endpoint = isEditing ? `${API_BASE}/transactions/${editId}` : `${API_BASE}/transactions`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      if (!isEditing) {
+        payload.source = 'Manual';
+      }
+
+      try {
+        const res = await fetch(endpoint, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          cancelarEdicao();
+          await carregarDados();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          alert(`Erro ao salvar lançamento: ${errData.detail || 'Verifique os dados informados'}`);
+        }
+      } catch (err) {
+        alert('Falha na comunicação com o servidor.');
+      }
+    });
+
+    // Exclusão de Lançamento
+    async function deletar(id) {
+      if (!confirm('Deseja realmente excluir este lançamento?')) return;
+      try {
+        const res = await fetch(`${API_BASE}/transactions/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          await carregarDados();
+        }
+      } catch (err) {
+        alert('Erro ao excluir lançamento.');
+      }
+    }
+
+    // Parser WhatsApp Rápido
+    async function preencherPorMensagem() {
+      const input = document.getElementById('smart-text');
+      const msg = input.value.trim();
+      if (!msg) {
+        alert('Digite uma mensagem primeiro (ex: "Almoço 42,50" ou "Aluguel 1800 vencimento dia 10")');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/parse-message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg })
+        });
+
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+
+        document.getElementById('tipo').value = data.tipo;
+        document.getElementById('valor').value = data.valor > 0 ? data.valor : '';
+        document.getElementById('categoria').value = data.categoria;
+        document.getElementById('descricao').value = data.descricao;
+        if (data.data) {
+          document.getElementById('data').value = data.data;
+        }
+
+        aoMudarTipo();
+        input.value = '';
+      } catch (err) {
+        alert('Não foi possível interpretar a mensagem informada.');
+      }
+    }
+
+    // Inicialização automática
+    carregarDados();
+  </script>
+</body>
+</html>
