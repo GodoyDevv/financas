@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   
   <style>
     :root {
@@ -221,6 +223,84 @@
       display: flex;
       align-items: center;
       gap: 10px;
+    }
+
+    /* CHARTS SECTION */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .chart-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      transform: translateY(-2px);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-main);
+    }
+
+    .chart-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .chart-container {
+      position: relative;
+      flex: 1;
+      min-height: 280px;
+      max-height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chart-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 13px;
+      text-align: center;
+      padding: 30px 10px;
+      gap: 8px;
+    }
+
+    .chart-empty svg {
+      width: 40px;
+      height: 40px;
+      stroke: var(--text-dim);
+      opacity: 0.5;
     }
 
     /* WHATSAPP SMART BAR */
@@ -648,6 +728,47 @@
       </div>
     </div>
 
+    <!-- SEÇÃO DE GRÁFICOS VISUAIS -->
+    <div class="charts-grid">
+      <!-- Chart A: Distribuição de Despesas por Categoria -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">
+              <svg width="20" height="20" fill="none" stroke="#EC4899" stroke-width="2.2" viewBox="0 0 24 24">
+                <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"></path>
+              </svg>
+              Distribuição por Categoria
+            </div>
+            <div class="chart-subtitle">Proporção das despesas registradas</div>
+          </div>
+        </div>
+        <div class="chart-container" id="container-chart-categorias">
+          <canvas id="chart-categorias"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart B: Balanço Financeiro Geral -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">
+              <svg width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2.2" viewBox="0 0 24 24">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+              Balanço Financeiro
+            </div>
+            <div class="chart-subtitle">Receitas vs Contas Fixas vs Gastos WhatsApp</div>
+          </div>
+        </div>
+        <div class="chart-container" id="container-chart-balanco">
+          <canvas id="chart-balanco"></canvas>
+        </div>
+      </div>
+    </div>
+
     <!-- BARRA RÁPIDA WHATSAPP -->
     <div class="smart-bar">
       <div class="smart-bar-label">
@@ -921,7 +1042,10 @@
         // Guarda cache local das transações para preenchimento fluído na edição
         window._transacoesAtuais = trans || [];
 
-        // 3. Renderização da Tabela de Transações
+        // 3. Renderização dos Gráficos Chart.js
+        atualizarGraficos(metrics, trans);
+
+        // 4. Renderização da Tabela de Transações
         const tbody = document.getElementById('tabela-corpo');
         if (trans && trans.length > 0) {
           tbody.innerHTML = trans.map(t => `
@@ -972,6 +1096,238 @@
         document.getElementById('status-text').innerText = 'Backend Desconectado';
         document.getElementById('api-status').style.borderColor = 'rgba(239, 68, 68, 0.4)';
         document.getElementById('api-status').style.color = '#F87171';
+      }
+    }
+
+    // Gerenciamento e renderização dos Gráficos com Chart.js
+    let chartCategoriasInstance = null;
+    let chartBalancoInstance = null;
+
+    // Paleta de cores moderna e refinada para o tema Dark
+    const PALETA_CATEGORIAS = [
+      '#3B82F6', // Azul elétrico
+      '#10B981', // Esmeralda
+      '#F59E0B', // Âmbar
+      '#EC4899', // Rosa
+      '#8B5CF6', // Roxo
+      '#06B6D4', // Ciano
+      '#F97316', // Laranja
+      '#14B8A6', // Teal
+      '#6366F1', // Índigo
+      '#64748B'  // Cinza ardósia
+    ];
+
+    function atualizarGraficos(metrics, trans) {
+      if (typeof Chart === 'undefined') {
+        console.warn('Chart.js ainda não está carregado.');
+        return;
+      }
+
+      // Configuração padrão global para tema Dark
+      Chart.defaults.color = '#94A3B8';
+      Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+
+      // -------------------------------------------------------------
+      // GRÁFICO A: Distribuição de Despesas por Categoria (Doughnut)
+      // -------------------------------------------------------------
+      const containerCat = document.getElementById('container-chart-categorias');
+      const categorias = metrics.categorias || [];
+      const totalDespesas = (metrics.contas_fixas || 0) + (metrics.gastos_whatsapp || 0);
+
+      if (!categorias || categorias.length === 0 || totalDespesas <= 0) {
+        if (chartCategoriasInstance) {
+          chartCategoriasInstance.destroy();
+          chartCategoriasInstance = null;
+        }
+        containerCat.innerHTML = `
+          <div class="chart-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            <div>Nenhuma despesa para exibir no gráfico</div>
+          </div>
+        `;
+      } else {
+        // Assegura canvas no container
+        let canvasCat = document.getElementById('chart-categorias');
+        if (!canvasCat) {
+          containerCat.innerHTML = '<canvas id="chart-categorias"></canvas>';
+          canvasCat = document.getElementById('chart-categorias');
+        }
+
+        const labelsCat = categorias.map(c => c.categoria);
+        const dataCat = categorias.map(c => Number(c.total) || 0);
+        const bgColors = categorias.map((_, i) => PALETA_CATEGORIAS[i % PALETA_CATEGORIAS.length]);
+
+        if (chartCategoriasInstance) {
+          chartCategoriasInstance.data.labels = labelsCat;
+          chartCategoriasInstance.data.datasets[0].data = dataCat;
+          chartCategoriasInstance.data.datasets[0].backgroundColor = bgColors;
+          chartCategoriasInstance.update();
+        } else {
+          const ctxCat = canvasCat.getContext('2d');
+          chartCategoriasInstance = new Chart(ctxCat, {
+            type: 'doughnut',
+            data: {
+              labels: labelsCat,
+              datasets: [{
+                data: dataCat,
+                backgroundColor: bgColors,
+                borderWidth: 2,
+                borderColor: '#121826',
+                hoverOffset: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: {
+                    boxWidth: 12,
+                    boxHeight: 12,
+                    padding: 14,
+                    color: '#CBD5E1',
+                    font: { size: 12, weight: 600 }
+                  }
+                },
+                tooltip: {
+                  backgroundColor: '#1E293B',
+                  titleColor: '#F8FAFC',
+                  bodyColor: '#E2E8F0',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  borderWidth: 1,
+                  padding: 10,
+                  boxPadding: 4,
+                  callbacks: {
+                    label: function(context) {
+                      const val = context.raw || 0;
+                      const pct = totalDespesas > 0 ? ((val / totalDespesas) * 100).toFixed(1) : 0;
+                      return ` ${context.label}: ${formatBRL(val)} (${pct}%)`;
+                    }
+                  }
+                }
+              },
+              cutout: '68%'
+            }
+          });
+        }
+      }
+
+      // -------------------------------------------------------------
+      // GRÁFICO B: Balanço Financeiro (Bar Chart)
+      // Receitas vs Contas Fixas vs Gastos WhatsApp
+      // -------------------------------------------------------------
+      const containerBalanco = document.getElementById('container-chart-balanco');
+      const rec = Number(metrics.receitas_totais) || 0;
+      const fix = Number(metrics.contas_fixas) || 0;
+      const zap = Number(metrics.gastos_whatsapp) || 0;
+      const temDados = (rec > 0 || fix > 0 || zap > 0);
+
+      if (!temDados) {
+        if (chartBalancoInstance) {
+          chartBalancoInstance.destroy();
+          chartBalancoInstance = null;
+        }
+        containerBalanco.innerHTML = `
+          <div class="chart-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <div>Nenhuma movimentação para comparar no balanço</div>
+          </div>
+        `;
+      } else {
+        let canvasBalanco = document.getElementById('chart-balanco');
+        if (!canvasBalanco) {
+          containerBalanco.innerHTML = '<canvas id="chart-balanco"></canvas>';
+          canvasBalanco = document.getElementById('chart-balanco');
+        }
+
+        const labelsBalanco = ['Receitas', 'Contas Fixas', 'Gastos WhatsApp'];
+        const valuesBalanco = [rec, fix, zap];
+
+        if (chartBalancoInstance) {
+          chartBalancoInstance.data.datasets[0].data = valuesBalanco;
+          chartBalancoInstance.update();
+        } else {
+          const ctxBalanco = canvasBalanco.getContext('2d');
+          chartBalancoInstance = new Chart(ctxBalanco, {
+            type: 'bar',
+            data: {
+              labels: labelsBalanco,
+              datasets: [{
+                label: 'Total (R$)',
+                data: valuesBalanco,
+                backgroundColor: [
+                  'rgba(16, 185, 129, 0.85)', // Verde Esmeralda
+                  'rgba(245, 158, 11, 0.85)', // Âmbar Dourado
+                  'rgba(236, 72, 153, 0.85)'  // Rosa / Variável
+                ],
+                borderColor: [
+                  '#10B981',
+                  '#F59E0B',
+                  '#EC4899'
+                ],
+                borderWidth: 1.5,
+                borderRadius: 8,
+                borderSkipped: false,
+                barPercentage: 0.55
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false
+                },
+                tooltip: {
+                  backgroundColor: '#1E293B',
+                  titleColor: '#F8FAFC',
+                  bodyColor: '#E2E8F0',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  borderWidth: 1,
+                  padding: 10,
+                  boxPadding: 4,
+                  callbacks: {
+                    label: function(context) {
+                      return ` Valor: ${formatBRL(context.raw)}`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                x: {
+                  grid: {
+                    display: false,
+                    drawBorder: false
+                  },
+                  ticks: {
+                    color: '#CBD5E1',
+                    font: { weight: 600, size: 12 }
+                  }
+                },
+                y: {
+                  grid: {
+                    color: 'rgba(255, 255, 255, 0.05)',
+                    drawBorder: false
+                  },
+                  ticks: {
+                    color: '#94A3B8',
+                    callback: function(val) {
+                      return 'R$ ' + (val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val);
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
       }
     }
 
