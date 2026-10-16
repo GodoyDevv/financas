@@ -48,18 +48,28 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
     # 2. Identificação do remetente real (suporta grupos @g.us e conversas diretas @s.whatsapp.net)
     sender = None
     if isinstance(key, dict):
-        sender = key.get("participant") or key.get("remoteJid")
+        sender = key.get("participantAlt") or key.get("participant") or key.get("remoteJid")
     if not sender:
-        sender = data.get("participant") or data.get("sender") or data.get("remoteJid") or payload.get("sender")
+        sender = data.get("participantAlt") or data.get("participant") or data.get("sender") or data.get("remoteJid") or payload.get("sender")
 
     # Se a mensagem foi enviada pelo próprio dono da conta (fromMe)
     if is_from_me:
         sender = "5511967154115"
 
+    push_name = data.get("pushName") or payload.get("pushName") or ""
+
     if sender and isinstance(sender, str):
         sender = sender.split("@")[0].split(":")[0]
 
     user_name = identify_user_name(sender)
+    
+    # Fallback inteligente pelo nome de perfil do WhatsApp
+    if user_name.startswith("WhatsApp") and push_name:
+        p_clean = push_name.lower()
+        if "leticia" in p_clean or "letícia" in p_clean:
+            user_name = "Letícia"
+        elif "bruno" in p_clean:
+            user_name = "Bruno"
 
     # 3. Extração do texto da mensagem
     raw_text = None
