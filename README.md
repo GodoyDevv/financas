@@ -138,9 +138,12 @@ O deploy é feito no **Render** a partir do [`render.yaml`](render.yaml):
 3. Configure o webhook da instância:
    - **URL**: `https://<seu-app>.onrender.com/webhook/whatsapp`
    - **Evento**: `MESSAGES_UPSERT`
-4. Ajuste o mapeamento telefone → nome em [`backend/webhook.py`](backend/webhook.py) (`PHONE_USERS`).
+4. Configure as variáveis de ambiente baseadas no [`.env.example`](.env.example):
+   - `DATABASE_URL`: URI de conexão PostgreSQL (Supabase ou outro provedor).
+   - `WHATSAPP_USER_BRUNO`: Telefone do primeiro usuário (DDI + DDD + número).
+   - `WHATSAPP_USER_LETICIA`: Telefone do segundo usuário (DDI + DDD + número).
 
-> ⚠️ **Nunca versione chaves de API.** A chave da Evolution API e a `GEMINI_API_KEY` devem ficar em variáveis de ambiente.
+> 🔒 **Boas Práticas de Segurança:** Nenhuma credencial ou número pessoal fica salvo no código. Todas as configurações sensíveis utilizam variáveis de ambiente (`.env`).
 
 ---
 

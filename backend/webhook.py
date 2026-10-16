@@ -6,17 +6,29 @@ from .database import get_db
 from .models import Transaction
 from .parser import parse_financial_payload, parse_text_message
 
+import os
+
 logger = logging.getLogger("fintrack.webhook")
 
 webhook_router = APIRouter(prefix="/webhook", tags=["Webhook"])
 
-# Mapeamento dos telefones do casal
-PHONE_USERS = {
-    "5511967154115": "Bruno",
-    "11967154115": "Bruno",
-    "5511946165996": "Letícia",
-    "11946165996": "Letícia"
-}
+# Telefones configurados via variáveis de ambiente para segurança e privacidade
+PHONE_BRUNO = os.getenv("WHATSAPP_USER_BRUNO", "")
+PHONE_LETICIA = os.getenv("WHATSAPP_USER_LETICIA", "")
+
+def get_phone_users():
+    mapping = {}
+    if PHONE_BRUNO:
+        clean = "".join(filter(str.isdigit, PHONE_BRUNO))
+        mapping[clean] = "Bruno"
+        if clean.startswith("55"):
+            mapping[clean[2:]] = "Bruno"
+    if PHONE_LETICIA:
+        clean = "".join(filter(str.isdigit, PHONE_LETICIA))
+        mapping[clean] = "Letícia"
+        if clean.startswith("55"):
+            mapping[clean[2:]] = "Letícia"
+    return mapping
 
 def identify_user_name(phone: Optional[str]) -> str:
     """Retorna o nome do usuário identificado pelo telefone ou 'WhatsApp'."""
@@ -24,7 +36,8 @@ def identify_user_name(phone: Optional[str]) -> str:
         return "WhatsApp"
     # Remove caracteres não numéricos
     clean_phone = "".join(filter(str.isdigit, phone))
-    for p_key, name in PHONE_USERS.items():
+    phone_users = get_phone_users()
+    for p_key, name in phone_users.items():
         if clean_phone.endswith(p_key) or p_key.endswith(clean_phone):
             return name
     return f"WhatsApp ({phone})"
@@ -55,7 +68,7 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
 
     # Se a mensagem foi enviada pelo próprio dono da conta (fromMe)
     if is_from_me:
-        sender = "5511967154115"
+        sender = PHONE_BRUNO or "Bruno"
 
     push_name = data.get("pushName") or payload.get("pushName") or ""
 
