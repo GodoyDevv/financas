@@ -35,7 +35,9 @@ app.include_router(webhook_router)
 
 @app.get("/health")
 def health_check():
-    return {"status": "online", "database": "sqlite_connected"}
+    from backend.database import DATABASE_URL
+    db_type = "postgresql_supabase" if DATABASE_URL else "sqlite_local"
+    return {"status": "online", "database": db_type}
 
 # Servir a interface web diretamente na raiz do servidor
 @app.get("/")

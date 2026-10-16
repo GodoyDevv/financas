@@ -1,9 +1,10 @@
 import logging
 from typing import Optional, Tuple
 from fastapi import APIRouter, HTTPException, Depends
-from sqlite3 import Connection
+from sqlalchemy.orm import Session
+from .database import get_db
+from .models import Transaction
 from .parser import parse_financial_payload, parse_text_message
-from .routes import get_db
 
 logger = logging.getLogger("fintrack.webhook")
 
@@ -96,12 +97,12 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
 
 @webhook_router.post("/whatsapp")
 @webhook_router.post("")
-def receive_webhook(payload: dict, db: Connection = Depends(get_db)):
+def receive_webhook(payload: dict, db: Session = Depends(get_db)):
     """
     Processa webhooks da Evolution API e gateways WhatsApp.
     - Extrai telefone do remetente e o texto da mensagem.
     - Executa o parser em linguagem natural (parser.py).
-    - Persiste com 100% de segurança no SQLite como despesa_variavel (ou tipo inferido).
+    - Persiste com 100% de segurança no PostgreSQL / SQLite como despesa_variavel.
     """
     sender, user_name, raw_text = extract_evolution_message(payload)
     
@@ -109,7 +110,7 @@ def receive_webhook(payload: dict, db: Connection = Depends(get_db)):
     if raw_text:
         # Processamento via parser de linguagem natural
         parsed_data = parse_text_message(raw_text)
-        # O requisito especifica salvar o resultado como despesa_variavel
+        # Salva como despesa_variavel identificando quem enviou
         if parsed_data:
             parsed_data["tipo"] = "despesa_variavel"
             parsed_data["source"] = user_name
@@ -129,25 +130,23 @@ def receive_webhook(payload: dict, db: Connection = Depends(get_db)):
             "user": user_name
         }
 
-    # Persistência segura no banco SQLite garantindo integridade de todos os registros anteriores
-    cursor = db.cursor()
-    cursor.execute("""
-        INSERT INTO transactions (tipo, valor, categoria, data, descricao, source, vencimento)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        parsed_data["tipo"],
-        parsed_data["valor"],
-        parsed_data["categoria"],
-        parsed_data["data"],
-        parsed_data["descricao"],
-        parsed_data.get("source", "WhatsApp"),
-        parsed_data.get("vencimento")
-    ))
+    # Persistência segura garantindo integridade de todos os registros
+    new_trans = Transaction(
+        tipo=parsed_data["tipo"],
+        valor=float(parsed_data["valor"]),
+        categoria=parsed_data["categoria"],
+        data=str(parsed_data["data"]),
+        descricao=parsed_data["descricao"],
+        source=parsed_data.get("source", "WhatsApp"),
+        vencimento=parsed_data.get("vencimento")
+    )
+    db.add(new_trans)
     db.commit()
+    db.refresh(new_trans)
 
     return {
         "status": "success",
-        "id": cursor.lastrowid,
+        "id": new_trans.id,
         "sender": sender,
         "transaction": parsed_data
     }
