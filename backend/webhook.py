@@ -39,18 +39,22 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
 
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
 
-    # 1. Ignorar mensagens enviadas pelo próprio bot/instância (fromMe)
+    # 1. Trata se a mensagem foi enviada pelo próprio número que conectou
     key = data.get("key") or payload.get("key")
+    is_from_me = False
     if isinstance(key, dict) and key.get("fromMe") is True:
-        return None, None, None
+        is_from_me = True
 
     # 2. Identificação do remetente real (suporta grupos @g.us e conversas diretas @s.whatsapp.net)
     sender = None
     if isinstance(key, dict):
-        # Em grupos, o participante real vem em 'participant'
         sender = key.get("participant") or key.get("remoteJid")
     if not sender:
         sender = data.get("participant") or data.get("sender") or data.get("remoteJid") or payload.get("sender")
+
+    # Se a mensagem foi enviada pelo próprio dono da conta (fromMe)
+    if is_from_me:
+        sender = "5511967154115"
 
     if sender and isinstance(sender, str):
         sender = sender.split("@")[0].split(":")[0]
