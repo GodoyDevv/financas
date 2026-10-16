@@ -3,7 +3,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite" />
+  <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=black" alt="Render" />
   <img src="https://img.shields.io/badge/WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="WhatsApp" />
 </p>
@@ -18,19 +19,19 @@
 
 O **FinTrack Intelligence** centraliza as finanças da casa em um único painel. Os gastos do dia a dia são lançados
 por **mensagem de WhatsApp** (ex.: `Uber 30,30`) em um grupo compartilhado: o sistema interpreta o texto, identifica
-**quem gastou**, categoriza automaticamente e atualiza o dashboard na hora.
+**quem gastou**, categoriza automaticamente e atualiza o dashboard na hora com persistência garantida no **Supabase (São Paulo/BR)**.
 
 ---
 
 ## 🚀 Funcionalidades
 
 - **📲 Lançamento por WhatsApp**: mensagens em linguagem natural viram transações (valor, categoria e responsável).
-- **👫 Multiusuário**: identifica o autor da mensagem (individual ou em grupo) pelo telefone/perfil.
+- **👫 Multiusuário**: identifica o autor da mensagem (individual ou em grupo) pelo telefone/perfil (Bruno ou Letícia).
 - **🧾 Extrato em ordem de lançamento**: o registro mais recente aparece sempre no topo, como um extrato bancário.
 - **📊 Dashboard interativo**: cards de receitas, contas fixas, gastos variáveis e saldo livre, além de gráficos por categoria.
 - **✍️ CRUD completo** de transações pela interface web (criar, editar, excluir, filtrar por tipo).
 - **🩺 Healthcheck** em `/health` e documentação OpenAPI em `/docs`.
-- **☁️ Deploy automático**: cada `push` na `main` publica uma nova versão no Render (CI/CD via `render.yaml`).
+- **☁️ Deploy automático**: cada `push` na `main` publica uma nova versão no Render integrada ao banco em produção.
 
 ---
 
@@ -40,7 +41,7 @@ por **mensagem de WhatsApp** (ex.: `Uber 30,30`) em um grupo compartilhado: o si
 flowchart LR
     A["📱 Grupo WhatsApp<br/>(casal)"] -->|"Uber 30,30"| B["🤖 Evolution API<br/>(Railway)"]
     B -->|"Webhook MESSAGES_UPSERT"| C["☁️ FinTrack API<br/>(Render / FastAPI)"]
-    C --> D[("🗄️ SQLite")]
+    C --> D[("🐘 Supabase PostgreSQL<br/>(São Paulo - BR)")]
     C --> E["📊 Dashboard Web"]
 ```
 
@@ -48,7 +49,7 @@ flowchart LR
 | :--- | :--- | :--- |
 | **FinTrack API + Dashboard** | Regras de negócio, parser, API REST e interface web | Render (Web Service) |
 | **Evolution API** | Gateway que conecta o WhatsApp e dispara webhooks | Railway (com Postgres e Redis) |
-| **Banco de dados** | Armazena as transações | SQLite local ao serviço |
+| **Banco de dados** | Armazena e persiste todas as transações permanentemente | Supabase PostgreSQL (São Paulo - BR) |
 
 ---
 
@@ -143,16 +144,19 @@ O deploy é feito no **Render** a partir do [`render.yaml`](render.yaml):
 
 ---
 
-## ⚠️ Limitações Conhecidas
+---
 
-- **Persistência**: o SQLite fica no disco efêmero do Render. A cada **deploy ou reinício** (inclusive o
-  reinício por inatividade do plano gratuito) o banco volta ao conteúdo de `initial_data.json`, e
-  **lançamentos feitos depois da carga inicial são perdidos**. Para uso real é necessário migrar para um banco
-  gerenciado (ex.: PostgreSQL) ou usar disco persistente.
-- **Sem autenticação**: a API e o webhook estão abertos. Qualquer pessoa com a URL consegue ler ou criar lançamentos.
-- **Tipo fixo no WhatsApp**: toda mensagem recebida pelo webhook é registrada como `despesa_variavel`
-  (receitas e contas fixas devem ser lançadas pelo painel).
-- **Cold start**: no plano gratuito do Render a primeira requisição após inatividade pode levar ~30 s.
+## 🔒 Segurança e Privacidade
+
+- **Repositório Privado**: O repositório está configurado como privado no GitHub para total segurança dos seus dados e infraestrutura.
+- **Variáveis de Ambiente**: As credenciais (`DATABASE_URL`, API Keys) são injetadas estritamente via variáveis de ambiente no Render, sem exposição no código-fonte.
+
+---
+
+## ⚠️ Observações de Operação
+
+- **Cold start**: no plano gratuito do Render, caso o serviço fique inativo por muito tempo, a primeira requisição pode levar ~30s para iniciar a instância (o banco de dados permanece 100% intacto no Supabase).
+- **Classificação WhatsApp**: mensagens recebidas pelo grupo são tratadas como `despesa_variavel` (receitas e despesas fixas recorrentes podem ser gerenciadas pelo painel web).
 
 ---
 
