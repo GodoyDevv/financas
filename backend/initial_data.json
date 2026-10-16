@@ -1,0 +1,182 @@
+[
+  {
+    "tipo": "receita",
+    "valor": 1500.0,
+    "categoria": "Salário/Renda",
+    "data": "2026-11-15",
+    "descricao": "LETICIA",
+    "source": "Manual",
+    "vencimento": null
+  },
+  {
+    "tipo": "receita",
+    "valor": 2500.0,
+    "categoria": "Salário/Renda",
+    "data": "2026-10-30",
+    "descricao": "LETICIA",
+    "source": "Manual",
+    "vencimento": null
+  },
+  {
+    "tipo": "receita",
+    "valor": 760.0,
+    "categoria": "Salário/Renda",
+    "data": "2026-11-15",
+    "descricao": "BRUNO",
+    "source": "Manual",
+    "vencimento": null
+  },
+  {
+    "tipo": "receita",
+    "valor": 1100.0,
+    "categoria": "Salário/Renda",
+    "data": "2026-10-30",
+    "descricao": "BRUNO",
+    "source": "Manual",
+    "vencimento": null
+  },
+  {
+    "tipo": "receita",
+    "valor": 2400.0,
+    "categoria": "Salário/Renda",
+    "data": "2026-10-30",
+    "descricao": "BRUNO",
+    "source": "Manual",
+    "vencimento": null
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 1450.0,
+    "categoria": "Moradia (Aluguel/Condomínio)",
+    "data": "2026-10-30",
+    "descricao": "",
+    "source": "Manual",
+    "vencimento": "30"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 170.0,
+    "categoria": "Contas de Consumo (Luz/Água)",
+    "data": "2026-11-13",
+    "descricao": "",
+    "source": "Manual",
+    "vencimento": "13"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 368.0,
+    "categoria": "Educação",
+    "data": "2026-10-27",
+    "descricao": "Inglês",
+    "source": "Manual",
+    "vencimento": "27"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 100.0,
+    "categoria": "Saúde",
+    "data": "2026-10-27",
+    "descricao": "WellHub",
+    "source": "Manual",
+    "vencimento": "27"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 135.0,
+    "categoria": "Outros",
+    "data": "2026-10-27",
+    "descricao": "BOX",
+    "source": "Manual",
+    "vencimento": "27"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 88.0,
+    "categoria": "Outros",
+    "data": "2026-10-27",
+    "descricao": "BOX",
+    "source": "Manual",
+    "vencimento": "27"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 178.0,
+    "categoria": "Transporte",
+    "data": "2026-11-15",
+    "descricao": "SEGURO",
+    "source": "Manual",
+    "vencimento": "15"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 160.0,
+    "categoria": "Transporte",
+    "data": "2026-11-15",
+    "descricao": "Tag",
+    "source": "Manual",
+    "vencimento": "15"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 700.0,
+    "categoria": "Transporte",
+    "data": "2026-10-30",
+    "descricao": "Carro",
+    "source": "Manual",
+    "vencimento": "30"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 90.0,
+    "categoria": "Saúde",
+    "data": "2026-10-30",
+    "descricao": "TotalPass",
+    "source": "Manual",
+    "vencimento": "30"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 50.0,
+    "categoria": "Outros",
+    "data": "2026-11-15",
+    "descricao": "Tim",
+    "source": "Manual",
+    "vencimento": "15"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 180.0,
+    "categoria": "Outros",
+    "data": "2026-10-30",
+    "descricao": "Vivo",
+    "source": "Manual",
+    "vencimento": "30"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 200.0,
+    "categoria": "Educação",
+    "data": "2026-10-30",
+    "descricao": "Faculdade",
+    "source": "Manual",
+    "vencimento": "30"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 36.0,
+    "categoria": "Educação",
+    "data": "2026-10-30",
+    "descricao": "Gemini",
+    "source": "Manual",
+    "vencimento": "30"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 600.0,
+    "categoria": "Outros",
+    "data": "2026-10-30",
+    "descricao": "Consignado",
+    "source": "Manual",
+    "vencimento": "30"
+  }
+]

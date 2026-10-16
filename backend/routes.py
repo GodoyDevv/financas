@@ -27,7 +27,7 @@ def get_db():
     finally:
         conn.close()
 
-# Inicializa tabela com os campos necessários se não existir
+# Inicializa tabela com os campos necessários e popula dados iniciais se estiver vazia
 def init_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     cursor = conn.cursor()
@@ -44,6 +44,33 @@ def init_db():
         )
     """)
     conn.commit()
+
+    # Se o banco acabou de ser criado (ex: novo deploy ou restart na nuvem), restaura os dados
+    cursor.execute("SELECT count(*) FROM transactions")
+    count = cursor.fetchone()[0]
+    if count == 0:
+        json_path = Path(__file__).resolve().parent / "initial_data.json"
+        if json_path.exists():
+            try:
+                import json
+                with open(json_path, "r", encoding="utf-8") as f:
+                    seed_items = json.load(f)
+                for item in seed_items:
+                    cursor.execute("""
+                        INSERT INTO transactions (tipo, valor, categoria, data, descricao, source, vencimento)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        item.get("tipo"),
+                        item.get("valor"),
+                        item.get("categoria"),
+                        item.get("data"),
+                        item.get("descricao"),
+                        item.get("source", "Manual"),
+                        item.get("vencimento")
+                    ))
+                conn.commit()
+            except Exception as e:
+                pass
     conn.close()
 
 init_db()
