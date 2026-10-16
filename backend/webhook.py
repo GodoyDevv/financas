@@ -12,9 +12,10 @@ logger = logging.getLogger("fintrack.webhook")
 
 webhook_router = APIRouter(prefix="/webhook", tags=["Webhook"])
 
-# Telefones configurados via variáveis de ambiente para segurança e privacidade
+# Configuração via variáveis de ambiente
 PHONE_BRUNO = os.getenv("WHATSAPP_USER_BRUNO", "")
 PHONE_LETICIA = os.getenv("WHATSAPP_USER_LETICIA", "")
+GROUP_JID = os.getenv("WHATSAPP_GROUP_JID", "")
 
 def get_phone_users():
     mapping = {}
@@ -46,27 +47,38 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
     """
     Extrai remetente, nome do usuário e texto bruto de mensagens individuais ou de grupos
     vindos da Evolution API v1/v2.
-    Retorna (sender_phone, user_name, raw_text).
+    Filtra estritamente para aceitar APENAS mensagens do grupo do casal ou de Bruno / Letícia.
     """
     if not isinstance(payload, dict):
         return None, None, None
 
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
 
-    # 1. Trata se a mensagem foi enviada pelo próprio número que conectou
     key = data.get("key") or payload.get("key")
+    remote_jid = ""
+    if isinstance(key, dict):
+        remote_jid = key.get("remoteJid") or ""
+    if not remote_jid:
+        remote_jid = data.get("remoteJid") or payload.get("remoteJid") or ""
+
+    # Se um GROUP_JID estiver configurado, ignora qualquer mensagem de outros grupos
+    if GROUP_JID:
+        if remote_jid.endswith("@g.us") and remote_jid != GROUP_JID:
+            logger.info(f"Mensagem de outro grupo ({remote_jid}) ignorada.")
+            return None, None, None
+
+    # 1. Trata se a mensagem foi enviada pelo próprio número que conectou
     is_from_me = False
     if isinstance(key, dict) and key.get("fromMe") is True:
         is_from_me = True
 
-    # 2. Identificação do remetente real (suporta grupos @g.us e conversas diretas @s.whatsapp.net)
+    # 2. Identificação do remetente real
     sender = None
     if isinstance(key, dict):
         sender = key.get("participantAlt") or key.get("participant") or key.get("remoteJid")
     if not sender:
         sender = data.get("participantAlt") or data.get("participant") or data.get("sender") or data.get("remoteJid") or payload.get("sender")
 
-    # Se a mensagem foi enviada pelo próprio dono da conta (fromMe)
     if is_from_me:
         sender = PHONE_BRUNO or "Bruno"
 
@@ -77,13 +89,18 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
 
     user_name = identify_user_name(sender)
     
-    # Fallback inteligente pelo nome de perfil do WhatsApp
+    # Fallback inteligente pelo nome de perfil
     if user_name.startswith("WhatsApp") and push_name:
         p_clean = push_name.lower()
         if "leticia" in p_clean or "letícia" in p_clean:
             user_name = "Letícia"
         elif "bruno" in p_clean:
             user_name = "Bruno"
+
+    # Se não for Bruno nem Letícia, rejeita para evitar que terceiros lancem gastos
+    if user_name not in ["Bruno", "Letícia"]:
+        logger.warning(f"Mensagem rejeitada de remetente não autorizado: {sender} ({push_name})")
+        return None, None, None
 
     # 3. Extração do texto da mensagem
     raw_text = None
