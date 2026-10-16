@@ -88,11 +88,11 @@ def get_transactions(
     cursor = db.cursor()
     if tipo:
         cursor.execute(
-            "SELECT id, tipo, valor, categoria, data, descricao, source, vencimento FROM transactions WHERE tipo = ? ORDER BY data DESC, id DESC",
+            "SELECT id, tipo, valor, categoria, data, descricao, source, vencimento FROM transactions WHERE tipo = ? ORDER BY id DESC",
             (tipo.lower(),)
         )
     else:
-        cursor.execute("SELECT id, tipo, valor, categoria, data, descricao, source, vencimento FROM transactions ORDER BY data DESC, id DESC")
+        cursor.execute("SELECT id, tipo, valor, categoria, data, descricao, source, vencimento FROM transactions ORDER BY id DESC")
     
     rows = cursor.fetchall()
     return [dict(row) for row in rows]
