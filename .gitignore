@@ -1,41 +1,89 @@
-# Environments
-venv/
-.venv/
-env/
-ENV/
+# ==========================================
+# 🔒 1. SEGREDOS, CREDENCIAIS E VARIÁVEIS
+# ==========================================
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.cert
+*.crt
+secrets.json
 
-# Python cache & compiled files
+# ==========================================
+# 🐍 2. AMBIENTES VIRTUAIS PYTHON
+# ==========================================
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# ==========================================
+# ⚡ 3. CACHE, BYTECODE & BUILDS
+# ==========================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.pytest_cache/
-.mypy_cache/
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Databases & local persistent storage
-*.db
+# ==========================================
+# 🗄️ 4. BANCO DE DADOS & ARQUIVOS LOCAIS
+# ==========================================
+*.sqlite
 *.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
-# Environment variables & secrets
-.env
-.env.local
-*.env
+# ==========================================
+# 🧪 5. TESTES, LINT & TIPAGEM
+# ==========================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
 
-# IDEs & Editors
+# ==========================================
+# 🪵 6. LOGS & AUDITORIA LOCAL
+# ==========================================
+*.log
+logs/
+
+# ==========================================
+# 💻 7. IDES, EDITORES & SISTEMA OPERACIONAL
+# ==========================================
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS generated files
+.DS_Store
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
-.DS_Store
-
-# Logs
-*.log
-
-# Antigravity agent temp/internal files
-.agents/
