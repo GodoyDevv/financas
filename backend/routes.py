@@ -3,6 +3,7 @@ from sqlite3 import Connection
 import sqlite3
 from typing import List, Optional
 from datetime import datetime
+from pathlib import Path
 from .schemas import (
     TransactionCreate, 
     TransactionUpdate,
