@@ -12,10 +12,10 @@ logger = logging.getLogger("fintrack.webhook")
 
 webhook_router = APIRouter(prefix="/webhook", tags=["Webhook"])
 
-# Configuração via variáveis de ambiente
+# Configuração via variáveis de ambiente com fallback seguro para o grupo oficial
 PHONE_BRUNO = os.getenv("WHATSAPP_USER_BRUNO", "")
 PHONE_LETICIA = os.getenv("WHATSAPP_USER_LETICIA", "")
-GROUP_JID = os.getenv("WHATSAPP_GROUP_JID", "")
+GROUP_JID = os.getenv("WHATSAPP_GROUP_JID", "120363430461864097@g.us")
 
 def get_phone_users():
     mapping = {}
@@ -61,10 +61,15 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
     if not remote_jid:
         remote_jid = data.get("remoteJid") or payload.get("remoteJid") or ""
 
-    # Se um GROUP_JID estiver configurado, ignora qualquer mensagem de outros grupos
+    # TRAVA ESTRITA: Aceita EXCLUSIVAMENTE mensagens vindas do grupo oficial do casal
     if GROUP_JID:
-        if remote_jid.endswith("@g.us") and remote_jid != GROUP_JID:
-            logger.info(f"Mensagem de outro grupo ({remote_jid}) ignorada.")
+        if remote_jid != GROUP_JID:
+            logger.info(f"Mensagem fora do grupo oficial do FinTrack ({remote_jid}) bloqueada com sucesso.")
+            return None, None, None
+    else:
+        # Se GROUP_JID não estiver preenchido, ainda assim rejeita mensagens privadas (@s.whatsapp.net)
+        if not remote_jid.endswith("@g.us"):
+            logger.info(f"Mensagem privada fora de grupo ({remote_jid}) bloqueada.")
             return None, None, None
 
     # 1. Trata se a mensagem foi enviada pelo próprio número que conectou
