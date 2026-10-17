@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, or_
 
 from .database import get_db, engine, Base
 from .models import Transaction
@@ -25,13 +25,27 @@ Base.metadata.create_all(bind=engine)
 @router.get("/transactions", response_model=List[TransactionResponse])
 def get_transactions(
     tipo: Optional[str] = None, 
+    mes: Optional[str] = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
     db: Session = Depends(get_db)
 ):
     """
-    Retorna a lista de transações com ordenação cronológica decrescente (id decrescente).
-    Permite filtrar opcionalmente por tipo: 'receita', 'despesa_fixa' ou 'despesa_variavel'.
+    Retorna a lista de transações.
+    Se 'mes' for fornecido (ex: '2026-10'):
+      - Mantém as receitas e contas fixas recorrentes (base do orçamento doméstico).
+      - Filtra as despesas variáveis para exibir APENAS as que caem naquele mês (incluindo parcelas agendadas).
     """
     query = db.query(Transaction)
+    
+    if mes:
+        # Se filtrado por mês: receitas e despesas fixas recorrentes sempre presentes,
+        # despesas variáveis estritamente daquele mês
+        query = query.filter(
+            or_(
+                Transaction.tipo.in_(["receita", "despesa_fixa"]),
+                Transaction.data.like(f"{mes}%")
+            )
+        )
+    
     if tipo:
         query = query.filter(Transaction.tipo == tipo.lower())
     
@@ -119,12 +133,24 @@ def delete_transaction(trans_id: int, db: Session = Depends(get_db)):
     return {"message": "Transação removida com sucesso"}
 
 @router.get("/summary", response_model=FinancialSummary)
-def get_summary(db: Session = Depends(get_db)):
-    """Resumo consolidado por tipos."""
-    totals = db.query(
+def get_summary(
+    mes: Optional[str] = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
+    db: Session = Depends(get_db)
+):
+    """Resumo consolidado por tipos, opcionalmente filtrado por mês."""
+    query = db.query(
         Transaction.tipo,
         func.sum(Transaction.valor).label("total")
-    ).group_by(Transaction.tipo).all()
+    )
+    if mes:
+        query = query.filter(
+            or_(
+                Transaction.tipo.in_(["receita", "despesa_fixa"]),
+                Transaction.data.like(f"{mes}%")
+            )
+        )
+    
+    totals = query.group_by(Transaction.tipo).all()
     
     total_receitas = 0.0
     total_despesas_fixas = 0.0
@@ -152,22 +178,28 @@ def get_summary(db: Session = Depends(get_db)):
     }
 
 @router.get("/metrics", response_model=MetricsResponse)
-def get_metrics(db: Session = Depends(get_db)):
+def get_metrics(
+    mes: Optional[str] = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
+    db: Session = Depends(get_db)
+):
     """
-    Retorna métricas para Planejamento Financeiro Doméstico:
-    - receitas_totais: Entradas fixas / salários
-    - contas_fixas: Contas recorrentes (luz, água, aluguel, condomínio, assinaturas)
-    - gastos_whatsapp: Gastos do dia a dia (despesas variáveis / WhatsApp)
-    - total_despesas: contas_fixas + gastos_whatsapp
-    - saldo_livre: receitas_totais - total_despesas
-    - total_transacoes: contagem geral de registros
-    - categorias: distribuição percentual sobre as despesas totais
+    Retorna métricas para Planejamento Financeiro Doméstico (Geral ou Mensal):
+    - Se 'mes' fornecido (ex: 2026-10):
+      calcula sobre as receitas e contas fixas recorrentes + gastos/parcelas que caem naquele mês.
     """
-    totals = db.query(
+    query_totals = db.query(
         Transaction.tipo,
         func.sum(Transaction.valor).label("total"),
         func.count(Transaction.id).label("qtd")
-    ).group_by(Transaction.tipo).all()
+    )
+    if mes:
+        query_totals = query_totals.filter(
+            or_(
+                Transaction.tipo.in_(["receita", "despesa_fixa"]),
+                Transaction.data.like(f"{mes}%")
+            )
+        )
+    totals = query_totals.group_by(Transaction.tipo).all()
     
     receitas_totais = 0.0
     contas_fixas = 0.0
@@ -191,12 +223,21 @@ def get_metrics(db: Session = Depends(get_db)):
     saldo_livre = receitas_totais - total_despesas
 
     # Distribuição de despesas por categoria
-    cat_rows = db.query(
+    cat_query = db.query(
         Transaction.categoria,
         func.sum(Transaction.valor).label("total")
     ).filter(
         Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"])
-    ).group_by(
+    )
+    if mes:
+        cat_query = cat_query.filter(
+            or_(
+                Transaction.tipo == "despesa_fixa",
+                Transaction.data.like(f"{mes}%")
+            )
+        )
+    
+    cat_rows = cat_query.group_by(
         Transaction.categoria
     ).order_by(
         desc(func.sum(Transaction.valor))
@@ -227,7 +268,7 @@ def get_metrics(db: Session = Depends(get_db)):
 def parse_message(payload: MessageParseRequest):
     """
     Processa mensagens em linguagem natural (WhatsApp ou chat)
-    e infere tipo (receita, despesa_fixa, despesa_variavel), valor e categoria.
+    e infere tipo (receita, despesa_fixa, despesa_variavel), valor, categoria e parcelas.
     """
     if not payload.message or not payload.message.strip():
         raise HTTPException(status_code=400, detail="Mensagem não pode ser vazia")

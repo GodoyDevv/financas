@@ -134,6 +134,100 @@
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.5; transform: scale(0.85); }
+    /* BARRA DE PERSPECTIVA MENSAL (CALENDÁRIO) */
+    .month-navigator-bar {
+      background: var(--bg-card);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .month-nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-month-nav {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-month-nav:hover {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.4);
+      color: #93C5FD;
+    }
+
+    .month-current-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-sm);
+    }
+
+    .month-current-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.2px;
+      min-width: 170px;
+      text-align: center;
+    }
+
+    .month-picker-input {
+      background: transparent;
+      border: none;
+      color: #94A3B8;
+      font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .month-quick-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-month-pill {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-month-pill:hover, .btn-month-pill.active {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34D399;
     }
 
     /* CARDS DE PLANEJAMENTO DOMÉSTICO */
@@ -630,6 +724,41 @@
       </div>
     </header>
 
+    <!-- BARRA DE PERSPECTIVA MENSAL (CALENDÁRIO) -->
+    <div class="month-navigator-bar">
+      <div class="month-nav-controls">
+        <button class="btn-month-nav" onclick="navegarMes(-1)" title="Mês Anterior">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          Anterior
+        </button>
+
+        <div class="month-current-display">
+          <svg width="18" height="18" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span class="month-current-text" id="month-display-text">Outubro de 2026</span>
+          <input type="month" id="month-picker" class="month-picker-input" onchange="selecionarMesInput(this.value)" title="Escolher mês no calendário">
+        </div>
+
+        <button class="btn-month-nav" onclick="navegarMes(1)" title="Próximo Mês">
+          Próximo
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <div class="month-quick-actions">
+        <button class="btn-month-pill active" id="btn-mes-atual" onclick="voltarMesAtual()">Mês Atual</button>
+        <button class="btn-month-pill" id="btn-todos-meses" onclick="alternarModoGeral()">Visão Geral (Todos)</button>
+      </div>
+    </div>
+
     <!-- CARDS DE MÉTRICAS DOMÉSTICAS -->
     <div class="cards-grid">
       <div class="stat-card receita">
@@ -846,6 +975,88 @@
       : 'http://localhost:8000/api';
 
     let filtroAtual = '';
+    
+    // Controle da Perspectiva Mensal (YYYY-MM)
+    const hoje = new Date();
+    let anoAtual = hoje.getFullYear();
+    let mesAtual = hoje.getMonth() + 1; // 1 a 12
+    let modoGeral = false; // Se true, exibe a soma de todos os meses
+
+    function formatarMesAno(ano, mes) {
+      const mStr = String(mes).padStart(2, '0');
+      return `${ano}-${mStr}`;
+    }
+
+    let mesSelecionado = formatarMesAno(anoAtual, mesAtual);
+
+    const NOMES_MESES = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+
+    function atualizarDisplayMes() {
+      const displayEl = document.getElementById('month-display-text');
+      const pickerEl = document.getElementById('month-picker');
+      const btnAtual = document.getElementById('btn-mes-atual');
+      const btnGeral = document.getElementById('btn-todos-meses');
+
+      if (modoGeral) {
+        displayEl.innerText = 'Todos os Meses (Geral)';
+        pickerEl.value = '';
+        btnAtual.classList.remove('active');
+        btnGeral.classList.add('active');
+      } else {
+        const [ano, mes] = mesSelecionado.split('-').map(Number);
+        displayEl.innerText = `${NOMES_MESES[mes - 1]} de ${ano}`;
+        pickerEl.value = mesSelecionado;
+
+        const mesHojeStr = formatarMesAno(hoje.getFullYear(), hoje.getMonth() + 1);
+        if (mesSelecionado === mesHojeStr) {
+          btnAtual.classList.add('active');
+        } else {
+          btnAtual.classList.remove('active');
+        }
+        btnGeral.classList.remove('active');
+      }
+    }
+
+    function navegarMes(delta) {
+      modoGeral = false;
+      let [ano, mes] = mesSelecionado.split('-').map(Number);
+      mes += delta;
+      if (mes > 12) {
+        mes = 1;
+        ano += 1;
+      } else if (mes < 1) {
+        mes = 12;
+        ano -= 1;
+      }
+      mesSelecionado = formatarMesAno(ano, mes);
+      atualizarDisplayMes();
+      carregarDados();
+    }
+
+    function selecionarMesInput(valor) {
+      if (!valor) return;
+      modoGeral = false;
+      mesSelecionado = valor;
+      atualizarDisplayMes();
+      carregarDados();
+    }
+
+    function voltarMesAtual() {
+      modoGeral = false;
+      mesSelecionado = formatarMesAno(hoje.getFullYear(), hoje.getMonth() + 1);
+      atualizarDisplayMes();
+      carregarDados();
+    }
+
+    function alternarModoGeral() {
+      modoGeral = true;
+      atualizarDisplayMes();
+      carregarDados();
+    }
+
     document.getElementById('data').valueAsDate = new Date();
 
     function formatBRL(valor) {
@@ -909,10 +1120,18 @@
 
     async function carregarDados() {
       try {
-        const urlTrans = filtroAtual ? `${API_BASE}/transactions?tipo=${filtroAtual}` : `${API_BASE}/transactions`;
+        atualizarDisplayMes();
+
+        const params = new URLSearchParams();
+        if (filtroAtual) params.append('tipo', filtroAtual);
+        if (!modoGeral && mesSelecionado) params.append('mes', mesSelecionado);
+
+        const queryStr = params.toString() ? `?${params.toString()}` : '';
+        const metricsQuery = (!modoGeral && mesSelecionado) ? `?mes=${mesSelecionado}` : '';
+
         const [resMetrics, resTrans] = await Promise.all([
-          fetch(`${API_BASE}/metrics`),
-          fetch(urlTrans)
+          fetch(`${API_BASE}/metrics${metricsQuery}`),
+          fetch(`${API_BASE}/transactions${queryStr}`)
         ]);
 
         if (!resMetrics.ok || !resTrans.ok) {
