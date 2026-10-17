@@ -60,3 +60,4 @@ class MessageParseResponse(BaseModel):
     descricao: str
     data: str
     source: str
+    parcelas: Optional[int] = 1

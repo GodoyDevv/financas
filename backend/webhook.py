@@ -4,7 +4,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Transaction
-from .parser import parse_financial_payload, parse_text_message
+from datetime import date
+from .parser import parse_financial_payload, parse_text_message, add_months
 
 import os
 
@@ -136,7 +137,7 @@ def receive_webhook(payload: dict, db: Session = Depends(get_db)):
     """
     Processa webhooks da Evolution API e gateways WhatsApp.
     - Extrai telefone do remetente e o texto da mensagem.
-    - Executa o parser em linguagem natural (parser.py).
+    - Executa o parser em linguagem natural (parser.py) com suporte a parcelas (ex: 3 vezes, 3x).
     - Persiste com 100% de segurança no PostgreSQL / SQLite como despesa_variavel.
     """
     sender, user_name, raw_text = extract_evolution_message(payload)
@@ -165,23 +166,39 @@ def receive_webhook(payload: dict, db: Session = Depends(get_db)):
             "user": user_name
         }
 
-    # Persistência segura garantindo integridade de todos os registros
-    new_trans = Transaction(
-        tipo=parsed_data["tipo"],
-        valor=float(parsed_data["valor"]),
-        categoria=parsed_data["categoria"],
-        data=str(parsed_data["data"]),
-        descricao=parsed_data["descricao"],
-        source=parsed_data.get("source", "WhatsApp"),
-        vencimento=parsed_data.get("vencimento")
-    )
-    db.add(new_trans)
+    # Persistência segura suportando compras à vista (1x) ou parceladas (Nx mês a mês)
+    parcelas = max(1, int(parsed_data.get("parcelas", 1)))
+    base_data = date.fromisoformat(str(parsed_data["data"]))
+    created_ids = []
+
+    # Inserção das parcelas (1..N). Se N=1, gera apenas 1 registro normal
+    for i in range(parcelas):
+        parcela_data = add_months(base_data, i).isoformat()
+        if parcelas > 1:
+            desc_parcelada = f"{parsed_data['descricao']} ({i + 1}/{parcelas})"
+        else:
+            desc_parcelada = parsed_data["descricao"]
+
+        t_item = Transaction(
+            tipo=parsed_data["tipo"],
+            valor=float(parsed_data["valor"]),
+            categoria=parsed_data["categoria"],
+            data=parcela_data,
+            descricao=desc_parcelada,
+            source=parsed_data.get("source", "WhatsApp"),
+            vencimento=parsed_data.get("vencimento")
+        )
+        db.add(t_item)
+        db.flush()
+        created_ids.append(t_item.id)
+
     db.commit()
-    db.refresh(new_trans)
 
     return {
         "status": "success",
-        "id": new_trans.id,
+        "id": created_ids[0] if created_ids else None,
+        "ids": created_ids,
+        "parcelas": parcelas,
         "sender": sender,
         "transaction": parsed_data
     }
