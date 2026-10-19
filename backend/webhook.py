@@ -108,6 +108,10 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
         logger.warning(f"Mensagem rejeitada de remetente não autorizado: {sender} ({push_name})")
         return None, None, None, None
 
+    # Log de diagnóstico para identificar a Evolution API
+    instance_name = payload.get("instance") or data.get("instance")
+    logger.info(f"Webhook recebido | Instância: {instance_name} | Chaves payload: {list(payload.keys())}")
+
     # 3. Extração do texto ou áudio da mensagem
     raw_text = None
     msg_obj = data.get("message")
