@@ -28,58 +28,61 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
     # 1. Tentativa com Google Gemini Flash
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     if gemini_key:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-            b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
-            
-            clean_mime = mime_type.split(";")[0].strip() or "audio/ogg"
-            if "ogg" in clean_mime:
-                clean_mime = "audio/ogg"
-            elif "mp3" in clean_mime or "mpeg" in clean_mime:
-                clean_mime = "audio/mp3"
-            elif "m4a" in clean_mime or "mp4" in clean_mime:
-                clean_mime = "audio/mp4"
+        # Lista de modelos por ordem de preferência
+        models_to_try = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]
+        b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
+        
+        clean_mime = mime_type.split(";")[0].strip() or "audio/ogg"
+        if "ogg" in clean_mime:
+            clean_mime = "audio/ogg"
+        elif "mp3" in clean_mime or "mpeg" in clean_mime:
+            clean_mime = "audio/mp3"
+        elif "m4a" in clean_mime or "mp4" in clean_mime:
+            clean_mime = "audio/mp4"
 
-            payload = {
-                "contents": [
-                    {
-                        "parts": [
-                            {
-                                "inline_data": {
-                                    "mime_type": clean_mime,
-                                    "data": b64_audio
-                                }
-                            },
-                            {
-                                "text": (
-                                    "Você é o Atlas, secretário pessoal. Transcreva o áudio acima com fidelidade total em português do Brasil. "
-                                    "Retorne EXCLUSIVAMENTE o texto transcrito, sem introduções, aspas ou comentários adicionais."
-                                )
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "inline_data": {
+                                "mime_type": clean_mime,
+                                "data": b64_audio
                             }
-                        ]
-                    }
-                ],
-                "generationConfig": {
-                    "temperature": 0.0,
-                    "maxOutputTokens": 200
+                        },
+                        {
+                            "text": (
+                                "Você é o Atlas, secretário pessoal. Transcreva o áudio acima com fidelidade total em português do Brasil. "
+                                "Retorne EXCLUSIVAMENTE o texto transcrito, sem introduções, aspas ou comentários adicionais."
+                            )
+                        }
+                    ]
                 }
+            ],
+            "generationConfig": {
+                "temperature": 0.0,
+                "maxOutputTokens": 200
             }
+        }
 
-            with httpx.Client(timeout=25.0) as client:
-                res = client.post(url, json=payload)
-                if res.status_code == 200:
-                    data = res.json()
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        parts = candidates[0].get("content", {}).get("parts", [])
-                        if parts:
-                            text = parts[0].get("text", "").strip()
-                            logger.info(f"Atlas transcreveu áudio com sucesso via Gemini: '{text}'")
-                            return text
-                else:
-                    logger.warning(f"Falha na API Gemini para áudio ({res.status_code}): {res.text}")
-        except Exception as e:
-            logger.error(f"Erro ao transcrever áudio com Gemini: {e}")
+        for model_name in models_to_try:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
+                with httpx.Client(timeout=25.0) as client:
+                    res = client.post(url, json=payload)
+                    if res.status_code == 200:
+                        data = res.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts:
+                                text = parts[0].get("text", "").strip()
+                                logger.info(f"Atlas transcreveu áudio com sucesso via Gemini ({model_name}): '{text}'")
+                                return text
+                    else:
+                        logger.warning(f"Falha na API Gemini ({model_name}) status {res.status_code}: {res.text}")
+            except Exception as e:
+                logger.error(f"Erro ao transcrever com Gemini ({model_name}): {e}")
 
     # 2. Tentativa de Fallback com OpenAI Whisper
     openai_key = os.getenv("OPENAI_API_KEY", "")
