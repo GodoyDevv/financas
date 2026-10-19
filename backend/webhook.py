@@ -51,7 +51,7 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
     Filtra estritamente para aceitar APENAS mensagens do grupo do casal ou de Bruno / Letícia.
     """
     if not isinstance(payload, dict):
-        return None, None, None
+        return None, None, None, None
 
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
 
@@ -66,12 +66,12 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
     if GROUP_JID:
         if remote_jid != GROUP_JID:
             logger.info(f"Mensagem fora do grupo oficial do FinTrack ({remote_jid}) bloqueada com sucesso.")
-            return None, None, None
+            return None, None, None, None
     else:
         # Se GROUP_JID não estiver preenchido, ainda assim rejeita mensagens privadas (@s.whatsapp.net)
         if not remote_jid.endswith("@g.us"):
             logger.info(f"Mensagem privada fora de grupo ({remote_jid}) bloqueada.")
-            return None, None, None
+            return None, None, None, None
 
     # 1. Trata se a mensagem foi enviada pelo próprio número que conectou
     is_from_me = False
@@ -106,7 +106,7 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
     # Se não for Bruno nem Letícia, rejeita para evitar que terceiros lancem gastos
     if user_name not in ["Bruno", "Letícia"]:
         logger.warning(f"Mensagem rejeitada de remetente não autorizado: {sender} ({push_name})")
-        return None, None, None
+        return None, None, None, None
 
     # 3. Extração do texto ou áudio da mensagem
     raw_text = None
