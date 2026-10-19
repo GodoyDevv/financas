@@ -108,16 +108,47 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
         logger.warning(f"Mensagem rejeitada de remetente não autorizado: {sender} ({push_name})")
         return None, None, None
 
-    # 3. Extração do texto da mensagem
+    # 3. Extração do texto ou áudio da mensagem
     raw_text = None
     msg_obj = data.get("message")
+    
+    # 3.1 Detecção de Áudio (WhatsApp Audio / PTT / Voice Note)
+    audio_bytes = None
+    audio_mime = "audio/ogg"
+
     if isinstance(msg_obj, dict):
+        audio_msg = msg_obj.get("audioMessage")
+        if isinstance(audio_msg, dict):
+            audio_mime = audio_msg.get("mimetype") or "audio/ogg"
+            # Se a Evolution API já enviar o base64 direto (base64 ou url)
+            b64_data = audio_msg.get("base64") or data.get("base64")
+            media_url = audio_msg.get("url") or audio_msg.get("mediaUrl") or data.get("mediaUrl")
+
+            if b64_data and isinstance(b64_data, str):
+                import base64
+                try:
+                    # Remove possível prefixo data:audio/xxx;base64,
+                    if "," in b64_data:
+                        b64_data = b64_data.split(",", 1)[1]
+                    audio_bytes = base64.b64decode(b64_data)
+                except Exception as e:
+                    logger.error(f"Erro ao decodificar base64 de áudio: {e}")
+            elif media_url and isinstance(media_url, str):
+                from .atlas import download_media_from_url
+                audio_bytes = download_media_from_url(media_url)
+
         raw_text = (
             msg_obj.get("conversation")
             or (msg_obj.get("extendedTextMessage", {}).get("text") if isinstance(msg_obj.get("extendedTextMessage"), dict) else None)
             or (msg_obj.get("imageMessage", {}).get("caption") if isinstance(msg_obj.get("imageMessage"), dict) else None)
             or (msg_obj.get("videoMessage", {}).get("caption") if isinstance(msg_obj.get("videoMessage"), dict) else None)
         )
+
+    # 3.2 Se for áudio e não tiver texto direto, passa pelo Ouvido do Atlas
+    if audio_bytes and not raw_text:
+        from .atlas import transcribe_audio_bytes
+        logger.info(f"Áudio recebido de {user_name} ({len(audio_bytes)} bytes). Enviando para o Atlas transcrever...")
+        raw_text = transcribe_audio_bytes(audio_bytes, mime_type=audio_mime)
 
     if not raw_text:
         raw_text = data.get("text") or data.get("body") or payload.get("text") or payload.get("message")
@@ -129,18 +160,19 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
     else:
         raw_text = None
 
-    return sender, user_name, raw_text
+    return sender, user_name, raw_text, remote_jid
 
 @webhook_router.post("/whatsapp")
 @webhook_router.post("")
 def receive_webhook(payload: dict, db: Session = Depends(get_db)):
     """
     Processa webhooks da Evolution API e gateways WhatsApp.
-    - Extrai telefone do remetente e o texto da mensagem.
+    - Suporta Texto e Mensagens de Áudio (transcritas via Atlas).
     - Executa o parser em linguagem natural (parser.py) com suporte a parcelas (ex: 3 vezes, 3x).
     - Persiste com 100% de segurança no PostgreSQL / SQLite como despesa_variavel.
+    - Opcionalmente dispara resposta do Atlas no grupo oficial.
     """
-    sender, user_name, raw_text = extract_evolution_message(payload)
+    sender, user_name, raw_text, remote_jid = extract_evolution_message(payload)
     
     parsed_data = None
     if raw_text:
@@ -194,11 +226,38 @@ def receive_webhook(payload: dict, db: Session = Depends(get_db)):
 
     db.commit()
 
+    # Integração Atlas: Prepara e opcionalmente dispara a confirmação no WhatsApp
+    from .atlas import format_atlas_confirmation, send_whatsapp_message
+    from .routes import calculate_metrics
+
+    # Calcula saldo livre atualizado do mês da transação
+    saldo_atualizado = None
+    try:
+        mes_iso = base_data.strftime("%Y-%m")
+        metrics = calculate_metrics(db, mes_filtro=mes_iso)
+        saldo_atualizado = metrics.get("saldo_livre")
+    except Exception as e:
+        logger.debug(f"Não foi possível calcular saldo para o Atlas: {e}")
+
+    atlas_reply = format_atlas_confirmation(
+        user_name=user_name,
+        item_desc=parsed_data['descricao'],
+        valor=float(parsed_data['valor']),
+        parcelas=parcelas,
+        saldo_livre=saldo_atualizado
+    )
+
+    # Dispara no WhatsApp se a Evolution API estiver configurada
+    if remote_jid:
+        send_whatsapp_message(remote_jid, atlas_reply)
+
     return {
         "status": "success",
         "id": created_ids[0] if created_ids else None,
         "ids": created_ids,
         "parcelas": parcelas,
         "sender": sender,
+        "user": user_name,
+        "atlas_response": atlas_reply,
         "transaction": parsed_data
     }
