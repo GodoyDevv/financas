@@ -123,14 +123,46 @@ def update_transaction(
     return existing
 
 @router.delete("/transactions/{trans_id}")
-def delete_transaction(trans_id: int, db: Session = Depends(get_db)):
-    """Remove uma transação pelo seu ID."""
+def delete_transaction(
+    trans_id: int,
+    todas_parcelas: bool = Query(False, description="Se True, remove todas as parcelas associadas ao mesmo item"),
+    db: Session = Depends(get_db)
+):
+    """
+    Remove uma transação pelo seu ID.
+    Se 'todas_parcelas=True' e a descrição tiver padrão de parcelamento 'Item (X/N)',
+    remove todas as parcelas 'Item (1/N)'..'(N/N)' daquele grupo.
+    """
+    import re
     existing = db.query(Transaction).filter(Transaction.id == trans_id).first()
     if not existing:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
+
+    deleted_count = 1
+    if todas_parcelas and existing.descricao:
+        match = re.match(r"^(.*?)\s*\(\d+/(\d+)\)\s*$", existing.descricao.strip())
+        if match:
+            base_desc = match.group(1).strip()
+            total_n = match.group(2)
+            pattern = f"{base_desc} (%/{total_n})"
+            sibling_rows = db.query(Transaction).filter(
+                Transaction.tipo == existing.tipo,
+                Transaction.valor == existing.valor,
+                Transaction.descricao.like(pattern)
+            ).all()
+            if sibling_rows:
+                deleted_count = len(sibling_rows)
+                for row in sibling_rows:
+                    db.delete(row)
+                db.commit()
+                return {
+                    "message": f"{deleted_count} parcelas de '{base_desc}' removidas com sucesso",
+                    "deleted_count": deleted_count
+                }
+
     db.delete(existing)
     db.commit()
-    return {"message": "Transação removida com sucesso"}
+    return {"message": "Transação removida com sucesso", "deleted_count": deleted_count}
 
 @router.get("/summary", response_model=FinancialSummary)
 def get_summary(
