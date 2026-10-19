@@ -28,8 +28,8 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
     # 1. Tentativa com Google Gemini Flash
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     if gemini_key:
-        # Lista de modelos por ordem de preferência (Gemini 3.8 Flash é o padrão ativo)
-        models_to_try = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]
+        # Lista de modelos: gemini-3.5-flash-lite (sem overhead de thinking) + gemini-3.8-flash (com thinkingBudget=0)
+        models_to_try = ["gemini-3.5-flash-lite", "gemini-3.8-flash"]
         b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
         
         clean_mime = mime_type.split(";")[0].strip() or "audio/ogg"
@@ -40,33 +40,38 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
         elif "m4a" in clean_mime or "mp4" in clean_mime:
             clean_mime = "audio/mp4"
 
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "inline_data": {
-                                "mime_type": clean_mime,
-                                "data": b64_audio
-                            }
-                        },
-                        {
-                            "text": (
-                                "Você é o Atlas, secretário pessoal. Transcreva o áudio acima com fidelidade total em português do Brasil. "
-                                "Retorne EXCLUSIVAMENTE o texto transcrito, sem introduções, aspas ou comentários adicionais."
-                            )
-                        }
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.0,
-                "maxOutputTokens": 200
-            }
-        }
-
         for model_name in models_to_try:
             try:
+                gen_config = {
+                    "temperature": 0.0,
+                    "maxOutputTokens": 1024
+                }
+                if "3.8" in model_name:
+                    gen_config["thinkingConfig"] = {"thinkingBudget": 0}
+
+                payload = {
+                    "contents": [
+                        {
+                            "parts": [
+                                {
+                                    "inline_data": {
+                                        "mime_type": clean_mime,
+                                        "data": b64_audio
+                                    }
+                                },
+                                {
+                                    "text": (
+                                        "Você é o Atlas, secretário pessoal. Transcreva o áudio acima com fidelidade total em português do Brasil. "
+                                        "Sempre escreva valores e números de parcelas em algarismos numéricos (ex: 200, 4 vezes). "
+                                        "Retorne EXCLUSIVAMENTE o texto transcrito, sem introduções, aspas ou comentários adicionais."
+                                    )
+                                }
+                            ]
+                        }
+                    ],
+                    "generationConfig": gen_config
+                }
+
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
                 with httpx.Client(timeout=25.0) as client:
                     res = client.post(url, json=payload)

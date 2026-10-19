@@ -73,18 +73,53 @@ def parse_text_message(message: str) -> dict:
     else:
         tipo = "despesa_variavel"
 
-    # 2. Detecção de Parcelamento ('3 vezes', '3x', 'em 3x', '3 parcelas')
+    # 2. Detecção de Parcelamento ('3 vezes', '3x', 'em quatro vezes', '10 parcelas')
+    # Converte numerais por extenso (comuns em transcrição de voz) antes de checar parcelas
+    extenso_map = {
+        "uma": "1", "um": "1",
+        "duas": "2", "dois": "2",
+        "três": "3", "tres": "3",
+        "quatro": "4",
+        "cinco": "5",
+        "seis": "6",
+        "sete": "7",
+        "oito": "8",
+        "nove": "9",
+        "dez": "10",
+        "onze": "11",
+        "doze": "12",
+        "quinze": "15",
+        "dezoito": "18",
+        "vinte e quatro": "24",
+        "vinte": "20",
+        "trinta e seis": "36",
+        "quarenta e oito": "48"
+    }
+
+    normalized_msg = clean_msg
+    for word, digit in sorted(extenso_map.items(), key=lambda x: -len(x[0])):
+        normalized_msg = re.sub(
+            rf'\b{word}\b(?=\s*(?:x|vezes|parcelas|parcela)\b)',
+            digit,
+            normalized_msg,
+            flags=re.IGNORECASE
+        )
+
     parcelas = 1
-    # Captura padrão como '3 vezes', '3x', 'em 5x', '10 parcelas'
-    p_match = re.search(r'(?:em\s+)?(\d{1,2})\s*(?:x|vezes|parcelas)\b', clean_msg, re.IGNORECASE)
-    msg_cleaned = clean_msg
+    # Captura padrão como '3 vezes', '3x', 'em 5x', '10 parcelas', 'parcelado em 4 vezes'
+    p_match = re.search(
+        r'(?:parcelado\s+em\s+|dividido\s+em\s+|em\s+)?(\d{1,2})\s*(?:x|vezes|parcelas|parcela)\b',
+        normalized_msg,
+        re.IGNORECASE
+    )
+    msg_cleaned = normalized_msg
     if p_match:
         try:
             qtd = int(p_match.group(1))
             if 1 <= qtd <= 60:
                 parcelas = qtd
                 # Remove o trecho de parcelas para isolar valor e descrição
-                msg_cleaned = clean_msg[:p_match.start()] + clean_msg[p_match.end():]
+                msg_cleaned = normalized_msg[:p_match.start()] + normalized_msg[p_match.end():]
         except ValueError:
             parcelas = 1
 
@@ -106,10 +141,10 @@ def parse_text_message(message: str) -> dict:
     categoria = "Outros"
     
     categories_map = {
-        "Alimentação": ["almoço", "almoco", "jantar", "café", "cafe", "restaurante", "ifood", "lanche", "mercado", "supermercado", "padaria", "pizza", "hamburguer", "feira"],
-        "Transporte": ["uber", "99", "gasolina", "combustivel", "combustível", "estacionamento", "onibus", "ônibus", "metro", "metrô", "pedágio", "pedagio"],
+        "Alimentação": ["almoço", "almoco", "jantar", "café", "cafe", "restaurante", "ifood", "lanche", "mercado", "supermercado", "padaria", "pizza", "hamburguer", "feira", "açougue", "acougue"],
+        "Transporte": ["uber", "99", "gasolina", "combustivel", "combustível", "estacionamento", "onibus", "ônibus", "metro", "metrô", "pedágio", "pedagio", "carro", "oficina", "mecânico", "mecanico", "pneu", "óleo", "oleo"],
         "Moradia": ["aluguel", "condomínio", "condominio", "energia", "enel", "luz", "agua", "água", "internet", "iptu", "gas", "gás"],
-        "Lazer": ["cinema", "streaming", "netflix", "spotify", "show", "viagem", "bar", "cerveja", "jogos", "game"],
+        "Lazer": ["cinema", "streaming", "netflix", "spotify", "show", "viagem", "bar", "cerveja", "jogos", "game", "passeio"],
         "Saúde": ["farmácia", "farmacia", "remedio", "remédio", "consulta", "médico", "medico", "exame", "hospital", "dentista", "plano"],
         "Salário/Renda": ["salário", "salario", "freela", "rendimento", "dividendo", "pro-labore", "pró-labore", "bonificação", "comissão"]
     }

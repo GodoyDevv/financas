@@ -44,23 +44,42 @@ def identify_user_name(phone: Optional[str]) -> str:
             return name
     return f"WhatsApp ({phone})"
 
-def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+# Cache em memória para deduplicação de IDs de mensagens do WhatsApp (evita reprocessamento de eventos duplicados)
+PROCESSED_MESSAGE_IDS = set()
+
+def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
     """
-    Extrai remetente, nome do usuário e texto bruto de mensagens individuais ou de grupos
+    Extrai remetente, nome do usuário, texto bruto e remote_jid de mensagens individuais ou de grupos
     vindos da Evolution API v1/v2.
     Filtra estritamente para aceitar APENAS mensagens do grupo do casal ou de Bruno / Letícia.
     """
     if not isinstance(payload, dict):
         return None, None, None, None
 
+    # Se a Evolution API enviar o tipo do evento, processamos apenas novas mensagens (messages.upsert)
+    event_type = payload.get("event")
+    if event_type and event_type not in ["messages.upsert", "MESSAGES_UPSERT", "send.message"]:
+        return None, None, None, None
+
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
 
     key = data.get("key") or payload.get("key")
     remote_jid = ""
+    msg_id = None
     if isinstance(key, dict):
         remote_jid = key.get("remoteJid") or ""
+        msg_id = key.get("id")
     if not remote_jid:
         remote_jid = data.get("remoteJid") or payload.get("remoteJid") or ""
+
+    # Deduplicação por ID da mensagem para não transcrever nem lançar duas vezes o mesmo áudio/texto
+    if msg_id:
+        if msg_id in PROCESSED_MESSAGE_IDS:
+            logger.info(f"Mensagem {msg_id} já processada anteriormente. Ignorando evento duplicado.")
+            return None, None, None, None
+        PROCESSED_MESSAGE_IDS.add(msg_id)
+        if len(PROCESSED_MESSAGE_IDS) > 500:
+            PROCESSED_MESSAGE_IDS.clear()
 
     # TRAVA ESTRITA: Aceita EXCLUSIVAMENTE mensagens vindas do grupo oficial do casal
     if GROUP_JID:
