@@ -680,9 +680,11 @@
       transition: width 0.5s ease;
     }
 
-    /* TABLE */
+    /* TABLE & INTERACTIVE COLUMN FILTERS (Dark Glass Faceted Filters) */
     .table-container {
       overflow-x: auto;
+      min-height: 280px;
+      padding-bottom: 12px;
     }
 
     table {
@@ -699,8 +701,291 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 14px 16px;
+      padding: 12px 14px;
       border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+      user-select: none;
+    }
+
+    .th-filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 5px 8px;
+      margin: -5px -8px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .th-filter-btn:hover, .th-filter-btn.open {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+    }
+
+    .th-filter-btn.filtered {
+      background: rgba(59, 130, 246, 0.16);
+      border-color: rgba(59, 130, 246, 0.4);
+      color: #93C5FD;
+    }
+
+    .th-filter-icon {
+      width: 12px;
+      height: 12px;
+      opacity: 0.65;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .th-filter-btn:hover .th-filter-icon,
+    .th-filter-btn.filtered .th-filter-icon {
+      opacity: 1;
+    }
+
+    .th-filter-badge {
+      background: var(--accent-blue);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 999px;
+      line-height: 1.2;
+    }
+
+    /* BARRA DE FILTROS ATIVOS E SUMÁRIO INSTANTÂNEO */
+    .active-filters-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+    }
+
+    .active-filters-bar.visible {
+      display: flex;
+    }
+
+    .active-chips-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(59, 130, 246, 0.14);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      color: #93C5FD;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .filter-chip button {
+      background: transparent;
+      border: none;
+      color: #93C5FD;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+      padding: 0 2px;
+      opacity: 0.75;
+    }
+
+    .filter-chip button:hover {
+      opacity: 1;
+      color: #fff;
+    }
+
+    .btn-clear-all-filters {
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #F87171;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-clear-all-filters:hover {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fff;
+    }
+
+    .filtered-summary-pills {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .filtered-summary-pills strong {
+      color: var(--text-main);
+    }
+
+    /* POPOVER GLOBAL FLUTUANTE DE FILTRO DE COLUNA */
+    .col-filter-popover {
+      position: fixed;
+      width: 260px;
+      background: rgba(15, 23, 42, 0.97);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 13px;
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.68), 0 0 1px rgba(255, 255, 255, 0.2);
+      padding: 12px;
+      z-index: 2500;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px) scale(0.97);
+      transition: opacity 0.16s ease, transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .col-filter-popover.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .col-filter-search {
+      width: 100%;
+      background: rgba(11, 15, 25, 0.85);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      margin-bottom: 8px;
+      outline: none;
+    }
+
+    .col-filter-search:focus {
+      border-color: var(--border-focus);
+    }
+
+    .col-filter-list {
+      max-height: 210px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding-right: 2px;
+    }
+
+    .col-filter-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 9px;
+      border-radius: 7px;
+      font-size: 12.5px;
+      color: #CBD5E1;
+      cursor: pointer;
+      transition: background 0.14s ease;
+    }
+
+    .col-filter-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+    }
+
+    .col-filter-item.selected {
+      background: rgba(59, 130, 246, 0.16);
+      color: #93C5FD;
+      font-weight: 600;
+    }
+
+    .col-filter-item-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .col-filter-check {
+      width: 15px;
+      height: 15px;
+      border-radius: 4px;
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+      color: transparent;
+      transition: all 0.14s ease;
+    }
+
+    .col-filter-item.selected .col-filter-check {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: #fff;
+    }
+
+    .col-filter-count {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 1px 6px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    .col-filter-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .col-filter-footer button {
+      background: transparent;
+      border: none;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .btn-col-clear {
+      color: #F87171;
+    }
+
+    .btn-col-clear:hover {
+      background: rgba(239, 68, 68, 0.12);
+    }
+
+    .btn-col-done {
+      color: #60A5FA;
+      background: rgba(59, 130, 246, 0.12) !important;
+    }
+
+    .btn-col-done:hover {
+      background: rgba(59, 130, 246, 0.22) !important;
     }
 
     td {
@@ -1227,17 +1512,79 @@
         </div>
       </div>
 
+      <!-- BARRA DE FILTROS ATIVOS E CONSOLIDAÇÃO RÁPIDA -->
+      <div class="active-filters-bar" id="active-filters-bar">
+        <div class="active-chips-group" id="active-chips-group"></div>
+        <div class="filtered-summary-pills" id="filtered-summary-pills"></div>
+      </div>
+
       <div class="table-container">
         <table>
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Tipo</th>
-              <th>Categoria</th>
-              <th>Descrição</th>
-              <th>Vencimento</th>
-              <th>Origem</th>
-              <th>Valor</th>
+              <th>
+                <button type="button" class="th-filter-btn" id="th-btn-data" onclick="abrirFiltroColuna('data', this, event)" title="Filtrar por Data">
+                  <span>Data</span>
+                  <span class="th-filter-badge" id="th-badge-data" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="th-filter-btn" id="th-btn-tipo" onclick="abrirFiltroColuna('tipo', this, event)" title="Filtrar por Tipo">
+                  <span>Tipo</span>
+                  <span class="th-filter-badge" id="th-badge-tipo" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="th-filter-btn" id="th-btn-categoria" onclick="abrirFiltroColuna('categoria', this, event)" title="Filtrar por Categoria">
+                  <span>Categoria</span>
+                  <span class="th-filter-badge" id="th-badge-categoria" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="th-filter-btn" id="th-btn-descricao" onclick="abrirFiltroColuna('descricao', this, event)" title="Filtrar por Descrição (ex: Gasolina, Uber, Almoço)">
+                  <span>Descrição</span>
+                  <span class="th-filter-badge" id="th-badge-descricao" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="th-filter-btn" id="th-btn-vencimento" onclick="abrirFiltroColuna('vencimento', this, event)" title="Filtrar por Vencimento">
+                  <span>Vencimento</span>
+                  <span class="th-filter-badge" id="th-badge-vencimento" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="th-filter-btn" id="th-btn-source" onclick="abrirFiltroColuna('source', this, event)" title="Filtrar por Origem (ex: Bruno, Letícia, Manual)">
+                  <span>Origem</span>
+                  <span class="th-filter-badge" id="th-badge-source" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="th-filter-btn" id="th-btn-valor" onclick="abrirFiltroColuna('valor', this, event)" title="Filtrar ou Ordenar por Valor">
+                  <span>Valor</span>
+                  <span class="th-filter-badge" id="th-badge-valor" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
+              </th>
               <th style="text-align: right;">Ação</th>
             </tr>
           </thead>
@@ -1285,6 +1632,16 @@
           Cancelar
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- POPOVER FLUTUANTE DE FILTRO POR COLUNA (ESTILO LINEAR / NOTION) -->
+  <div class="col-filter-popover" id="col-filter-popover" onclick="event.stopPropagation()">
+    <input type="text" class="col-filter-search" id="col-filter-search" placeholder="Buscar opção..." oninput="filtrarOpcoesColuna(this.value)">
+    <div class="col-filter-list" id="col-filter-list"></div>
+    <div class="col-filter-footer">
+      <button type="button" class="btn-col-clear" onclick="limparFiltroColunaAberta()">Limpar coluna</button>
+      <button type="button" class="btn-col-done" onclick="fecharPopoverColuna()">Concluído</button>
     </div>
   </div>
 
@@ -1601,50 +1958,8 @@
         // 3. Renderização dos Gráficos Chart.js
         atualizarGraficos(metrics, trans);
 
-        // 4. Renderização da Tabela de Transações
-        const tbody = document.getElementById('tabela-corpo');
-        if (trans && trans.length > 0) {
-          tbody.innerHTML = trans.map(t => `
-            <tr>
-              <td>${formatDateBR(t.data)}</td>
-              <td>${badgeTipo(t.tipo)}</td>
-              <td>${t.categoria}</td>
-              <td>${t.descricao || '-'}</td>
-              <td>${t.vencimento ? `<strong>${t.vencimento}</strong>` : '-'}</td>
-              <td><span class="badge-source">${t.source || 'Manual'}</span></td>
-              <td class="${classValor(t.tipo)}">
-                ${sinalValor(t.tipo)} ${formatBRL(t.valor)}
-              </td>
-              <td style="text-align: right;">
-                <div class="actions-cell">
-                  <button class="btn-edit" onclick="iniciarEdicao(${t.id})" title="Editar este lançamento">
-                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    Editar
-                  </button>
-                  <button class="btn-delete" onclick="deletar(${t.id})" title="Excluir este lançamento">Excluir</button>
-                </div>
-              </td>
-            </tr>
-          `).join('');
-        } else {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="8">
-                <div class="empty-state">
-                  <svg class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
-                  </svg>
-                  <h4>Nenhum registro encontrado</h4>
-                  <p>A base está limpa. Adicione um lançamento para começar.</p>
-                </div>
-              </td>
-            </tr>
-          `;
-        }
+        // 4. Renderização da Tabela de Transações (com suporte a filtros de coluna modernos)
+        renderizarTabelaHistorico();
 
         document.getElementById('status-text').innerText = 'Base Conectada';
       } catch (err) {
@@ -1652,6 +1967,335 @@
         document.getElementById('status-text').innerText = 'Backend Desconectado';
         document.getElementById('api-status').style.borderColor = 'rgba(239, 68, 68, 0.4)';
         document.getElementById('api-status').style.color = '#F87171';
+      }
+    }
+
+    // =========================================================================
+    // SISTEMA MODERNO DE FILTROS FACETADOS POR COLUNA (LINEAR / NOTION STYLE)
+    // =========================================================================
+    const filtrosColuna = {
+      data: new Set(),
+      tipo: new Set(),
+      categoria: new Set(),
+      descricao: new Set(),
+      vencimento: new Set(),
+      source: new Set(),
+      valor: new Set()
+    };
+
+    const NOMES_COLUNAS = {
+      data: 'Data',
+      tipo: 'Tipo',
+      categoria: 'Categoria',
+      descricao: 'Descrição',
+      vencimento: 'Vencimento',
+      source: 'Origem',
+      valor: 'Valor'
+    };
+
+    let colunaPopoverAtual = null;
+
+    function obterValorColuna(t, col) {
+      switch (col) {
+        case 'data':
+          return formatDateBR(t.data);
+        case 'tipo':
+          return t.tipo === 'receita' ? 'Receita' : (t.tipo === 'despesa_fixa' ? 'Conta Fixa' : 'Variável (Chat)');
+        case 'categoria':
+          return t.categoria || 'Outros';
+        case 'descricao': {
+          // Agrupa parcelas como "Carro (1/4)" sob "Carro" para permitir filtrar o item inteiro de uma vez, mantendo descrições normais intactas
+          const raw = (t.descricao || 'Sem descrição').trim();
+          const limpo = raw.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
+          return limpo || raw;
+        }
+        case 'vencimento':
+          return t.vencimento ? String(t.vencimento) : 'Sem vencimento';
+        case 'source':
+          return t.source || 'Manual';
+        case 'valor':
+          return formatBRL(t.valor);
+        default:
+          return '';
+      }
+    }
+
+    function abrirFiltroColuna(col, btnEl, event) {
+      if (event) event.stopPropagation();
+      const popover = document.getElementById('col-filter-popover');
+
+      if (colunaPopoverAtual === col && popover.classList.contains('open')) {
+        fecharPopoverColuna();
+        return;
+      }
+
+      colunaPopoverAtual = col;
+      const searchInput = document.getElementById('col-filter-search');
+      searchInput.placeholder = `Buscar em ${NOMES_COLUNAS[col] || col}...`;
+      searchInput.value = '';
+
+      renderizarOpcoesPopover(col, '');
+
+      // Posicionamento inteligente próximo ao cabeçalho clicado
+      popover.classList.add('open');
+      const rect = btnEl.getBoundingClientRect();
+      const popWidth = 265;
+      let left = rect.left;
+      if (left + popWidth > window.innerWidth - 16) {
+        left = Math.max(16, window.innerWidth - popWidth - 16);
+      }
+      let top = rect.bottom + 8;
+      if (top + 320 > window.innerHeight) {
+        top = Math.max(16, rect.top - 320);
+      }
+
+      popover.style.left = `${left}px`;
+      popover.style.top = `${top}px`;
+
+      setTimeout(() => searchInput.focus(), 40);
+    }
+
+    function renderizarOpcoesPopover(col, termoBusca = '') {
+      const listEl = document.getElementById('col-filter-list');
+      const trans = window._transacoesAtuais || [];
+
+      // Calcula contagem e soma de valor para cada opção única da coluna
+      // Considerando os filtros já ativos nas OUTRAS colunas para experiência facetada real
+      const baseFiltradaOutrasColunas = trans.filter(t => {
+        for (const [cKey, setValores] of Object.entries(filtrosColuna)) {
+          if (cKey === col || setValores.size === 0) continue;
+          if (!setValores.has(obterValorColuna(t, cKey))) return false;
+        }
+        return true;
+      });
+
+      const mapaOpcoes = new Map();
+      baseFiltradaOutrasColunas.forEach(t => {
+        const val = obterValorColuna(t, col);
+        if (!mapaOpcoes.has(val)) {
+          mapaOpcoes.set(val, { count: 0, sum: 0 });
+        }
+        const info = mapaOpcoes.get(val);
+        info.count += 1;
+        info.sum += Number(t.valor || 0);
+      });
+
+      // Garante que opções já selecionadas continuem visíveis mesmo se count=0
+      filtrosColuna[col].forEach(valSel => {
+        if (!mapaOpcoes.has(valSel)) {
+          mapaOpcoes.set(valSel, { count: 0, sum: 0 });
+        }
+      });
+
+      const termo = termoBusca.trim().toLowerCase();
+      let opcoes = Array.from(mapaOpcoes.entries())
+        .filter(([val]) => !termo || val.toLowerCase().includes(termo));
+
+      // Ordenação amigável: selecionados no topo, depois por maior frequência/data
+      opcoes.sort((a, b) => {
+        const aSel = filtrosColuna[col].has(a[0]);
+        const bSel = filtrosColuna[col].has(b[0]);
+        if (aSel !== bSel) return aSel ? -1 : 1;
+        return b[1].count - a[1].count;
+      });
+
+      if (opcoes.length === 0) {
+        listEl.innerHTML = `<div class="col-filter-empty">Nenhuma opção encontrada</div>`;
+        return;
+      }
+
+      listEl.innerHTML = opcoes.map(([val, info]) => {
+        const isSelected = filtrosColuna[col].has(val);
+        const safeVal = val.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `
+          <div class="col-filter-item ${isSelected ? 'selected' : ''}" onclick="alternarOpcaoFiltro('${col}', '${safeVal}')">
+            <div class="col-filter-checkbox">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <span class="col-filter-label" title="${val.replace(/"/g, '&quot;')}">${val}</span>
+            <span class="col-filter-count" title="Soma desta opção: ${formatBRL(info.sum)}">${info.count}x &middot; ${formatBRL(info.sum)}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filtrarOpcoesColuna(valorBusca) {
+      if (!colunaPopoverAtual) return;
+      renderizarOpcoesPopover(colunaPopoverAtual, valorBusca);
+    }
+
+    function alternarOpcaoFiltro(col, val) {
+      if (!filtrosColuna[col]) return;
+      if (filtrosColuna[col].has(val)) {
+        filtrosColuna[col].delete(val);
+      } else {
+        filtrosColuna[col].add(val);
+      }
+      const searchVal = document.getElementById('col-filter-search')?.value || '';
+      renderizarOpcoesPopover(col, searchVal);
+      renderizarTabelaHistorico();
+    }
+
+    function limparFiltroColunaAberta() {
+      if (!colunaPopoverAtual) return;
+      filtrosColuna[colunaPopoverAtual].clear();
+      const searchVal = document.getElementById('col-filter-search')?.value || '';
+      renderizarOpcoesPopover(colunaPopoverAtual, searchVal);
+      renderizarTabelaHistorico();
+    }
+
+    function removerFiltroIndividual(col, val) {
+      if (filtrosColuna[col]) {
+        filtrosColuna[col].delete(val);
+        renderizarTabelaHistorico();
+        if (colunaPopoverAtual === col) {
+          const searchVal = document.getElementById('col-filter-search')?.value || '';
+          renderizarOpcoesPopover(col, searchVal);
+        }
+      }
+    }
+
+    function limparTodosFiltrosColuna() {
+      Object.values(filtrosColuna).forEach(set => set.clear());
+      fecharPopoverColuna();
+      renderizarTabelaHistorico();
+    }
+
+    function fecharPopoverColuna() {
+      const popover = document.getElementById('col-filter-popover');
+      if (popover) popover.classList.remove('open');
+      colunaPopoverAtual = null;
+    }
+
+    // Fecha o popover ao clicar fora ou apertar ESC
+    document.addEventListener('click', (e) => {
+      const popover = document.getElementById('col-filter-popover');
+      if (popover && popover.classList.contains('open')) {
+        if (!popover.contains(e.target) && !e.target.closest('.th-filter-btn')) {
+          fecharPopoverColuna();
+        }
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        fecharPopoverColuna();
+        if (typeof fecharModalExclusao === 'function') fecharModalExclusao();
+      }
+    });
+
+    function renderizarTabelaHistorico() {
+      const trans = window._transacoesAtuais || [];
+      const tbody = document.getElementById('tabela-corpo');
+
+      // Atualiza estado visual dos botões de cabeçalho (badges e destaque azul)
+      let totalFiltrosAtivos = 0;
+      for (const [col, setValores] of Object.entries(filtrosColuna)) {
+        const btn = document.getElementById(`th-btn-${col}`);
+        const badge = document.getElementById(`th-badge-${col}`);
+        if (btn && badge) {
+          if (setValores.size > 0) {
+            totalFiltrosAtivos += setValores.size;
+            btn.classList.add('active');
+            badge.style.display = 'inline-flex';
+            badge.innerText = setValores.size;
+          } else {
+            btn.classList.remove('active');
+            badge.style.display = 'none';
+          }
+        }
+      }
+
+      // Filtra as transações conforme as seleções em cada coluna
+      const filtradas = trans.filter(t => {
+        for (const [col, setValores] of Object.entries(filtrosColuna)) {
+          if (setValores.size === 0) continue;
+          const valTrans = obterValorColuna(t, col);
+          if (!setValores.has(valTrans)) return false;
+        }
+        return true;
+      });
+
+      // Atualiza a barra de Chips de Filtros Ativos + Resumo Instantâneo (Quantas vezes e Valor Total)
+      const barEl = document.getElementById('active-filters-bar');
+      const chipsGroup = document.getElementById('active-chips-group');
+      const summaryPills = document.getElementById('filtered-summary-pills');
+
+      if (totalFiltrosAtivos > 0) {
+        barEl.classList.add('visible');
+        let chipsHtml = `<span class="active-filters-label">Filtros ativos:</span>`;
+
+        for (const [col, setValores] of Object.entries(filtrosColuna)) {
+          setValores.forEach(val => {
+            const safeVal = val.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            chipsHtml += `
+              <span class="filter-chip">
+                <span class="filter-chip-col">${NOMES_COLUNAS[col]}:</span>
+                <strong>${val}</strong>
+                <button type="button" class="filter-chip-remove" onclick="removerFiltroIndividual('${col}', '${safeVal}')" title="Remover filtro">&times;</button>
+              </span>
+            `;
+          });
+        }
+
+        chipsHtml += `<button type="button" class="btn-clear-all-filters" onclick="limparTodosFiltrosColuna()">Limpar todos</button>`;
+        chipsGroup.innerHTML = chipsHtml;
+
+        const somaFiltrada = filtradas.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+        summaryPills.innerHTML = `
+          <span class="summary-pill">Frequência: <strong>${filtradas.length}x</strong></span>
+          <span class="summary-pill highlight">Total filtrado: <strong>${formatBRL(somaFiltrada)}</strong></span>
+        `;
+      } else {
+        barEl.classList.remove('visible');
+        chipsGroup.innerHTML = '';
+        summaryPills.innerHTML = '';
+      }
+
+      // Renderiza as linhas na tabela
+      if (filtradas.length > 0) {
+        tbody.innerHTML = filtradas.map(t => `
+          <tr>
+            <td>${formatDateBR(t.data)}</td>
+            <td>${badgeTipo(t.tipo)}</td>
+            <td>${t.categoria}</td>
+            <td>${t.descricao || '-'}</td>
+            <td>${t.vencimento ? `<strong>${t.vencimento}</strong>` : '-'}</td>
+            <td><span class="badge-source">${t.source || 'Manual'}</span></td>
+            <td class="${classValor(t.tipo)}">
+              ${sinalValor(t.tipo)} ${formatBRL(t.valor)}
+            </td>
+            <td style="text-align: right;">
+              <div class="actions-cell">
+                <button class="btn-edit" onclick="iniciarEdicao(${t.id})" title="Editar este lançamento">
+                  <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  Editar
+                </button>
+                <button class="btn-delete" onclick="deletar(${t.id})" title="Excluir este lançamento">Excluir</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } else {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8">
+              <div class="empty-state">
+                <svg class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
+                <h4>${totalFiltrosAtivos > 0 ? 'Nenhum registro corresponde aos filtros selecionados' : 'Nenhum registro encontrado'}</h4>
+                <p>${totalFiltrosAtivos > 0 ? 'Experimente remover um dos filtros ativos acima.' : 'A base está limpa. Adicione um lançamento para começar.'}</p>
+              </div>
+            </td>
+          </tr>
+        `;
       }
     }
 
