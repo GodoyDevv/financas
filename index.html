@@ -859,6 +859,7 @@
       transition: opacity 0.16s ease, transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    .col-filter-popover.open,
     .col-filter-popover.active {
       opacity: 1;
       pointer-events: auto;
@@ -2109,12 +2110,14 @@
         const safeVal = val.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         return `
           <div class="col-filter-item ${isSelected ? 'selected' : ''}" onclick="alternarOpcaoFiltro('${col}', '${safeVal}')">
-            <div class="col-filter-checkbox">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
+            <div class="col-filter-item-left">
+              <div class="col-filter-check">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <span class="col-filter-label" title="${val.replace(/"/g, '&quot;')}">${val}</span>
             </div>
-            <span class="col-filter-label" title="${val.replace(/"/g, '&quot;')}">${val}</span>
             <span class="col-filter-count" title="Soma desta opção: ${formatBRL(info.sum)}">${info.count}x &middot; ${formatBRL(info.sum)}</span>
           </div>
         `;
