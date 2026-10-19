@@ -228,14 +228,17 @@ def receive_webhook(payload: dict, db: Session = Depends(get_db)):
 
     # Integração Atlas: Prepara e opcionalmente dispara a confirmação no WhatsApp
     from .atlas import format_atlas_confirmation, send_whatsapp_message
-    from .routes import calculate_metrics
+    from .routes import get_metrics
 
     # Calcula saldo livre atualizado do mês da transação
     saldo_atualizado = None
     try:
         mes_iso = base_data.strftime("%Y-%m")
-        metrics = calculate_metrics(db, mes_filtro=mes_iso)
-        saldo_atualizado = metrics.get("saldo_livre")
+        metrics = get_metrics(mes=mes_iso, db=db)
+        if isinstance(metrics, dict):
+            saldo_atualizado = metrics.get("saldo_livre")
+        elif hasattr(metrics, "saldo_livre"):
+            saldo_atualizado = metrics.saldo_livre
     except Exception as e:
         logger.debug(f"Não foi possível calcular saldo para o Atlas: {e}")
 
