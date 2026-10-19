@@ -28,8 +28,8 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
     # 1. Tentativa com Google Gemini Flash
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     if gemini_key:
-        # Lista de modelos por ordem de preferência
-        models_to_try = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]
+        # Lista de modelos por ordem de preferência (Gemini 3.8 Flash é o padrão ativo)
+        models_to_try = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]
         b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
         
         clean_mime = mime_type.split(";")[0].strip() or "audio/ogg"
@@ -105,6 +105,49 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
             logger.error(f"Erro ao transcrever áudio com Whisper: {e}")
 
     logger.warning("Nenhuma chave de IA (GEMINI_API_KEY ou OPENAI_API_KEY) configurada ou erro em ambos.")
+    return None
+
+def fetch_decrypted_audio_from_evolution(message_id: str, instance_override: Optional[str] = None) -> Optional[Tuple[bytes, str]]:
+    """
+    Usa o endpoint oficial getBase64FromMediaMessage da Evolution API para obter o áudio
+    descriptografado (pois as URLs .enc do WhatsApp são criptografadas com mediaKey).
+    """
+    api_url = os.getenv("EVOLUTION_API_URL", "").rstrip("/")
+    api_key = os.getenv("EVOLUTION_API_KEY", "")
+    instance = instance_override or os.getenv("EVOLUTION_INSTANCE", "fintrack-casal")
+
+    if not (api_url and api_key and message_id):
+        return None
+
+    endpoint = f"{api_url}/chat/getBase64FromMediaMessage/{instance}"
+    headers = {
+        "apikey": api_key,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "message": {
+            "key": {
+                "id": message_id
+            }
+        }
+    }
+
+    try:
+        with httpx.Client(timeout=25.0) as client:
+            res = client.post(endpoint, headers=headers, json=payload)
+            if res.status_code in [200, 201]:
+                data = res.json()
+                b64_str = data.get("base64", "")
+                mime = data.get("mimetype") or "audio/ogg"
+                if b64_str:
+                    if "," in b64_str:
+                        b64_str = b64_str.split(",", 1)[1]
+                    return base64.b64decode(b64_str), mime
+            else:
+                logger.warning(f"Erro ao descriptografar mídia via Evolution ({res.status_code}): {res.text}")
+    except Exception as e:
+        logger.error(f"Exceção ao buscar base64 de mídia na Evolution API: {e}")
+
     return None
 
 def download_media_from_url(media_url: str) -> Optional[bytes]:

@@ -124,20 +124,30 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
         audio_msg = msg_obj.get("audioMessage")
         if isinstance(audio_msg, dict):
             audio_mime = audio_msg.get("mimetype") or "audio/ogg"
-            # Se a Evolution API já enviar o base64 direto (base64 ou url)
+            msg_id = key.get("id") if isinstance(key, dict) else None
+            
+            # 1) Se já vier base64 direto no payload
             b64_data = audio_msg.get("base64") or data.get("base64")
             media_url = audio_msg.get("url") or audio_msg.get("mediaUrl") or data.get("mediaUrl")
 
             if b64_data and isinstance(b64_data, str):
                 import base64
                 try:
-                    # Remove possível prefixo data:audio/xxx;base64,
                     if "," in b64_data:
                         b64_data = b64_data.split(",", 1)[1]
                     audio_bytes = base64.b64decode(b64_data)
                 except Exception as e:
                     logger.error(f"Erro ao decodificar base64 de áudio: {e}")
-            elif media_url and isinstance(media_url, str):
+            
+            # 2) Descriptografia oficial via Evolution API (pois .enc do WhatsApp é criptografado)
+            if not audio_bytes and msg_id:
+                from .atlas import fetch_decrypted_audio_from_evolution
+                decrypted = fetch_decrypted_audio_from_evolution(msg_id, instance_override=instance_name)
+                if decrypted:
+                    audio_bytes, audio_mime = decrypted
+
+            # 3) Fallback para URL direta (apenas caso não seja .enc criptografado)
+            if not audio_bytes and media_url and isinstance(media_url, str) and ".enc" not in media_url:
                 from .atlas import download_media_from_url
                 audio_bytes = download_media_from_url(media_url)
 
@@ -148,10 +158,15 @@ def extract_evolution_message(payload: dict) -> Tuple[Optional[str], Optional[st
             or (msg_obj.get("videoMessage", {}).get("caption") if isinstance(msg_obj.get("videoMessage"), dict) else None)
         )
 
+    # Ignora as próprias mensagens de confirmação enviadas pelo Atlas para não duplicar em loop
+    if raw_text and ("*Atlas:*" in raw_text or "🎙️" in raw_text or "Teste de conexão Atlas" in raw_text):
+        logger.info("Ignorando mensagem automática gerada pelo próprio Atlas.")
+        return None, None, None, None
+
     # 3.2 Se for áudio e não tiver texto direto, passa pelo Ouvido do Atlas
     if audio_bytes and not raw_text:
         from .atlas import transcribe_audio_bytes
-        logger.info(f"Áudio recebido de {user_name} ({len(audio_bytes)} bytes). Enviando para o Atlas transcrever...")
+        logger.info(f"Áudio descriptografado de {user_name} ({len(audio_bytes)} bytes). Enviando para o Atlas transcrever...")
         raw_text = transcribe_audio_bytes(audio_bytes, mime_type=audio_mime)
 
     if not raw_text:

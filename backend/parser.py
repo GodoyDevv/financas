@@ -128,9 +128,26 @@ def parse_text_message(message: str) -> dict:
         if categoria == "Outros" and tipo == "despesa_fixa":
             categoria = "Moradia"
 
-    # 5. Descrição limpa
+    # 5. Descrição limpa (remove saudações ao Atlas, preposições soltas e valores)
     descricao = re.sub(r'(?:R\$\s*)?\d+(?:[\.,]\d+)?', '', desc_part)
-    descricao = re.sub(r'\s+', ' ', descricao).strip(" ,.-")
+    # Remove palavras de moeda em qualquer posição
+    descricao = re.sub(r'\b(?:reais|real|conto|contos|pilas)\b', '', descricao, flags=re.IGNORECASE)
+    # Remove invocações ao Atlas e verbos de comando repetidos no início
+    for _ in range(3):
+        descricao = re.sub(
+            r'^(?:fala\s+|oi\s+|olá\s+|ola\s+|ei\s+|bom\s+dia\s+|boa\s+tarde\s+|boa\s+noite\s+|cara\s+)?'
+            r'(?:atlas[\s,:-]+)?'
+            r'(?:anota\s+aí|anota\s+ai|anota|registra|lança\s+aí|lança|lanca|coloca|comprei|paguei|gastei(?:\s+com)?|foi|fiz)?[\s,:-]*',
+            '',
+            descricao.strip(" ,.-!?"),
+            flags=re.IGNORECASE
+        )
+    # Remove preposições residuais no fim
+    for _ in range(2):
+        descricao = re.sub(r'\b(?:no\s+valor\s+de|valor\s+de|de|por|em|no|na|para|pra)\s*$', '', descricao.strip(" ,.-!?"), flags=re.IGNORECASE)
+    # Remove artigos soltos no início ("um ", "uma ", "o ", "a ")
+    descricao = re.sub(r'^(?:um|uma|o|a|os|as|de|do|da|no|na)\s+', '', descricao.strip(" ,.-!?"), flags=re.IGNORECASE)
+    descricao = re.sub(r'\s+', ' ', descricao).strip(" ,.-!?")
     if not descricao:
         descricao = clean_msg[:60]
     else:
