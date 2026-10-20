@@ -9,7 +9,11 @@ from fastapi.responses import FileResponse
 from backend.database import engine, Base
 from backend.routes import router as api_router
 from backend.webhook import webhook_router
-from backend.scheduler import loop_agendador_relatorio_noturno, executar_envio_relatorio_diario
+from backend.scheduler import (
+    loop_agendador_relatorio_noturno,
+    executar_envio_relatorio_diario,
+    executar_envio_relatorio_semanal
+)
 
 # Diretório raiz do projeto
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -58,6 +62,12 @@ def health_check():
 def disparar_relatorio_diario_manual():
     """Endpoint administrativo para disparar ou testar o relatório diário sob demanda."""
     sucesso = executar_envio_relatorio_diario(force=True)
+    return {"status": "success" if sucesso else "error", "enviado": sucesso}
+
+@app.post("/api/relatorio-semanal/disparar")
+def disparar_relatorio_semanal_manual():
+    """Endpoint administrativo para disparar ou testar o relatório semanal sob demanda."""
+    sucesso = executar_envio_relatorio_semanal(force=True)
     return {"status": "success" if sucesso else "error", "enviado": sucesso}
 
 # Servir a interface web diretamente na raiz do servidor
