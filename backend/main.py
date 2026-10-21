@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
         pass
 
 app = FastAPI(
-    title="FinTrack Intelligence API",
+    title="Atlas Finanças Intelligence API",
     description="Backend de alta precisão para controle financeiro e automação WhatsApp",
     version="1.0.0",
     lifespan=lifespan
@@ -69,6 +69,13 @@ def disparar_relatorio_semanal_manual():
     """Endpoint administrativo para disparar ou testar o relatório semanal sob demanda."""
     sucesso = executar_envio_relatorio_semanal(force=True)
     return {"status": "success" if sucesso else "error", "enviado": sucesso}
+
+@app.get("/atlas_logo.jpg")
+def serve_atlas_logo():
+    logo_path = PROJECT_ROOT / "atlas_logo.jpg"
+    if logo_path.exists():
+        return FileResponse(str(logo_path), media_type="image/jpeg")
+    return {"error": "Logo not found"}
 
 # Servir a interface web diretamente na raiz do servidor
 @app.get("/")

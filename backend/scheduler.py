@@ -63,7 +63,7 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
     total_acumulado_mes = sum(float(t.valor or 0) for t in gastos_mes)
 
     linhas = []
-    linhas.append("🌙 *FinTrack Atlas · Fechamento do Dia*")
+    linhas.append("🌙 *Atlas Finanças · Fechamento do Dia*")
     linhas.append(f"📅 *{data_formatada_br}*")
     linhas.append("━━━━━━━━━━━━━━━━━━━━━")
 
@@ -136,7 +136,7 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
     ).all()
 
     linhas = []
-    linhas.append("🗓️ *FinTrack Atlas · Balanço Semanal Macro*")
+    linhas.append("🗓️ *Atlas Finanças · Balanço Semanal Macro*")
     linhas.append(f"📅 *Semana de {data_fmt_inicio} a {data_fmt_fim}*")
     linhas.append("━━━━━━━━━━━━━━━━━━━━━")
 

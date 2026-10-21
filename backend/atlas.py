@@ -175,7 +175,7 @@ def format_atlas_confirmation(user_name: str, item_desc: str, valor: float, parc
     else:
         detalhe = f"no valor de {val_formatado}"
 
-    msg = f"🎙️ *Atlas:* Entendido, {user_name}! Lancei *{item_desc}* {detalhe} no FinTrack."
+    msg = f"🎙️ *Atlas:* Entendido, {user_name}! Lancei *{item_desc}* {detalhe} no Atlas Finanças."
     if saldo_livre is not None:
         saldo_fmt = f"R$ {saldo_livre:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         msg += f"\n📊 *Saldo Livre do Mês:* {saldo_fmt}"
