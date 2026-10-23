@@ -8,6 +8,10 @@ import httpx
 
 logger = logging.getLogger("fintrack.atlas")
 
+# Configura httpx e httpcore para WARNING para não logar URLs com parâmetros
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 # Chaves de API para transcrição / IA
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -72,9 +76,10 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
                     "generationConfig": gen_config
                 }
 
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+                headers = {"x-goog-api-key": gemini_key}
                 with httpx.Client(timeout=25.0) as client:
-                    res = client.post(url, json=payload)
+                    res = client.post(url, headers=headers, json=payload)
                     if res.status_code == 200:
                         data = res.json()
                         candidates = data.get("candidates", [])
@@ -85,7 +90,13 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
                                 logger.info(f"Atlas transcreveu áudio com sucesso via Gemini ({model_name}): '{text}'")
                                 return text
                     else:
-                        logger.warning(f"Falha na API Gemini ({model_name}) status {res.status_code}: {res.text}")
+                        # Log seguro: reporta apenas status e código do erro sem logar corpo de resposta bruto
+                        err_code = "desconhecido"
+                        try:
+                            err_code = res.json().get("error", {}).get("status", res.status_code)
+                        except Exception:
+                            err_code = res.status_code
+                        logger.warning(f"Falha na API Gemini ({model_name}) status={res.status_code} erro={err_code}")
             except Exception as e:
                 logger.error(f"Erro ao transcrever com Gemini ({model_name}): {e}")
 
