@@ -2,13 +2,23 @@ import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from backend.database import engine, Base
 from backend.routes import router as api_router
 from backend.webhook import webhook_router
+from backend.auth import (
+    require_auth_api,
+    require_auth_page,
+    require_admin_token,
+    verify_csrf_origin,
+    login_page,
+    login_endpoint,
+    logout_endpoint,
+    LoginRequest
+)
 from backend.scheduler import (
     loop_agendador_relatorio_noturno,
     executar_envio_relatorio_diario,
@@ -39,7 +49,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configuração irrestrita de CORS para requisições de qualquer origem e index.html local
+# Configuração de CORS para requisições
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -48,36 +58,67 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inclusão dos roteadores da aplicação
-app.include_router(api_router)
-app.include_router(webhook_router)
+# ------------------------------------------------------------------------------
+# ROTAS PÚBLICAS DE AUTENTICAÇÃO
+# ------------------------------------------------------------------------------
+@app.get("/login", tags=["Auth"])
+async def route_login_page(request: Request):
+    return await login_page(request)
 
-@app.get("/health")
-def health_check():
-    from backend.database import DATABASE_URL
-    db_type = "postgresql_supabase" if DATABASE_URL else "sqlite_local"
-    return {"status": "online", "database": db_type}
+@app.post("/auth/login", dependencies=[Depends(verify_csrf_origin)], tags=["Auth"])
+async def route_login_post(payload: LoginRequest, request: Request):
+    return await login_endpoint(payload, request)
 
-@app.post("/api/relatorio-diario/disparar")
+@app.post("/auth/logout", dependencies=[Depends(verify_csrf_origin)], tags=["Auth"])
+async def route_logout_post():
+    return await logout_endpoint()
+
+# ------------------------------------------------------------------------------
+# ENDPOINTS ADMINISTRATIVOS (PROTEGIDOS POR X-ADMIN-TOKEN)
+# ------------------------------------------------------------------------------
+@app.post("/api/relatorio-diario/disparar", dependencies=[Depends(require_admin_token)], tags=["Admin"])
 def disparar_relatorio_diario_manual():
     """Endpoint administrativo para disparar ou testar o relatório diário sob demanda."""
     sucesso = executar_envio_relatorio_diario(force=True)
     return {"status": "success" if sucesso else "error", "enviado": sucesso}
 
-@app.post("/api/relatorio-semanal/disparar")
+@app.post("/api/relatorio-semanal/disparar", dependencies=[Depends(require_admin_token)], tags=["Admin"])
 def disparar_relatorio_semanal_manual():
     """Endpoint administrativo para disparar ou testar o relatório semanal sob demanda."""
     sucesso = executar_envio_relatorio_semanal(force=True)
     return {"status": "success" if sucesso else "error", "enviado": sucesso}
 
-@app.get("/atlas_logo.jpg")
+# ------------------------------------------------------------------------------
+# INCLUSÃO DE ROTEADORES
+# ------------------------------------------------------------------------------
+# Protege todo o router /api com a dependência require_auth_api
+app.include_router(api_router, dependencies=[Depends(require_auth_api)])
+
+# Webhook possui segurança e autenticação próprias (não protegido por sessão)
+app.include_router(webhook_router)
+
+# ------------------------------------------------------------------------------
+# ROTAS PÚBLICAS DO SISTEMA
+# ------------------------------------------------------------------------------
+@app.get("/health", tags=["System"])
+def health_check():
+    from backend.database import DATABASE_URL
+    db_type = "postgresql_supabase" if DATABASE_URL else "sqlite_local"
+    return {"status": "online", "database": db_type}
+
+@app.get("/atlas_logo.jpg", tags=["System"])
 def serve_atlas_logo():
     logo_path = PROJECT_ROOT / "atlas_logo.jpg"
     if logo_path.exists():
         return FileResponse(str(logo_path), media_type="image/jpeg")
     return {"error": "Logo not found"}
 
-# Servir a interface web diretamente na raiz do servidor
-@app.get("/")
-def serve_frontend():
+# ------------------------------------------------------------------------------
+# ROTA RAIZ DO DASHBOARD (PROTEGIDA COM REDIRECIONAMENTO PARA /login)
+# ------------------------------------------------------------------------------
+@app.get("/", tags=["Dashboard"])
+def serve_frontend(request: Request):
+    session = require_auth_page(request)
+    if not session:
+        return RedirectResponse(url="/login", status_code=302)
     return FileResponse(str(PROJECT_ROOT / "index.html"), media_type="text/html")

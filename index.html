@@ -418,6 +418,29 @@
       color: #93C5FD;
     }
 
+    .btn-logout {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #FCA5A5;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .btn-logout:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #FFFFFF;
+      transform: translateY(-1px);
+    }
+
     .btn-view-mode.live-mode.active {
       background: rgba(16, 185, 129, 0.12);
       border-color: rgba(16, 185, 129, 0.35);
@@ -1704,6 +1727,15 @@
           <span class="status-dot"></span>
           <span id="status-text">Base Zerada / Pronta</span>
         </div>
+
+        <button class="btn-logout" id="btn-logout" onclick="fazerLogout()" title="Encerrar sessão protegida">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          Sair
+        </button>
       </div>
     </header>
 
@@ -2089,6 +2121,34 @@
       ? `${window.location.origin}/api`
       : 'http://localhost:8000/api';
 
+    // Wrapper seguro de fetch: injeta credentials same-origin e intercepta 401 para redirecionar ao login
+    async function apiFetch(url, options = {}) {
+      const opts = {
+        credentials: 'same-origin',
+        ...options,
+        headers: {
+          ...(options.headers || {})
+        }
+      };
+
+      const res = await fetch(url, opts);
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Sessão expirada ou não autenticada');
+      }
+      return res;
+    }
+
+    async function fazerLogout() {
+      try {
+        await apiFetch('/auth/logout', { method: 'POST' });
+      } catch (e) {
+        // Ignora erro
+      } finally {
+        window.location.href = '/login';
+      }
+    }
+
     let filtroAtual = '';
     
     // Controle da Perspectiva Mensal (YYYY-MM)
@@ -2335,7 +2395,7 @@
         // Na primeira carga, se o mês atual não tiver dados, detecta automaticamente o mês ativo mais recente
         if (!_inicializacaoFeita && !modoGeral) {
           try {
-            const checkRes = await fetch(`${API_BASE}/transactions`);
+            const checkRes = await apiFetch(`${API_BASE}/transactions`);
             if (checkRes.ok) {
               const allT = await checkRes.json();
               if (allT && allT.length > 0) {
@@ -2370,8 +2430,8 @@
         const metricsQuery = (!modoGeral && mesSelecionado) ? `?mes=${mesSelecionado}` : '';
 
         const [resMetrics, resTrans] = await Promise.all([
-          fetch(`${API_BASE}/metrics${metricsQuery}`),
-          fetch(`${API_BASE}/transactions${queryStr}`)
+          apiFetch(`${API_BASE}/metrics${metricsQuery}`),
+          apiFetch(`${API_BASE}/transactions${queryStr}`)
         ]);
 
         if (!resMetrics.ok || !resTrans.ok) {
@@ -3510,7 +3570,7 @@
       }
 
       try {
-        const res = await fetch(endpoint, {
+        const res = await apiFetch(endpoint, {
           method: method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -3544,7 +3604,7 @@
 
       try {
         const query = todasParcelas ? '?todas_parcelas=true' : '';
-        const res = await fetch(`${API_BASE}/transactions/${id}${query}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API_BASE}/transactions/${id}${query}`, { method: 'DELETE' });
         if (res.ok) {
           await carregarDados();
         } else {
@@ -3578,7 +3638,7 @@
 
       if (!confirm('Deseja realmente excluir este lançamento?')) return;
       try {
-        const res = await fetch(`${API_BASE}/transactions/${id}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API_BASE}/transactions/${id}`, { method: 'DELETE' });
         if (res.ok) {
           await carregarDados();
         }
