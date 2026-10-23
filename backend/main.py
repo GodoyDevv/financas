@@ -30,9 +30,6 @@ from backend.scheduler import (
 # Diretório raiz do projeto
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Criação das tabelas no SQLite se não existirem (sem nenhum seed de dados)
-Base.metadata.create_all(bind=engine)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Verificação de segurança fail-closed no startup para o Webhook

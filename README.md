@@ -118,7 +118,7 @@ O Atlas Finanças foi desenvolvido adotando os princípios de **Segurança por P
 - **Swagger / OpenAPI Ocultados em Produção:** As rotas `/docs`, `/redoc` e `/openapi.json` são automaticamente desativadas quando `ENV=production`.
 
 ### 5. Prevenção e Monitoramento de Vazamento de Segredos
-- **Suíte de Testes Automatizada:** 37 testes cobrindo autenticação, webhook, sanitização de entrada, CSP, headers e schemas.
+- **Suíte de Testes Automatizada:** 38 testes cobrindo autenticação, webhook, sanitização de entrada, CSP, headers, schemas e migrações Alembic.
 - **Pre-commit & Gitleaks:** Regras locais configuradas em `.pre-commit-config.yaml` e `.gitleaks.toml`.
 - **Dependabot:** Monitoramento semanal automatizado de dependências pip e GitHub Actions via `.github/dependabot.yml`.
 
@@ -126,6 +126,41 @@ O Atlas Finanças foi desenvolvido adotando os princípios de **Segurança por P
 - **Cold Start do Provedor de Nuvem:** No plano gratuito do Render, caso o serviço permaneça inativo, a primeira requisição pode levar ~30s para inicialização da instância (o banco de dados relacional permanece intacto e conectado no Supabase).
 - **Rate Limit em Memória:** O limitador de tentativas de login é mantido na memória do worker. Para arquiteturas com múltiplos workers Uvicorn, recomenda-se transicionar para Redis.
 - **Histórico do Git:** Dumps e arquivos de seed anteriores foram removidos do working tree e protegidos no `.gitignore`. O expurgo retroativo da árvore antiga do Git está documentado no runbook interno de segurança.
+
+---
+
+## 🗄️ Banco de Dados e Migrations (Alembic)
+
+O projeto adota o **Alembic** para versionamento estrutural do banco de dados relacional (SQLite localmente e PostgreSQL/Supabase em produção). O código da aplicação não executa mais `create_all`, garantindo previsibilidade e rastreabilidade absoluta de schema.
+
+### Comandos Essenciais
+
+```bash
+# 1. Verificar divergências entre os models SQLAlchemy e o banco atual (SOMENTE LEITURA)
+python scripts/check_schema_drift.py
+
+# 2. Criar uma nova migration automaticamente a partir de alterações nos models
+alembic revision --autogenerate -m "descricao_da_mudanca"
+
+# 3. Aplicar todas as migrations pendentes até a versão mais recente
+alembic upgrade head
+
+# 4. Reverter a última migration aplicada
+alembic downgrade -1
+
+# 5. Inspecionar a versão atual registrada no banco
+alembic current
+```
+
+### 🔒 Fluxo Seguro de Deploy em Produção
+
+Antes de qualquer deploy que envolva novas migrações estruturais:
+1. **Executar backup obrigatório do banco de produção** (Snapshot no Supabase ou via `python scripts/backup_db.py`).
+2. **Validar ausência de drift acidental** executando:
+   ```bash
+   DATABASE_URL="postgresql+psycopg2://..." python scripts/check_schema_drift.py
+   ```
+3. O deploy no Render executa automaticamente `alembic upgrade head` antes de subir o servidor FastAPI, garantindo que a aplicação só inicie após a migração ser concluída com sucesso.
 
 ---
 

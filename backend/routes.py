@@ -19,9 +19,6 @@ from .parser import parse_text_message
 
 router = APIRouter(prefix="/api", tags=["Transactions & Metrics"])
 
-# Garante a criação de tabelas
-Base.metadata.create_all(bind=engine)
-
 @router.get("/transactions", response_model=List[TransactionResponse])
 def get_transactions(
     tipo: Optional[str] = None, 
