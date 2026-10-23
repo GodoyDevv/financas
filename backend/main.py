@@ -49,11 +49,16 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
 
+is_production = os.getenv("ENV", "development").lower() == "production"
+
 app = FastAPI(
     title="Atlas Finanças Intelligence API",
     description="Backend de alta precisão para controle financeiro e automação WhatsApp",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json"
 )
 
 # Configuração restritiva de CORS: front-end é same-origin por padrão (sem CORS).
@@ -160,9 +165,8 @@ app.include_router(webhook_router)
 # ------------------------------------------------------------------------------
 @app.get("/health", tags=["System"])
 def health_check():
-    from backend.database import DATABASE_URL
-    db_type = "postgresql_supabase" if DATABASE_URL else "sqlite_local"
-    return {"status": "online", "database": db_type}
+    """Healthcheck simples e seguro sem divulgar detalhes de infraestrutura interna."""
+    return {"status": "online"}
 
 @app.get("/atlas_logo.jpg", tags=["System"])
 def serve_atlas_logo():

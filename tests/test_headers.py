@@ -50,3 +50,10 @@ def test_cache_control_no_store_on_sensitive_routes(client):
     client.cookies.set(COOKIE_NAME, token)
     res_api = client.get("/api/transactions")
     assert "no-store" in res_api.headers.get("cache-control", "")
+def test_health_check_does_not_disclose_database_type(client):
+    """/health deve retornar apenas status: online sem vazar database."""
+    res = client.get("/health")
+    assert res.status_code == 200
+    data = res.json()
+    assert data == {"status": "online"}
+    assert "database" not in data
