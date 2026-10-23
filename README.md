@@ -2,12 +2,10 @@
 
 > **Resumo Executivo:** Plataforma de inteligência financeira e planejamento orçamentário doméstico construída em **Python (FastAPI)** e **PostgreSQL (Supabase)**, impulsionada pelo agente autônomo **Atlas** via **Google Gemini API** e **WhatsApp (Evolution API)**. Conta com processamento de mensagens de texto e voz (multimodal), categorização financeira por NLP, projeção sequencial de parcelas, automações noturnas/semanais e painel analítico responsivo (Dark Glassmorphic UI).
 
-[![Deploy to Render](https://img.shields.io/badge/Deploy-Render-46E3B7?style=flat-square&logo=render&logoColor=white)](https://fintrack-intelligence.onrender.com)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://supabase.com)
 [![Google Gemini](https://img.shields.io/badge/AI-Google_Gemini_LLM-8E75C4?style=flat-square&logo=google)](https://ai.google.dev/)
-[![Security Audited](https://img.shields.io/badge/Security-Enforced_Whitelist-10B981?style=flat-square&logo=shield)](https://github.com/GodoyDevv/financas)
 
 ---
 
@@ -25,7 +23,7 @@ flowchart TD
 
     subgraph AtlasEngine["🤖 Atlas AI Engine (Backend FastAPI)"]
         a1["⚡ Google Gemini API (Multimodal Parser)"]
-        a2["🛡️ Whitelist de Segurança & Remetentes"]
+        a2["🛡️ Segurança Fail-Closed & Whitelist por Número"]
         a3["🗓️ Motor de Parcelas Sequenciais (1/N, 2/N...)"]
         a4["⏰ Scheduler Autônomo (Fechamento Noturno e Semanal)"]
     end
@@ -69,33 +67,65 @@ flowchart TD
 flowchart LR
     A["📱 WhatsApp Casal<br/>(Áudio ou Texto)"] -->|"Webhook HTTPS"| B["🤖 Gateway Evolution API"]
     B -->|"POST /webhook/whatsapp"| C["⚡ Atlas Finanças Backend<br/>(FastAPI / Python)"]
-    C -->|"1. Security Guard"| D{"Autorizado?"}
-    D -- "Não" --> D1["🚫 Ignora Silenciosamente"]
+    C -->|"1. Webhook Secret & Whitelist"| D{"Autorizado?"}
+    D -- "Não" --> D1["🚫 401 Unauthorized / Bloqueio"]
     D -- "Sim" --> E["🧠 Google Gemini Multimodal"]
     E -->|"Detecção Semântica & Parcelas"| F["🗄️ SQLAlchemy ORM"]
     F -->|"Persistência"| G[("🐘 PostgreSQL / Supabase")]
-    C -->|"REST API"| H["📊 Dashboard Web Atlas<br/>(Dark Glassmorphic UI)"]
+    C -->|"REST API Autenticada"| H["📊 Dashboard Web Atlas<br/>(Dark Glassmorphic UI)"]
 ```
 
 - **Linguagem & Backend:** Python 3.10+ | FastAPI | Uvicorn
-- **Inteligência Artificial:** Google Gemini API (NLP estruturado & Multimodal Áudio/Texto)
+- **Inteligência Artificial:** Google Gemini API (NLP estruturado & Multimodal Áudio/Texto com envio seguro por cabeçalho)
 - **Persistência de Dados:** SQLAlchemy ORM | PostgreSQL (Supabase) com fallback para SQLite local
 - **Mensageria & Webhooks:** Evolution API (WhatsApp)
-- **Frontend & Visualização:** Vanilla JS moderno, CSS Glassmorphism responsivo, Chart.js
+- **Frontend & Visualização:** Vanilla JS com escape obrigatório contra XSS, CSS Glassmorphism responsivo, Chart.js com SRI (Subresource Integrity)
 - **Automação & Schedulers:** Tarefas assíncronas em background (Python `asyncio`)
 - **Infraestrutura:** Render Cloud
 
 ---
 
-## 🔒 Segurança, Governança & LGPD
+## 🔒 Arquitetura de Segurança, Governança & LGPD
 
-- **Autenticação Fail-Closed do Webhook:** O webhook (`POST /webhook/whatsapp`) exige autenticação via segredo compartilhado (`WEBHOOK_SECRET`) com verificação criptográfica em tempo constante (`hmac.compare_digest`). Requisições sem o cabeçalho (`X-Webhook-Secret`) ou com token incorreto recebem `401 Unauthorized` genérico.
-- **Opção de Token na URL:** Suporte a token via path (`/webhook/whatsapp/{token}`) ativável via `WEBHOOK_ALLOW_PATH_TOKEN=1` para versões ou gateways que não suportem headers customizados. *Nota de segurança:* tokens na URL podem ser registrados em logs de proxies reversos, balanceadores de carga e provedores de nuvem; prefira sempre o cabeçalho HTTP.
-- **Autorização Estrita por Telefone:** Remetentes são autorizados exclusivamente por igualdade exata de número telefônico normalizado (com ou sem DDI 55). O campo volátil `pushName` foi completamente desconsiderado para autorização, impedindo que atacantes forjem identificações como "Bruno" ou "Leticia".
-- **Limites de Entrada (Anti-DoS):** Rejeição de corpo HTTP > 1 MB, truncamento de mensagens de texto brutas em 500 caracteres e rejeição de áudios acima de 2 MB antes de qualquer chamada para a API Gemini ou OpenAI.
-- **Deduplicação Pós-Autorização:** O registro de IDs de mensagens (`msg_id`) só ocorre após a autenticação do segredo e a autorização do remetente, impedindo ataques de exaustão de IDs.
-- **Logs Sanitizados:** Telefones são mascarados em formato `5511****9999`, payloads e chaves internas não são expostos e segredos nunca são registrados nos logs.
-- **Whitelist Restrita de Grupo:** O webhook exige que `WHATSAPP_GROUP_JID` esteja configurado no ambiente e rejeita mensagens fora dele; se ausente, o serviço falha fechado com HTTP 503.
+O Atlas Finanças foi desenvolvido adotando os princípios de **Segurança por Padrão (*Secure by Default*)** e **Falha Fechada (*Fail-Closed*)**:
+
+### 1. Autenticação e Sessão (Dashboard & API)
+- **Falha Fechada na Inicialização:** O backend recusa-se a iniciar se faltarem as variáveis obrigatórias `APP_PASSWORD`, `SESSION_SECRET` (mínimo 32 caracteres) ou `ADMIN_TOKEN`.
+- **Cookies de Sessão Criptografados:** Utiliza `itsdangerous` com as flags `HttpOnly`, `SameSite=Strict`, expiração automática e flag `Secure` obrigatória em produção (desativada apenas via `DEV_INSECURE_COOKIES=1` em localhost).
+- **Proteção Anti-Timing:** Todas as comparações de senhas e tokens administrativos utilizam `hmac.compare_digest`.
+- **Rate Limiting no Login:** Máximo de 5 tentativas por minuto por IP com resposta `429 Too Many Requests`.
+- **Proteção CSRF:** Verificação obrigatória do cabeçalho `Origin` em requisições de mutação (`POST`, `PUT`, `DELETE`).
+- **Endpoints Administrativos:** Rotas de disparo de relatórios exigem o cabeçalho `X-Admin-Token`.
+
+### 2. Blindagem do Webhook do WhatsApp
+- **Autenticação por Segredo:** Verificação do cabeçalho `X-Webhook-Secret` via `hmac.compare_digest` antes de qualquer processamento ou chamada de IA.
+- **Suporte Alternativo a Token na URL:** Rota opcional `/webhook/whatsapp/{token}` configurável via `WEBHOOK_ALLOW_PATH_TOKEN=1` para versões legadas da Evolution API.
+- **Autorização Estrita por Telefone:** O remetente é autorizado exclusivamente por igualdade exata de número normalizado (com ou sem DDI 55). O campo volátil `pushName` foi completamente eliminado da lógica de autorização.
+- **Limites de Entrada Rígidos (Anti-DoS):** Rejeição de requisições com corpo > 1 MB, truncamento de mensagens em 500 caracteres e rejeição de áudios acima de 2 MB antes da descriptografia ou envio para a API de IA.
+- **Deduplicação Pós-Autorização:** O registro de IDs de mensagens ocorre estritamente após a autenticação bem-sucedida.
+
+### 3. Defesa Contra Injeção e XSS (Cross-Site Scripting)
+- **Frontend Seguro:** Todos os campos de texto vindos do banco (`descricao`, `categoria`, `source`, `vencimento`) passam por escape rigoroso via utilitário `escapeHtml()` antes da renderização no DOM. Eventos inline com interpolação de dados foram substituídos por atributos `data-*` e listeners delegados (`addEventListener`).
+- **Defesa em Profundidade no Backend:** Schemas Pydantic tipados com `Literal["receita", "despesa_fixa", "despesa_variavel"]`, limites de caracteres (`descricao` 200, `categoria` 60, `source` 40), validação de valores entre R$ 0,01 e R$ 1.000.000,00 e sanitização de caracteres de controle ASCII C0/C1.
+- **Subresource Integrity (SRI):** A biblioteca externa Chart.js (v4.4.7) possui verificação de integridade criptográfica `integrity="sha384-..."` e `crossorigin="anonymous"`.
+
+### 4. Cabeçalhos HTTP de Segurança & Hardening de Infraestrutura
+- **Security Headers Ativos:** `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` restritiva e `HSTS` ativado em conexões HTTPS/produção.
+- **Cache-Control Restritivo:** Cabeçalho `no-store, no-cache, must-revalidate` aplicado a todas as respostas do dashboard (`/`) e da API (`/api`).
+- **Content-Security-Policy (CSP):** Atualmente em modo `Content-Security-Policy-Report-Only` para monitoramento. *(TODO: migrar para nonce/hash em scripts inline na próxima fase)*.
+- **CORS Restritivo:** Sem permissão ampla (`*`) com credenciais. Acesso restrito a origens explicitamente cadastradas na variável `ALLOWED_ORIGINS`.
+- **Sanitização do Endpoint /health:** O endpoint `/health` responde unicamente `{"status":"online"}`, sem expor o tipo de banco de dados ou detalhes internos.
+- **Swagger / OpenAPI Ocultados em Produção:** As rotas `/docs`, `/redoc` e `/openapi.json` são automaticamente desativadas quando `ENV=production`.
+
+### 5. Prevenção e Monitoramento de Vazamento de Segredos
+- **Suíte de Testes Automatizada:** 37 testes cobrindo autenticação, webhook, sanitização de entrada, CSP, headers e schemas.
+- **Pre-commit & Gitleaks:** Regras locais configuradas em `.pre-commit-config.yaml` e `.gitleaks.toml`.
+- **Dependabot:** Monitoramento semanal automatizado de dependências pip e GitHub Actions via `.github/dependabot.yml`.
+
+### ⚠️ Limitações Conhecidas & Observações de Operação
+- **Cold Start do Provedor de Nuvem:** No plano gratuito do Render, caso o serviço permaneça inativo, a primeira requisição pode levar ~30s para inicialização da instância (o banco de dados relacional permanece intacto e conectado no Supabase).
+- **Rate Limit em Memória:** O limitador de tentativas de login é mantido na memória do worker. Para arquiteturas com múltiplos workers Uvicorn, recomenda-se transicionar para Redis.
+- **Histórico do Git:** Dumps e arquivos de seed anteriores foram removidos do working tree e protegidos no `.gitignore`. O expurgo retroativo da árvore antiga do Git está documentado no runbook interno de segurança.
 
 ---
 
@@ -124,19 +154,24 @@ pip install -r requirements.txt
 ```
 
 ### 4. Configurar variáveis de ambiente
-Copie o modelo:
+Copie o modelo seguro de variáveis:
 ```bash
 cp .env.example .env
 ```
-*(Se nenhuma variável for fornecida, o sistema inicia em modo SQLite local autônomo).*
+Preencha `APP_PASSWORD`, `SESSION_SECRET`, `ADMIN_TOKEN`, `WEBHOOK_SECRET` e `WHATSAPP_GROUP_JID`.
 
-### 5. Iniciar o servidor
+### 5. Executar os Testes Automatizados
+```bash
+pytest tests/ -v
+```
+
+### 6. Iniciar o servidor
 ```bash
 uvicorn backend.main:app --reload
 ```
 
-- **Dashboard:** `http://127.0.0.1:8000`
-- **Swagger OpenAPI:** `http://127.0.0.1:8000/docs`
+- **Dashboard:** `http://127.0.0.1:8000` (redireciona para `/login`)
+- **Swagger OpenAPI:** `http://127.0.0.1:8000/docs` (disponível em modo de desenvolvimento)
 
 ---
 
