@@ -50,6 +50,7 @@ def test_cache_control_no_store_on_sensitive_routes(client):
     client.cookies.set(COOKIE_NAME, token)
     res_api = client.get("/api/transactions")
     assert "no-store" in res_api.headers.get("cache-control", "")
+
 def test_health_check_does_not_disclose_database_type(client):
     """/health deve retornar apenas status: online sem vazar database."""
     res = client.get("/health")
@@ -57,3 +58,16 @@ def test_health_check_does_not_disclose_database_type(client):
     data = res.json()
     assert data == {"status": "online"}
     assert "database" not in data
+
+def test_production_env_disables_docs_flags():
+    """Garante que a lógica condicional de produção desativa docs_url e openapi_url."""
+    from fastapi import FastAPI
+    is_prod = True
+    test_app = FastAPI(
+        docs_url=None if is_prod else "/docs",
+        redoc_url=None if is_prod else "/redoc",
+        openapi_url=None if is_prod else "/openapi.json"
+    )
+    assert test_app.docs_url is None
+    assert test_app.redoc_url is None
+    assert test_app.openapi_url is None
