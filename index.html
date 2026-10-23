@@ -2149,6 +2149,31 @@
       }
     }
 
+    // Utilitário de escape de HTML contra XSS armazenado / refletido
+    function escapeHtml(value) {
+      if (value === null || value === undefined) return '';
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/`/g, '&#96;');
+    }
+
+    // Tagged template para HTML seguro automático (escapa qualquer interpolação não sanitizada)
+    function html(strings, ...values) {
+      return strings.reduce((acc, str, i) => {
+        const val = i < values.length ? values[i] : '';
+        const safeVal = (val && val.__htmlSafe) ? val.value : escapeHtml(val);
+        return acc + str + safeVal;
+      }, '');
+    }
+
+    function safeRaw(str) {
+      return { __htmlSafe: true, value: String(str) };
+    }
+
     let filtroAtual = '';
     
     // Controle da Perspectiva Mensal (YYYY-MM)
@@ -2463,11 +2488,11 @@
               ${metrics.categorias.map(c => `
                 <div>
                   <div class="cat-item-header">
-                    <span><strong>${c.categoria}</strong> &middot; ${c.percentual}%</span>
-                    <span>${formatBRL(c.total)}</span>
+                    <span><strong>${escapeHtml(c.categoria)}</strong> &middot; ${Number(c.percentual || 0)}%</span>
+                    <span>${escapeHtml(formatBRL(c.total))}</span>
                   </div>
                   <div class="cat-progress-bg">
-                    <div class="cat-progress-fill" style="width: ${Math.min(c.percentual, 100)}%;"></div>
+                    <div class="cat-progress-fill" style="width: ${Math.min(Number(c.percentual || 0), 100)}%;"></div>
                   </div>
                 </div>
               `).join('')}
@@ -2635,18 +2660,19 @@
 
       listEl.innerHTML = opcoes.map(([val, info]) => {
         const isSelected = filtrosColuna[col].has(val);
-        const safeVal = val.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const escapedVal = escapeHtml(val);
+        const rawAttrVal = encodeURIComponent(val);
         return `
-          <div class="col-filter-item ${isSelected ? 'selected' : ''}" onclick="alternarOpcaoFiltro('${col}', '${safeVal}')">
+          <div class="col-filter-item ${isSelected ? 'selected' : ''}" data-col="${escapeHtml(col)}" data-val="${rawAttrVal}">
             <div class="col-filter-item-left">
               <div class="col-filter-check">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                   <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
               </div>
-              <span class="col-filter-label" title="${val.replace(/"/g, '&quot;')}">${val}</span>
+              <span class="col-filter-label" title="${escapedVal}">${escapedVal}</span>
             </div>
-            <span class="col-filter-count" title="Soma desta opção: ${formatBRL(info.sum)}">${info.count}x &middot; ${formatBRL(info.sum)}</span>
+            <span class="col-filter-count" title="Soma desta opção: ${escapeHtml(formatBRL(info.sum))}">${Number(info.count || 0)}x &middot; ${escapeHtml(formatBRL(info.sum))}</span>
           </div>
         `;
       }).join('');
@@ -2760,12 +2786,12 @@
 
         for (const [col, setValores] of Object.entries(filtrosColuna)) {
           setValores.forEach(val => {
-            const safeVal = val.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const rawAttrVal = encodeURIComponent(val);
             chipsHtml += `
               <span class="filter-chip">
-                <span class="filter-chip-col">${NOMES_COLUNAS[col]}:</span>
-                <strong>${val}</strong>
-                <button type="button" class="filter-chip-remove" onclick="removerFiltroIndividual('${col}', '${safeVal}')" title="Remover filtro">&times;</button>
+                <span class="filter-chip-col">${escapeHtml(NOMES_COLUNAS[col])}:</span>
+                <strong>${escapeHtml(val)}</strong>
+                <button type="button" class="filter-chip-remove" data-col="${escapeHtml(col)}" data-val="${rawAttrVal}" title="Remover filtro">&times;</button>
               </span>
             `;
           });
@@ -2776,8 +2802,8 @@
 
         const somaFiltrada = filtradas.reduce((acc, item) => acc + Number(item.valor || 0), 0);
         summaryPills.innerHTML = `
-          <span class="summary-pill">Frequência: <strong>${filtradas.length}x</strong></span>
-          <span class="summary-pill highlight">Total filtrado: <strong>${formatBRL(somaFiltrada)}</strong></span>
+          <span class="summary-pill">Frequência: <strong>${Number(filtradas.length)}x</strong></span>
+          <span class="summary-pill highlight">Total filtrado: <strong>${escapeHtml(formatBRL(somaFiltrada))}</strong></span>
         `;
       } else {
         barEl.classList.remove('visible');
@@ -2789,34 +2815,41 @@
       const mobileList = document.getElementById('mobile-tx-list');
 
       if (filtradas.length > 0) {
-        tbody.innerHTML = filtradas.map(t => `
+        tbody.innerHTML = filtradas.map(t => {
+          const tid = Number(t.id);
+          const vStr = t.vencimento ? `<strong>${escapeHtml(t.vencimento)}</strong>` : '-';
+          return `
           <tr>
-            <td>${formatDateBR(t.data)}</td>
+            <td>${escapeHtml(formatDateBR(t.data))}</td>
             <td>${badgeTipo(t.tipo)}</td>
-            <td>${t.categoria}</td>
-            <td>${t.descricao || '-'}</td>
-            <td>${t.vencimento ? `<strong>${t.vencimento}</strong>` : '-'}</td>
-            <td><span class="badge-source">${t.source || 'Manual'}</span></td>
+            <td>${escapeHtml(t.categoria)}</td>
+            <td>${escapeHtml(t.descricao || '-')}</td>
+            <td>${vStr}</td>
+            <td><span class="badge-source">${escapeHtml(t.source || 'Manual')}</span></td>
             <td class="${classValor(t.tipo)}">
-              ${sinalValor(t.tipo)} ${formatBRL(t.valor)}
+              ${sinalValor(t.tipo)} ${escapeHtml(formatBRL(t.valor))}
             </td>
             <td style="text-align: right;">
               <div class="actions-cell">
-                <button class="btn-edit" onclick="iniciarEdicao(${t.id})" title="Editar este lançamento">
+                <button class="btn-edit" data-id="${tid}" title="Editar este lançamento">
                   <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                   </svg>
                   Editar
                 </button>
-                <button class="btn-delete" onclick="deletar(${t.id})" title="Excluir este lançamento">Excluir</button>
+                <button class="btn-delete" data-id="${tid}" title="Excluir este lançamento">Excluir</button>
               </div>
             </td>
           </tr>
-        `).join('');
+        `;
+        }).join('');
 
         if (mobileList) {
-          mobileList.innerHTML = filtradas.map(t => `
+          mobileList.innerHTML = filtradas.map(t => {
+            const tid = Number(t.id);
+            const vencMobile = t.vencimento ? `Venc: <strong>Dia ${escapeHtml(t.vencimento)}</strong>` : '';
+            return `
             <div class="mobile-tx-card">
               <div class="mobile-card-header">
                 <div class="mobile-card-meta">
@@ -2826,36 +2859,37 @@
                       <line x1="16" y1="2" x2="16" y2="6"></line>
                       <line x1="8" y1="2" x2="8" y2="6"></line>
                     </svg>
-                    ${formatDateBR(t.data)}
+                    ${escapeHtml(formatDateBR(t.data))}
                   </span>
                   ${badgeTipo(t.tipo)}
-                  <span class="badge-source">${t.source || 'Manual'}</span>
+                  <span class="badge-source">${escapeHtml(t.source || 'Manual')}</span>
                 </div>
-                <span style="font-size: 11.5px; color: var(--text-dim);">${t.categoria}</span>
+                <span style="font-size: 11.5px; color: var(--text-dim);">${escapeHtml(t.categoria)}</span>
               </div>
               <div class="mobile-card-main">
-                <div class="mobile-card-desc">${t.descricao || '(Sem descrição)'}</div>
+                <div class="mobile-card-desc">${escapeHtml(t.descricao || '(Sem descrição)')}</div>
                 <div class="mobile-card-val ${classValor(t.tipo)}">
-                  ${sinalValor(t.tipo)} ${formatBRL(t.valor)}
+                  ${sinalValor(t.tipo)} ${escapeHtml(formatBRL(t.valor))}
                 </div>
               </div>
               <div class="mobile-card-footer">
                 <div class="mobile-card-due">
-                  ${t.vencimento ? `Venc: <strong>Dia ${t.vencimento}</strong>` : ''}
+                  ${vencMobile}
                 </div>
                 <div class="mobile-card-actions">
-                  <button class="btn-edit" onclick="iniciarEdicao(${t.id})" title="Editar lançamento">
+                  <button class="btn-edit" data-id="${tid}" title="Editar lançamento">
                     <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
                     Editar
                   </button>
-                  <button class="btn-delete" onclick="deletar(${t.id})" title="Excluir lançamento">Excluir</button>
+                  <button class="btn-delete" data-id="${tid}" title="Excluir lançamento">Excluir</button>
                 </div>
               </div>
             </div>
-          `).join('');
+          `;
+          }).join('');
         }
       } else {
         const emptyMsg = `
@@ -3627,8 +3661,27 @@
 
         idExclusaoPendente = id;
         document.getElementById('delete-modal-title').innerText = `Excluir "${nomeBase}"`;
-        document.getElementById('delete-modal-desc').innerHTML =
-          `O item <strong>${desc}</strong> faz parte de um parcelamento em <strong>${totalParcelas}x de ${formatBRL(transacao.valor)}</strong>.<br><br>Deseja apagar todas as ${totalParcelas} parcelas de todos os meses de uma só vez ou somente a parcela (${parcelaAtual}/${totalParcelas})?`;
+        const modalDescEl = document.getElementById('delete-modal-desc');
+        modalDescEl.innerHTML = '';
+        const p1 = document.createElement('span');
+        p1.textContent = 'O item ';
+        const strongDesc = document.createElement('strong');
+        strongDesc.textContent = desc;
+        const p2 = document.createElement('span');
+        p2.textContent = ` faz parte de um parcelamento em `;
+        const strongVal = document.createElement('strong');
+        strongVal.textContent = `${totalParcelas}x de ${formatBRL(transacao.valor)}`;
+        const br1 = document.createElement('br');
+        const br2 = document.createElement('br');
+        const p3 = document.createElement('span');
+        p3.textContent = `Deseja apagar todas as ${totalParcelas} parcelas de todos os meses de uma só vez ou somente a parcela (${parcelaAtual}/${totalParcelas})?`;
+        modalDescEl.appendChild(p1);
+        modalDescEl.appendChild(strongDesc);
+        modalDescEl.appendChild(p2);
+        modalDescEl.appendChild(strongVal);
+        modalDescEl.appendChild(br1);
+        modalDescEl.appendChild(br2);
+        modalDescEl.appendChild(p3);
         document.getElementById('label-delete-all').innerText = `Excluir TODAS as ${totalParcelas} parcelas`;
         document.getElementById('label-delete-single').innerText = `Excluir apenas a parcela (${parcelaAtual}/${totalParcelas})`;
 
@@ -3646,6 +3699,71 @@
         alert('Erro ao excluir lançamento.');
       }
     }
+
+
+    // Delegação de eventos segura (elimina interpolação de onclick inline com strings ou IDs de dados)
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Tabela desktop (Editar / Excluir)
+      const tbody = document.getElementById('tabela-corpo');
+      if (tbody) {
+        tbody.addEventListener('click', (e) => {
+          const btnEdit = e.target.closest('.btn-edit');
+          if (btnEdit && btnEdit.dataset.id) {
+            iniciarEdicao(Number(btnEdit.dataset.id));
+            return;
+          }
+          const btnDelete = e.target.closest('.btn-delete');
+          if (btnDelete && btnDelete.dataset.id) {
+            deletar(Number(btnDelete.dataset.id));
+            return;
+          }
+        });
+      }
+
+      // 2. Mobile cards (Editar / Excluir)
+      const mobileList = document.getElementById('mobile-tx-list');
+      if (mobileList) {
+        mobileList.addEventListener('click', (e) => {
+          const btnEdit = e.target.closest('.btn-edit');
+          if (btnEdit && btnEdit.dataset.id) {
+            iniciarEdicao(Number(btnEdit.dataset.id));
+            return;
+          }
+          const btnDelete = e.target.closest('.btn-delete');
+          if (btnDelete && btnDelete.dataset.id) {
+            deletar(Number(btnDelete.dataset.id));
+            return;
+          }
+        });
+      }
+
+      // 3. Popover de opções de filtro por coluna
+      const colFilterList = document.getElementById('col-filter-list');
+      if (colFilterList) {
+        colFilterList.addEventListener('click', (e) => {
+          const item = e.target.closest('.col-filter-item');
+          if (item && item.dataset.col && item.dataset.val !== undefined) {
+            const col = item.dataset.col;
+            const val = decodeURIComponent(item.dataset.val);
+            alternarOpcaoFiltro(col, val);
+          }
+        });
+      }
+
+      // 4. Barra de chips de filtros ativos
+      const activeChipsGroup = document.getElementById('active-chips-group');
+      if (activeChipsGroup) {
+        activeChipsGroup.addEventListener('click', (e) => {
+          const btnRemove = e.target.closest('.filter-chip-remove');
+          if (btnRemove && btnRemove.dataset.col && btnRemove.dataset.val !== undefined) {
+            const col = btnRemove.dataset.col;
+            const val = decodeURIComponent(btnRemove.dataset.val);
+            removerFiltroIndividual(col, val);
+            return;
+          }
+        });
+      }
+    });
 
     // Inicialização automática
     carregarDados();

@@ -1,27 +1,48 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Dict, Literal
 from datetime import date
+import re
+
+def sanitize_text(value: Optional[str]) -> Optional[str]:
+    """Remove caracteres de controle ASCII perigosos preservando quebras e espaços normais."""
+    if value is None:
+        return None
+    # Remove caracteres de controle C0/C1 exceto tabs, newlines e espaços
+    cleaned = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]', '', str(value))
+    return cleaned.strip()
+
+TipoTransacao = Literal["receita", "despesa_fixa", "despesa_variavel"]
 
 class TransactionBase(BaseModel):
-    tipo: str = Field(..., description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
-    valor: float
-    categoria: str
+    tipo: TipoTransacao = Field(..., description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
+    valor: float = Field(..., gt=0, le=1_000_000, description="Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00")
+    categoria: str = Field(..., min_length=1, max_length=60, description="Categoria do lançamento (máx 60 caracteres)")
     data: date
-    descricao: Optional[str] = None
-    source: Optional[str] = "Manual"
-    vencimento: Optional[str] = None
+    descricao: Optional[str] = Field(None, max_length=200, description="Descrição do lançamento (máx 200 caracteres)")
+    source: Optional[str] = Field("Manual", max_length=40, description="Origem da transação (máx 40 caracteres)")
+    vencimento: Optional[str] = Field(None, max_length=20, description="Dia de vencimento (máx 20 caracteres)")
+
+    @field_validator("descricao", "categoria", "source", "vencimento", mode="before")
+    @classmethod
+    def clean_control_chars(cls, v):
+        return sanitize_text(v)
 
 class TransactionCreate(TransactionBase):
     pass
 
 class TransactionUpdate(BaseModel):
-    tipo: Optional[str] = Field(None, description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
-    valor: Optional[float] = None
-    categoria: Optional[str] = None
+    tipo: Optional[TipoTransacao] = Field(None, description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
+    valor: Optional[float] = Field(None, gt=0, le=1_000_000, description="Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00")
+    categoria: Optional[str] = Field(None, min_length=1, max_length=60)
     data: Optional[date] = None
-    descricao: Optional[str] = None
-    source: Optional[str] = None
-    vencimento: Optional[str] = None
+    descricao: Optional[str] = Field(None, max_length=200)
+    source: Optional[str] = Field(None, max_length=40)
+    vencimento: Optional[str] = Field(None, max_length=20)
+
+    @field_validator("descricao", "categoria", "source", "vencimento", mode="before")
+    @classmethod
+    def clean_control_chars(cls, v):
+        return sanitize_text(v)
 
 class TransactionResponse(TransactionBase):
     id: int
@@ -58,6 +79,3 @@ class MessageParseResponse(BaseModel):
     valor: float
     categoria: str
     descricao: str
-    data: str
-    source: str
-    parcelas: Optional[int] = 1
