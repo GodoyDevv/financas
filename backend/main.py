@@ -1,3 +1,5 @@
+import os
+import logging
 import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -33,6 +35,11 @@ Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Verificação de segurança fail-closed no startup para o Webhook
+    group_jid = os.getenv("WHATSAPP_GROUP_JID", "").strip()
+    if not group_jid:
+        logging.getLogger("fintrack.startup").error("ERRO CRÍTICO DE SEGURANÇA: WHATSAPP_GROUP_JID não está definido no ambiente!")
+
     # Inicia o agendador assíncrono para o relatório noturno
     task = asyncio.create_task(loop_agendador_relatorio_noturno())
     yield

@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .models import Transaction
 from .atlas import send_whatsapp_message
-from .webhook import GROUP_JID
 
 logger = logging.getLogger("fintrack.scheduler")
 
@@ -18,6 +17,10 @@ TIMEZONE_SP = zoneinfo.ZoneInfo("America/Sao_Paulo")
 # Controle em memória para não disparar relatórios duplicados
 ULTIMO_RELATORIO_ENVIADO: Optional[date] = None
 ULTIMO_RELATORIO_SEMANAL_ENVIADO: Optional[date] = None
+
+def get_target_group_jid() -> str:
+    """Retorna o JID do grupo oficial a partir das variáveis de ambiente."""
+    return os.getenv("WHATSAPP_GROUP_JID", "").strip()
 
 def format_brl(valor: float) -> str:
     """Formata valor em padrão brasileiro de moeda R$ 1.234,56"""
@@ -206,13 +209,18 @@ def executar_envio_relatorio_diario(data_custom: Optional[date] = None, force: b
         logger.info(f"Relatório de {data_alvo} já foi enviado hoje. Pulando envio duplicado.")
         return False
 
+    group_jid = get_target_group_jid()
+    if not group_jid:
+        logger.error("WHATSAPP_GROUP_JID não configurado. Não é possível enviar relatório diário.")
+        return False
+
     db = SessionLocal()
     try:
         texto = gerar_texto_relatorio_diario(data_alvo, db)
-        sucesso = send_whatsapp_message(GROUP_JID, texto)
+        sucesso = send_whatsapp_message(group_jid, texto)
         if sucesso:
             ULTIMO_RELATORIO_ENVIADO = data_alvo
-            logger.info(f"Relatório diário de {data_alvo} enviado com sucesso para {GROUP_JID}.")
+            logger.info(f"Relatório diário de {data_alvo} enviado com sucesso para {group_jid}.")
             return True
         else:
             logger.warning("Falha ao enviar relatório diário via WhatsApp (Evolution API).")
@@ -234,13 +242,18 @@ def executar_envio_relatorio_semanal(data_custom: Optional[date] = None, force: 
         logger.info(f"Relatório semanal de {data_alvo} já foi enviado esta semana. Pulando.")
         return False
 
+    group_jid = get_target_group_jid()
+    if not group_jid:
+        logger.error("WHATSAPP_GROUP_JID não configurado. Não é possível enviar relatório semanal.")
+        return False
+
     db = SessionLocal()
     try:
         texto = gerar_texto_relatorio_semanal_macro(data_alvo, db)
-        sucesso = send_whatsapp_message(GROUP_JID, texto)
+        sucesso = send_whatsapp_message(group_jid, texto)
         if sucesso:
             ULTIMO_RELATORIO_SEMANAL_ENVIADO = data_alvo
-            logger.info(f"Relatório semanal de {data_alvo} enviado com sucesso para {GROUP_JID}.")
+            logger.info(f"Relatório semanal de {data_alvo} enviado com sucesso para {group_jid}.")
             return True
         else:
             logger.warning("Falha ao enviar relatório semanal via WhatsApp.")

@@ -89,9 +89,13 @@ flowchart LR
 
 ## 🔒 Segurança, Governança & LGPD
 
-- **Whitelist Restrita de Mensageria:** O webhook rejeita qualquer mensagem que não venha do grupo oficial autorizado (`WHATSAPP_GROUP_JID`) ou que parta de números não cadastrados na lista de remetentes (`ALLOWED_PHONE_NUMBERS`).
-- **Segurança de Credenciais:** Nenhuma credencial de banco, token de webhook ou chave de API reside no código-fonte. Tudo é injetado via variáveis de ambiente seguras (`.env`).
-- **Prevenção de Vazamento no Git:** Configuração avançada de `.gitignore` cobrindo segredos, caches, bancos locais (`*.sqlite`, `*.db`) e artefatos de build.
+- **Autenticação Fail-Closed do Webhook:** O webhook (`POST /webhook/whatsapp`) exige autenticação via segredo compartilhado (`WEBHOOK_SECRET`) com verificação criptográfica em tempo constante (`hmac.compare_digest`). Requisições sem o cabeçalho (`X-Webhook-Secret`) ou com token incorreto recebem `401 Unauthorized` genérico.
+- **Opção de Token na URL:** Suporte a token via path (`/webhook/whatsapp/{token}`) ativável via `WEBHOOK_ALLOW_PATH_TOKEN=1` para versões ou gateways que não suportem headers customizados. *Nota de segurança:* tokens na URL podem ser registrados em logs de proxies reversos, balanceadores de carga e provedores de nuvem; prefira sempre o cabeçalho HTTP.
+- **Autorização Estrita por Telefone:** Remetentes são autorizados exclusivamente por igualdade exata de número telefônico normalizado (com ou sem DDI 55). O campo volátil `pushName` foi completamente desconsiderado para autorização, impedindo que atacantes forjem identificações como "Bruno" ou "Leticia".
+- **Limites de Entrada (Anti-DoS):** Rejeição de corpo HTTP > 1 MB, truncamento de mensagens de texto brutas em 500 caracteres e rejeição de áudios acima de 2 MB antes de qualquer chamada para a API Gemini ou OpenAI.
+- **Deduplicação Pós-Autorização:** O registro de IDs de mensagens (`msg_id`) só ocorre após a autenticação do segredo e a autorização do remetente, impedindo ataques de exaustão de IDs.
+- **Logs Sanitizados:** Telefones são mascarados em formato `5511****9999`, payloads e chaves internas não são expostos e segredos nunca são registrados nos logs.
+- **Whitelist Restrita de Grupo:** O webhook exige que `WHATSAPP_GROUP_JID` esteja configurado no ambiente e rejeita mensagens fora dele; se ausente, o serviço falha fechado com HTTP 503.
 
 ---
 

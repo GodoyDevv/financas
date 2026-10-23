@@ -20,3 +20,11 @@ services:
         sync: false
       - key: DEV_INSECURE_COOKIES
         value: "0"
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: WEBHOOK_SECRET_HEADER
+        value: "X-Webhook-Secret"
+      - key: WEBHOOK_ALLOW_PATH_TOKEN
+        value: "0"
+      - key: WHATSAPP_GROUP_JID
+        sync: false
