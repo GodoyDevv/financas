@@ -61,6 +61,52 @@ app = FastAPI(
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "").strip()
 allowed_origins_list = [orig.strip() for orig in allowed_origins_env.split(",") if orig.strip()]
 
+# ------------------------------------------------------------------------------
+# MIDDLEWARE DE CABEÇALHOS DE SEGURANÇA (AppSec Hardening)
+# ------------------------------------------------------------------------------
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+
+    # Prevenção de MIME-sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    # Prevenção de Clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+
+    # Política de Referrer estrita
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Permissions-Policy restritiva (desativa recursos desnecessários do navegador)
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+
+    # HSTS ativado estritamente em HTTPS ou produção
+    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    is_prod = os.getenv("ENV", "development").lower() == "production"
+    if is_https or is_prod:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+    # Prevenção de cache em dados sensíveis do dashboard e API
+    path = request.url.path
+    if path == "/" or path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+
+    # Content-Security-Policy em modo Report-Only
+    # TODO: Migrar 'unsafe-inline' de script-src e style-src para nonce/hash na próxima fase
+    csp_report_only = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
+    response.headers["Content-Security-Policy-Report-Only"] = csp_report_only
+
+    return response
+
 if allowed_origins_list:
     app.add_middleware(
         CORSMiddleware,
