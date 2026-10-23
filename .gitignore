@@ -12,6 +12,22 @@
 secrets.json
 
 # ==========================================
+# 🛡️ 1.1 DADOS SENSÍVEIS, SEEDS & BACKUPS (LGPD)
+# ==========================================
+backend/initial_data.json
+*.seed.json
+*.sql
+*.sql.gz
+*.sql.bak
+*.csv
+*.xlsx
+*.xls
+data/
+backups/
+dumps/
+SECURITY_CLEANUP_RUNBOOK.md
+
+# ==========================================
 # 🐍 2. AMBIENTES VIRTUAIS PYTHON
 # ==========================================
 .venv/

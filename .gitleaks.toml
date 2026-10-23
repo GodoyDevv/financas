@@ -1,0 +1,22 @@
+title = "Atlas Finanças - Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlists for safe examples and test dummy values"
+paths = [
+  '''^\.env\.example$''',
+  '''^tests/.*$''',
+  '''^backend/initial_data\.example\.json$'''
+]
+regexes = [
+  '''sua_senha_forte_aqui''',
+  '''gere_uma_chave_secreta''',
+  '''gere_um_token_administrativo''',
+  '''gere_um_segredo_para_o_webhook''',
+  '''120363000000000000@g\.us''',
+  '''5511999999999''',
+  '''5511988888888''',
+  '''5511977776666'''
+]

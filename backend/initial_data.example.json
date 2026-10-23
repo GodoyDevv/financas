@@ -1,0 +1,56 @@
+[
+  {
+    "tipo": "receita",
+    "valor": 5000.00,
+    "categoria": "Salário",
+    "data": "2026-10-01",
+    "descricao": "Remuneração Mensal",
+    "source": "Pessoa A",
+    "vencimento": null
+  },
+  {
+    "tipo": "receita",
+    "valor": 4500.00,
+    "categoria": "Salário",
+    "data": "2026-10-01",
+    "descricao": "Remuneração Mensal",
+    "source": "Pessoa B",
+    "vencimento": null
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 1800.00,
+    "categoria": "Moradia",
+    "data": "2026-10-10",
+    "descricao": "Aluguel e Condomínio",
+    "source": "Pessoa A",
+    "vencimento": "10"
+  },
+  {
+    "tipo": "despesa_fixa",
+    "valor": 250.00,
+    "categoria": "Serviços",
+    "data": "2026-10-15",
+    "descricao": "Internet e Streaming",
+    "source": "Pessoa B",
+    "vencimento": "15"
+  },
+  {
+    "tipo": "despesa_variavel",
+    "valor": 120.00,
+    "categoria": "Alimentação",
+    "data": "2026-10-05",
+    "descricao": "Supermercado Mensal",
+    "source": "Pessoa A",
+    "vencimento": null
+  },
+  {
+    "tipo": "despesa_variavel",
+    "valor": 80.00,
+    "categoria": "Transporte",
+    "data": "2026-10-06",
+    "descricao": "Combustível Veicular",
+    "source": "Pessoa B",
+    "vencimento": null
+  }
+]

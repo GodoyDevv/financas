@@ -20,7 +20,7 @@ TEST_APP_PASSWORD = "StrongMasterPassword123!"
 TEST_SESSION_SECRET = "super_secret_session_key_with_at_least_32_chars_12345"
 TEST_ADMIN_TOKEN = "adm_secret_token_secure_98765"
 TEST_WEBHOOK_SECRET = "webhook_secret_key_with_at_least_32_characters_12345"
-TEST_GROUP_JID = "120363430461864097@g.us"
+TEST_GROUP_JID = "120363000000000000@g.us"
 TEST_PHONE_BRUNO = "5511999998888"
 TEST_PHONE_LETICIA = "5511977776666"
 
@@ -241,7 +241,7 @@ def test_fail_closed_without_webhook_secret(client):
 def test_fail_closed_without_group_jid(client):
     """Se WHATSAPP_GROUP_JID não estiver configurado, responde 503 Service Unavailable."""
     with mock.patch.dict(os.environ, {"WHATSAPP_GROUP_JID": ""}):
-        payload = make_payload(remote_jid="120363430461864097@g.us")
+        payload = make_payload(remote_jid="120363000000000000@g.us")
         res = client.post(
             "/webhook/whatsapp",
             json=payload,
