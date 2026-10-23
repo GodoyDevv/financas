@@ -56,14 +56,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configuração de CORS para requisições
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configuração restritiva de CORS: front-end é same-origin por padrão (sem CORS).
+# Origens externas só são permitidas se explicitamente declaradas via ALLOWED_ORIGINS.
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "").strip()
+allowed_origins_list = [orig.strip() for orig in allowed_origins_env.split(",") if orig.strip()]
+
+if allowed_origins_list:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins_list,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "X-Admin-Token", "X-Webhook-Secret"],
+    )
 
 # ------------------------------------------------------------------------------
 # ROTAS PÚBLICAS DE AUTENTICAÇÃO
