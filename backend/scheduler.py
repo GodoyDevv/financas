@@ -40,6 +40,14 @@ def normalizar_nome_source(source: Optional[str]) -> str:
         return "Bruno"
     return s
 
+def obter_autor_transacao(t: Transaction) -> str:
+    """Retorna o autor normalizado priorizando o campo t.author ou fallback para t.source."""
+    if t.author:
+        return normalizar_nome_source(t.author)
+    if t.source and t.source not in ["Manual", "WhatsApp", "Webhook"]:
+        return normalizar_nome_source(t.source)
+    return "Outros"
+
 def gerar_barra_progresso(percentual: float, total_blocos: int = 10) -> str:
     """Gera uma barra visual de blocos para WhatsApp (ex: [████░░░░░░] 40%)"""
     preenchidos = round((percentual / 100) * total_blocos)
@@ -89,7 +97,7 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
         tot_outros = Decimal("0.00")
 
         for t in transacoes:
-            n = normalizar_nome_source(t.source)
+            n = obter_autor_transacao(t)
             v = to_decimal(t.valor)
             if n == "Bruno":
                 tot_bruno += v
@@ -108,7 +116,7 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
 
         linhas.append(f"\n🧾 *Detalhamento dos Gastos:*")
         for t in transacoes:
-            autor = normalizar_nome_source(t.source)
+            autor = obter_autor_transacao(t)
             desc = t.descricao or t.categoria or "Sem descrição"
             cat = t.categoria or "Outros"
             val = to_decimal(t.valor)
@@ -162,7 +170,7 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
             val = to_decimal(t.valor)
             mapa_cat[cat] = mapa_cat.get(cat, 0.0) + val
 
-            nome = normalizar_nome_source(t.source)
+            nome = obter_autor_transacao(t)
             mapa_source[nome] = mapa_source.get(nome, 0.0) + val
 
         # Ordenação por maior gasto

@@ -22,7 +22,9 @@ class Transaction(Base):
     categoria = Column(String, nullable=False)
     data = Column(Date, nullable=False, index=True) # Date object
     descricao = Column(String, nullable=True)
-    source = Column(String, default="Manual") # "Manual", "WhatsApp", "Webhook"
+    source = Column(String, default="Manual") # Mantido temporariamente para backward compatibility
+    author = Column(String(40), nullable=True) # "Bruno", "Letícia" ou custom
+    channel = Column(String(20), nullable=False, default="unknown") # "whatsapp_text", "whatsapp_audio", "dashboard", "api", "system", "unknown"
     vencimento = Column(String, nullable=True) # Para despesas fixas (ex: dia 10 ou data YYYY-MM-DD)
     created_at = Column(DateTime, default=datetime.utcnow)
 

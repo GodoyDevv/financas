@@ -20,6 +20,7 @@ def sanitize_text(value: Optional[str]) -> Optional[str]:
     return cleaned.strip()
 
 TipoTransacao = Literal["receita", "despesa_fixa", "despesa_variavel"]
+ChannelType = Literal["whatsapp_text", "whatsapp_audio", "dashboard", "api", "system", "unknown"]
 
 class TransactionBase(BaseModel):
     tipo: TipoTransacao = Field(..., description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
@@ -27,7 +28,9 @@ class TransactionBase(BaseModel):
     categoria: str = Field(..., min_length=1, max_length=60, description="Categoria do lançamento (máx 60 caracteres)")
     data: date
     descricao: Optional[str] = Field(None, max_length=200, description="Descrição do lançamento (máx 200 caracteres)")
-    source: Optional[str] = Field("Manual", max_length=40, description="Origem da transação (máx 40 caracteres)")
+    author: Optional[str] = Field(None, max_length=40, description="Autor do lançamento (ex: Bruno, Letícia)")
+    channel: Optional[ChannelType] = Field("unknown", description="Canal de entrada do lançamento")
+    source: Optional[str] = Field(None, max_length=40, description="[DEPRECATED] Mantido para compatibilidade reversa")
     vencimento: Optional[str] = Field(None, max_length=20, description="Dia de vencimento (máx 20 caracteres)")
 
     @field_validator("valor", mode="before")
@@ -37,7 +40,7 @@ class TransactionBase(BaseModel):
             return v
         return to_decimal(v)
 
-    @field_validator("descricao", "categoria", "source", "vencimento", mode="before")
+    @field_validator("descricao", "categoria", "source", "author", "vencimento", mode="before")
     @classmethod
     def clean_control_chars(cls, v):
         return sanitize_text(v)
@@ -51,7 +54,9 @@ class TransactionUpdate(BaseModel):
     categoria: Optional[str] = Field(None, min_length=1, max_length=60)
     data: Optional[date] = None
     descricao: Optional[str] = Field(None, max_length=200)
-    source: Optional[str] = Field(None, max_length=40)
+    author: Optional[str] = Field(None, max_length=40)
+    channel: Optional[ChannelType] = None
+    source: Optional[str] = Field(None, max_length=40, description="[DEPRECATED]")
     vencimento: Optional[str] = Field(None, max_length=20)
 
     @field_validator("valor", mode="before")
@@ -61,7 +66,7 @@ class TransactionUpdate(BaseModel):
             return v
         return to_decimal(v)
 
-    @field_validator("descricao", "categoria", "source", "vencimento", mode="before")
+    @field_validator("descricao", "categoria", "source", "author", "vencimento", mode="before")
     @classmethod
     def clean_control_chars(cls, v):
         return sanitize_text(v)

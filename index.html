@@ -1932,6 +1932,15 @@
         </div>
 
         <div class="form-group">
+          <label for="author">Responsável / Autor</label>
+          <select id="author" class="form-control">
+            <option value="">Não atribuído (Geral)</option>
+            <option value="Bruno">Bruno</option>
+            <option value="Letícia">Letícia</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label for="descricao">Descrição</label>
           <input type="text" id="descricao" class="form-control" placeholder="Ex: Conta Enel / Supermercado">
         </div>
@@ -2036,9 +2045,18 @@
                 </button>
               </th>
               <th>
-                <button type="button" class="th-filter-btn" id="th-btn-source" onclick="abrirFiltroColuna('source', this, event)" title="Filtrar por Origem (ex: Bruno, Letícia, Manual)">
-                  <span>Origem</span>
-                  <span class="th-filter-badge" id="th-badge-source" style="display:none">0</span>
+                <button type="button" class="th-filter-btn" id="th-btn-author" onclick="abrirFiltroColuna('author', this, event)" title="Filtrar por Autor (ex: Bruno, Letícia)">
+                  <span>Autor</span>
+                  <span class="th-filter-badge" id="th-badge-author" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="th-filter-btn" id="th-btn-channel" onclick="abrirFiltroColuna('channel', this, event)" title="Filtrar por Canal (ex: WhatsApp, Dashboard)">
+                  <span>Canal</span>
+                  <span class="th-filter-badge" id="th-badge-channel" style="display:none">0</span>
                   <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                   </svg>
@@ -2058,7 +2076,7 @@
           </thead>
           <tbody id="tabela-corpo">
             <tr>
-              <td colspan="8">
+              <td colspan="9">
                 <div class="empty-state">
                   <svg class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10"></circle>
@@ -2533,6 +2551,8 @@
       categoria: new Set(),
       descricao: new Set(),
       vencimento: new Set(),
+      author: new Set(),
+      channel: new Set(),
       source: new Set(),
       valor: new Set()
     };
@@ -2543,11 +2563,24 @@
       categoria: 'Categoria',
       descricao: 'Descrição',
       vencimento: 'Vencimento',
+      author: 'Autor',
+      channel: 'Canal',
       source: 'Origem',
       valor: 'Valor'
     };
 
     let colunaPopoverAtual = null;
+
+    function formatChannelLabel(ch) {
+      switch (ch) {
+        case 'whatsapp_text': return '💬 WhatsApp';
+        case 'whatsapp_audio': return '🎙️ Áudio Zap';
+        case 'dashboard': return '💻 Painel';
+        case 'api': return '⚡ API';
+        case 'system': return '🤖 Sistema';
+        default: return 'Desconhecido';
+      }
+    }
 
     function obterValorColuna(t, col) {
       switch (col) {
@@ -2565,6 +2598,10 @@
         }
         case 'vencimento':
           return t.vencimento ? String(t.vencimento) : 'Sem vencimento';
+        case 'author':
+          return t.author || (t.source && t.source !== 'Manual' && t.source !== 'WhatsApp' ? t.source : 'Geral');
+        case 'channel':
+          return formatChannelLabel(t.channel || (t.source === 'Manual' ? 'dashboard' : 'whatsapp_text'));
         case 'source':
           return t.source || 'Manual';
         case 'valor':
@@ -2825,7 +2862,16 @@
             <td>${escapeHtml(t.categoria)}</td>
             <td>${escapeHtml(t.descricao || '-')}</td>
             <td>${vStr}</td>
-            <td><span class="badge-source">${escapeHtml(t.source || 'Manual')}</span></td>
+            <td>
+              <span class="badge-source" title="Canal: ${escapeHtml(formatChannelLabel(t.channel))}">
+                ${escapeHtml(t.author || (t.source && t.source !== 'Manual' && t.source !== 'WhatsApp' ? t.source : 'Geral'))}
+              </span>
+            </td>
+            <td>
+              <span style="font-size: 11.5px; color: var(--text-dim);" title="Canal de entrada: ${escapeHtml(t.channel || 'unknown')}">
+                ${escapeHtml(formatChannelLabel(t.channel || (t.source === 'Manual' ? 'dashboard' : 'whatsapp_text')))}
+              </span>
+            </td>
             <td class="${classValor(t.tipo)}">
               ${sinalValor(t.tipo)} ${escapeHtml(formatBRL(t.valor))}
             </td>
@@ -2862,7 +2908,10 @@
                     ${escapeHtml(formatDateBR(t.data))}
                   </span>
                   ${badgeTipo(t.tipo)}
-                  <span class="badge-source">${escapeHtml(t.source || 'Manual')}</span>
+                  <span class="badge-source" title="${escapeHtml(formatChannelLabel(t.channel))}">
+                    ${escapeHtml(t.author || (t.source && t.source !== 'Manual' && t.source !== 'WhatsApp' ? t.source : 'Geral'))}
+                  </span>
+                  <span style="font-size: 10px; opacity: 0.75;">${escapeHtml(formatChannelLabel(t.channel))}</span>
                 </div>
                 <span style="font-size: 11.5px; color: var(--text-dim);">${escapeHtml(t.categoria)}</span>
               </div>
@@ -3168,7 +3217,7 @@
       const badgeCasal = document.getElementById('badge-comparativo-lider');
 
       // Considera despesas de consumo do dia a dia inseridas via WhatsApp
-      const transCasal = listaTrans.filter(t => (t.tipo === 'despesa_variavel' || t.tipo === 'despesa_fixa') && t.source && t.source !== 'Manual');
+      const transCasal = listaTrans.filter(t => (t.tipo === 'despesa_variavel' || t.tipo === 'despesa_fixa') && (t.author || (t.source && t.source !== 'Manual')));
       
       let totalBruno = 0;
       let countBruno = 0;
@@ -3176,7 +3225,7 @@
       let countLeticia = 0;
 
       transCasal.forEach(t => {
-        const nome = normalizarNomePessoa(t.source);
+        const nome = normalizarNomePessoa(t.author || t.source);
         const val = Number(t.valor || 0);
         if (nome === 'Bruno') {
           totalBruno += val;
@@ -3552,6 +3601,7 @@
       document.getElementById('categoria').value = transacao.categoria;
       document.getElementById('data').value = transacao.data;
       document.getElementById('vencimento').value = transacao.vencimento || '';
+      document.getElementById('author').value = transacao.author || '';
       document.getElementById('descricao').value = transacao.descricao || '';
 
       aoMudarTipo();
@@ -3570,6 +3620,7 @@
     function cancelarEdicao() {
       document.getElementById('edit-id').value = '';
       document.getElementById('form-transacao').reset();
+      document.getElementById('author').value = '';
       document.getElementById('data').valueAsDate = new Date();
       aoMudarTipo();
 
@@ -3587,21 +3638,21 @@
       const editId = document.getElementById('edit-id').value;
       const isEditing = Boolean(editId);
 
+      const authorInput = document.getElementById('author').value;
       const payload = {
         tipo: document.getElementById('tipo').value,
         valor: parseFloat(document.getElementById('valor').value),
         categoria: document.getElementById('categoria').value,
         data: document.getElementById('data').value,
+        author: authorInput || null,
+        channel: 'dashboard',
+        source: authorInput || 'Manual',
         vencimento: document.getElementById('vencimento').value || null,
         descricao: document.getElementById('descricao').value || null
       };
 
       const endpoint = isEditing ? `${API_BASE}/transactions/${editId}` : `${API_BASE}/transactions`;
       const method = isEditing ? 'PUT' : 'POST';
-
-      if (!isEditing) {
-        payload.source = 'Manual';
-      }
 
       try {
         const res = await apiFetch(endpoint, {

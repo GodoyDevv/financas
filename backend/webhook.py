@@ -139,12 +139,12 @@ async def extract_and_authorize_evolution_message(
     # TRAVA ESTRITA: Aceita EXCLUSIVAMENTE mensagens vindas do grupo oficial configurado
     if remote_jid != expected_group_jid:
         logger.info(f"Mensagem fora do grupo oficial ({remote_jid}) ignorada.")
-        return None, None, None, None, None
+        return None, None, None, None, None, False
 
     # Verifica se já foi processado anteriormente (apenas leitura do cache; registro ocorre DEPOIS da autorização)
     if msg_id and msg_id in PROCESSED_MESSAGE_IDS:
         logger.info(f"Mensagem {msg_id} já processada anteriormente. Ignorando evento duplicado.")
-        return None, None, None, None, None
+        return None, None, None, None, None, False
 
     # Identificação do remetente real
     is_from_me = False
@@ -175,7 +175,7 @@ async def extract_and_authorize_evolution_message(
 
     if not user_name:
         logger.warning(f"Mensagem rejeitada de remetente não autorizado: {mask_phone(clean_sender)}")
-        return None, None, None, None, None
+        return None, None, None, None, None, False
 
     # Mover registro de deduplicação para DEPOIS de autenticado e autorizado
     msg_id_to_record = msg_id
@@ -225,17 +225,20 @@ async def extract_and_authorize_evolution_message(
     # Ignora mensagens automáticas do próprio Atlas
     if raw_text and ("*Atlas:*" in raw_text or "🎙️" in raw_text or "Teste de conexão Atlas" in raw_text):
         logger.info("Ignorando mensagem automática gerada pelo próprio Atlas.")
-        return None, None, None, None, msg_id_to_record
+        return None, None, None, None, msg_id_to_record, False
 
+    is_audio = False
     # Validação e limitação de tamanho do áudio (máximo 2 MB) ANTES de invocar transcrição/Gemini
     if audio_bytes and not raw_text:
         if len(audio_bytes) > MAX_AUDIO_BYTES:
             logger.warning(f"Áudio de {user_name} rejeitado: {len(audio_bytes)} bytes excede o limite de {MAX_AUDIO_BYTES} bytes (2MB).")
-            return clean_sender, user_name, None, remote_jid, msg_id_to_record
+            return clean_sender, user_name, None, remote_jid, msg_id_to_record, False
 
         from .atlas import transcribe_audio_bytes
         logger.info(f"Áudio descriptografado de {user_name} ({len(audio_bytes)} bytes). Enviando para o Atlas transcrever...")
         raw_text = transcribe_audio_bytes(audio_bytes, mime_type=audio_mime)
+        if raw_text:
+            is_audio = True
 
     if not raw_text:
         raw_text = data.get("text") or data.get("body") or payload.get("text") or payload.get("message")
@@ -250,7 +253,7 @@ async def extract_and_authorize_evolution_message(
     else:
         raw_text = None
 
-    return clean_sender, user_name, raw_text, remote_jid, msg_id_to_record
+    return clean_sender, user_name, raw_text, remote_jid, msg_id_to_record, is_audio
 
 
 async def handle_webhook_event(
@@ -264,7 +267,7 @@ async def handle_webhook_event(
     verify_webhook_secret(request, token_in_path)
 
     # 2. Extração, autorização e validação de limites
-    sender, user_name, raw_text, remote_jid, msg_id = await extract_and_authorize_evolution_message(payload, request)
+    sender, user_name, raw_text, remote_jid, msg_id, is_audio = await extract_and_authorize_evolution_message(payload, request)
 
     # 3. Registra dedupe pós-autenticação e autorização
     if msg_id:
@@ -278,17 +281,23 @@ async def handle_webhook_event(
             "detail": "Evento ignorado ou não autorizado"
         }
 
+    channel_type = "whatsapp_audio" if is_audio else "whatsapp_text"
+
     parsed_data = None
     if raw_text:
         parsed_data = parse_text_message(raw_text)
         if parsed_data:
             parsed_data["tipo"] = "despesa_variavel"
             parsed_data["source"] = user_name
+            parsed_data["author"] = user_name
+            parsed_data["channel"] = channel_type
     else:
         parsed_data = parse_financial_payload(payload)
         if parsed_data:
             parsed_data["tipo"] = "despesa_variavel"
             parsed_data["source"] = user_name
+            parsed_data["author"] = user_name
+            parsed_data["channel"] = channel_type
 
     if not parsed_data or parsed_data.get("valor", 0) <= 0:
         return {
@@ -315,7 +324,9 @@ async def handle_webhook_event(
             categoria=parsed_data["categoria"],
             data=add_months(base_data, i),
             descricao=desc_parcelada,
-            source=parsed_data.get("source", "WhatsApp"),
+            author=user_name,
+            channel=channel_type,
+            source=parsed_data.get("source", user_name),
             vencimento=parsed_data.get("vencimento")
         )
         db.add(t_item)

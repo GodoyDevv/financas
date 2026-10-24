@@ -25,6 +25,8 @@ router = APIRouter(prefix="/api", tags=["Transactions & Metrics"])
 @router.get("/transactions", response_model=List[TransactionResponse])
 def get_transactions(
     tipo: Optional[str] = None, 
+    author: Optional[str] = Query(None, description="Filtra por autor (ex: Bruno, Letícia)"),
+    channel: Optional[str] = Query(None, description="Filtra por canal (ex: whatsapp_text, whatsapp_audio, dashboard)"),
     mes: Optional[str] = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
     db: Session = Depends(get_db)
 ):
@@ -51,6 +53,12 @@ def get_transactions(
     
     if tipo:
         query = query.filter(Transaction.tipo == tipo.lower())
+
+    if author:
+        query = query.filter(Transaction.author == author)
+
+    if channel:
+        query = query.filter(Transaction.channel == channel)
     
     rows = query.order_by(desc(Transaction.id)).all()
     return rows
@@ -70,13 +78,22 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
             detail=f"Tipo inválido. Escolha um dos seguintes: {', '.join(valid_types)}"
         )
 
+    # Canal e autor para chamadas da API/Dashboard
+    author_val = transaction.author.strip() if transaction.author else None
+    channel_val = transaction.channel if transaction.channel and transaction.channel != "unknown" else "dashboard"
+    
+    # Dual-write: source recebe author ou channel para não quebrar compatibilidade
+    source_val = transaction.source.strip() if transaction.source else (author_val or channel_val)
+
     new_item = Transaction(
         tipo=clean_tipo,
         valor=to_decimal(transaction.valor),
         categoria=transaction.categoria.strip(),
         data=transaction.data,
         descricao=transaction.descricao.strip() if transaction.descricao else "",
-        source=transaction.source or "Manual",
+        author=author_val,
+        channel=channel_val,
+        source=source_val,
         vencimento=transaction.vencimento.strip() if transaction.vencimento else None
     )
     db.add(new_item)
@@ -116,6 +133,13 @@ def update_transaction(
         existing.data = transaction.data
     if transaction.descricao is not None:
         existing.descricao = transaction.descricao.strip()
+    if transaction.author is not None:
+        existing.author = transaction.author.strip() if transaction.author else None
+        # Atualiza source se author for fornecido
+        if existing.author:
+            existing.source = existing.author
+    if transaction.channel is not None:
+        existing.channel = transaction.channel
     if transaction.source is not None:
         existing.source = transaction.source.strip()
     if transaction.vencimento is not None:
