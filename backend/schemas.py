@@ -1,7 +1,15 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List, Dict, Literal
+from pydantic import BaseModel, Field, field_validator, PlainSerializer
+from typing import Optional, List, Dict, Literal, Annotated
 from datetime import date
+from decimal import Decimal
 import re
+from backend.dates_and_money import to_decimal
+
+# Tipo serializado como float nativo em JSON para preservar compatibilidade estrita com o frontend
+MoneyDecimal = Annotated[
+    Decimal,
+    PlainSerializer(lambda x: float(x) if x is not None else 0.0, return_type=float, when_used="json")
+]
 
 def sanitize_text(value: Optional[str]) -> Optional[str]:
     """Remove caracteres de controle ASCII perigosos preservando quebras e espaços normais."""
@@ -15,12 +23,19 @@ TipoTransacao = Literal["receita", "despesa_fixa", "despesa_variavel"]
 
 class TransactionBase(BaseModel):
     tipo: TipoTransacao = Field(..., description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
-    valor: float = Field(..., gt=0, le=1_000_000, description="Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00")
+    valor: MoneyDecimal = Field(..., gt=0, le=1_000_000, description="Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00")
     categoria: str = Field(..., min_length=1, max_length=60, description="Categoria do lançamento (máx 60 caracteres)")
     data: date
     descricao: Optional[str] = Field(None, max_length=200, description="Descrição do lançamento (máx 200 caracteres)")
     source: Optional[str] = Field("Manual", max_length=40, description="Origem da transação (máx 40 caracteres)")
     vencimento: Optional[str] = Field(None, max_length=20, description="Dia de vencimento (máx 20 caracteres)")
+
+    @field_validator("valor", mode="before")
+    @classmethod
+    def parse_money(cls, v):
+        if v is None:
+            return v
+        return to_decimal(v)
 
     @field_validator("descricao", "categoria", "source", "vencimento", mode="before")
     @classmethod
@@ -32,12 +47,19 @@ class TransactionCreate(TransactionBase):
 
 class TransactionUpdate(BaseModel):
     tipo: Optional[TipoTransacao] = Field(None, description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
-    valor: Optional[float] = Field(None, gt=0, le=1_000_000, description="Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00")
+    valor: Optional[MoneyDecimal] = Field(None, gt=0, le=1_000_000, description="Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00")
     categoria: Optional[str] = Field(None, min_length=1, max_length=60)
     data: Optional[date] = None
     descricao: Optional[str] = Field(None, max_length=200)
     source: Optional[str] = Field(None, max_length=40)
     vencimento: Optional[str] = Field(None, max_length=20)
+
+    @field_validator("valor", mode="before")
+    @classmethod
+    def parse_money(cls, v):
+        if v is None:
+            return v
+        return to_decimal(v)
 
     @field_validator("descricao", "categoria", "source", "vencimento", mode="before")
     @classmethod
@@ -51,23 +73,23 @@ class TransactionResponse(TransactionBase):
         from_attributes = True
 
 class FinancialSummary(BaseModel):
-    total_receitas: float
-    total_despesas_fixas: float
-    total_despesas_variaveis: float
-    total_despesas: float
-    saldo_livre: float
+    total_receitas: MoneyDecimal
+    total_despesas_fixas: MoneyDecimal
+    total_despesas_variaveis: MoneyDecimal
+    total_despesas: MoneyDecimal
+    saldo_livre: MoneyDecimal
 
 class CategoryMetric(BaseModel):
     categoria: str
-    total: float
+    total: MoneyDecimal
     percentual: float
 
 class MetricsResponse(BaseModel):
-    receitas_totais: float
-    contas_fixas: float
-    gastos_whatsapp: float
-    total_despesas: float
-    saldo_livre: float
+    receitas_totais: MoneyDecimal
+    contas_fixas: MoneyDecimal
+    gastos_whatsapp: MoneyDecimal
+    total_despesas: MoneyDecimal
+    saldo_livre: MoneyDecimal
     total_transacoes: int
     categorias: List[CategoryMetric]
 
@@ -76,6 +98,6 @@ class MessageParseRequest(BaseModel):
 
 class MessageParseResponse(BaseModel):
     tipo: str
-    valor: float
+    valor: MoneyDecimal
     categoria: str
     descricao: str

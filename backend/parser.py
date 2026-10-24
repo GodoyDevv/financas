@@ -1,6 +1,8 @@
 import re
 import calendar
 from datetime import date
+from decimal import Decimal
+from .dates_and_money import today_br, to_decimal
 
 def add_months(sourcedate: date, months: int) -> date:
     """Adiciona 'months' meses a uma data mantendo o dia válido para o mês de destino."""
@@ -23,7 +25,7 @@ def parse_financial_payload(payload: dict) -> dict:
 
         valor = float(payload.get("valor", 0.0))
         categoria = str(payload.get("categoria", "Outros")).strip()
-        data_str = str(payload.get("data", date.today().isoformat()))
+        data_str = str(payload.get("data", today_br().isoformat()))
         descricao = str(payload.get("descricao", "Lançamento WhatsApp")).strip()
         source = str(payload.get("source", "WhatsApp"))
         vencimento = payload.get("vencimento")
@@ -193,7 +195,7 @@ def parse_text_message(message: str) -> dict:
         "valor": round(valor, 2),
         "categoria": categoria,
         "descricao": descricao,
-        "data": date.today().isoformat(),
+        "data": today_br().isoformat(),
         "source": "WhatsApp",
         "parcelas": parcelas
     }

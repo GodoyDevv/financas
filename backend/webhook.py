@@ -8,6 +8,7 @@ from .database import get_db
 from .models import Transaction
 from datetime import date
 from .parser import parse_financial_payload, parse_text_message, add_months
+from .dates_and_money import to_decimal, today_br
 
 logger = logging.getLogger("fintrack.webhook")
 
@@ -310,9 +311,9 @@ async def handle_webhook_event(
 
         t_item = Transaction(
             tipo=parsed_data["tipo"],
-            valor=float(parsed_data["valor"]),
+            valor=to_decimal(parsed_data["valor"]),
             categoria=parsed_data["categoria"],
-            data=parcela_data,
+            data=add_months(base_data, i),
             descricao=desc_parcelada,
             source=parsed_data.get("source", "WhatsApp"),
             vencimento=parsed_data.get("vencimento")

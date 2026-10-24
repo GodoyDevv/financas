@@ -1,13 +1,16 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
+from datetime import date
+from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, or_
 
 from .database import get_db, engine, Base
-from .models import Transaction
+from .models import Transaction, Category
+from .dates_and_money import to_decimal, month_range, today_br
 from .schemas import (
     TransactionCreate, 
-    TransactionUpdate,
+    TransactionUpdate, 
     TransactionResponse, 
     FinancialSummary, 
     MetricsResponse, 
@@ -29,17 +32,20 @@ def get_transactions(
     Retorna a lista de transações.
     Se 'mes' for fornecido (ex: '2026-10'):
       - Mantém as receitas e contas fixas recorrentes (base do orçamento doméstico).
-      - Filtra as despesas variáveis para exibir APENAS as que caem naquele mês (incluindo parcelas agendadas).
+      - Filtra as despesas variáveis para exibir APENAS as que caem naquele mês (data >= inicio AND data < fim).
     """
     query = db.query(Transaction)
     
     if mes:
-        # Se filtrado por mês: receitas e despesas fixas recorrentes sempre presentes,
-        # despesas variáveis estritamente daquele mês
+        try:
+            inicio, fim = month_range(mes)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
         query = query.filter(
             or_(
                 Transaction.tipo.in_(["receita", "despesa_fixa"]),
-                Transaction.data.like(f"{mes}%")
+                (Transaction.data >= inicio) & (Transaction.data < fim)
             )
         )
     
@@ -66,9 +72,9 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
 
     new_item = Transaction(
         tipo=clean_tipo,
-        valor=abs(float(transaction.valor)),
+        valor=to_decimal(transaction.valor),
         categoria=transaction.categoria.strip(),
-        data=str(transaction.data),
+        data=transaction.data,
         descricao=transaction.descricao.strip() if transaction.descricao else "",
         source=transaction.source or "Manual",
         vencimento=transaction.vencimento.strip() if transaction.vencimento else None
@@ -103,11 +109,11 @@ def update_transaction(
         existing.tipo = new_tipo
         
     if transaction.valor is not None:
-        existing.valor = abs(float(transaction.valor))
+        existing.valor = to_decimal(transaction.valor)
     if transaction.categoria is not None:
         existing.categoria = transaction.categoria.strip()
     if transaction.data is not None:
-        existing.data = str(transaction.data)
+        existing.data = transaction.data
     if transaction.descricao is not None:
         existing.descricao = transaction.descricao.strip()
     if transaction.source is not None:
@@ -172,22 +178,27 @@ def get_summary(
         func.sum(Transaction.valor).label("total")
     )
     if mes:
+        try:
+            inicio, fim = month_range(mes)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
         query = query.filter(
             or_(
                 Transaction.tipo.in_(["receita", "despesa_fixa"]),
-                Transaction.data.like(f"{mes}%")
+                (Transaction.data >= inicio) & (Transaction.data < fim)
             )
         )
     
     totals = query.group_by(Transaction.tipo).all()
     
-    total_receitas = 0.0
-    total_despesas_fixas = 0.0
-    total_despesas_variaveis = 0.0
+    total_receitas = Decimal("0.00")
+    total_despesas_fixas = Decimal("0.00")
+    total_despesas_variaveis = Decimal("0.00")
     
     for row in totals:
         t = str(row[0]).lower() if row[0] else ""
-        val = float(row[1] or 0.0)
+        val = to_decimal(row[1])
         if t == "receita":
             total_receitas += val
         elif t == "despesa_fixa":
@@ -222,22 +233,27 @@ def get_metrics(
         func.count(Transaction.id).label("qtd")
     )
     if mes:
+        try:
+            inicio, fim = month_range(mes)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
         query_totals = query_totals.filter(
             or_(
                 Transaction.tipo.in_(["receita", "despesa_fixa"]),
-                Transaction.data.like(f"{mes}%")
+                (Transaction.data >= inicio) & (Transaction.data < fim)
             )
         )
     totals = query_totals.group_by(Transaction.tipo).all()
     
-    receitas_totais = 0.0
-    contas_fixas = 0.0
-    gastos_whatsapp = 0.0
+    receitas_totais = Decimal("0.00")
+    contas_fixas = Decimal("0.00")
+    gastos_whatsapp = Decimal("0.00")
     total_transacoes = 0
 
     for row in totals:
         t = str(row[0]).lower() if row[0] else ""
-        val = float(row[1] or 0.0)
+        val = to_decimal(row[1])
         qtd = int(row[2] or 0)
         total_transacoes += qtd
 
@@ -262,7 +278,7 @@ def get_metrics(
         cat_query = cat_query.filter(
             or_(
                 Transaction.tipo == "despesa_fixa",
-                Transaction.data.like(f"{mes}%")
+                (Transaction.data >= inicio) & (Transaction.data < fim)
             )
         )
     
@@ -273,10 +289,10 @@ def get_metrics(
     ).all()
     
     categorias = []
-    base_calc = total_despesas if total_despesas > 0 else 1.0
+    base_calc = float(total_despesas) if total_despesas > Decimal("0.00") else 1.0
     for row in cat_rows:
-        cat_total = float(row[1] or 0.0)
-        percentual = round((cat_total / base_calc) * 100, 1) if total_despesas > 0 else 0.0
+        cat_total = to_decimal(row[1])
+        percentual = round((float(cat_total) / base_calc) * 100, 1) if total_despesas > Decimal("0.00") else 0.0
         categorias.append(CategoryMetric(
             categoria=row[0],
             total=cat_total,

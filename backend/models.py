@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Numeric, Date, Index
 from sqlalchemy.orm import relationship
 from backend.database import Base
 
@@ -18,9 +18,9 @@ class Transaction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     tipo = Column(String, nullable=False) # "receita", "despesa_fixa", "despesa_variavel"
-    valor = Column(Float, nullable=False)
+    valor = Column(Numeric(12, 2), nullable=False)
     categoria = Column(String, nullable=False)
-    data = Column(String, nullable=False) # YYYY-MM-DD
+    data = Column(Date, nullable=False, index=True) # Date object
     descricao = Column(String, nullable=True)
     source = Column(String, default="Manual") # "Manual", "WhatsApp", "Webhook"
     vencimento = Column(String, nullable=True) # Para despesas fixas (ex: dia 10 ou data YYYY-MM-DD)
@@ -28,3 +28,7 @@ class Transaction(Base):
 
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     category_rel = relationship("Category", back_populates="transactions")
+
+    __table_args__ = (
+        Index("ix_transactions_data_tipo", "data", "tipo"),
+    )

@@ -1,3 +1,5 @@
+from typing import Union
+from decimal import Decimal
 import os
 import io
 import re
@@ -177,7 +179,7 @@ def download_media_from_url(media_url: str) -> Optional[bytes]:
         logger.error(f"Erro ao baixar mídia da URL {media_url}: {e}")
     return None
 
-def format_atlas_confirmation(user_name: str, item_desc: str, valor: float, parcelas: int, saldo_livre: Optional[float] = None) -> str:
+def format_atlas_confirmation(user_name: str, item_desc: str, valor: Union[float, Decimal], parcelas: int, saldo_livre: Optional[Union[float, Decimal]] = None) -> str:
     """Gera a mensagem de resposta executiva do Atlas."""
     val_formatado = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     

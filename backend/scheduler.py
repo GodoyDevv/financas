@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .models import Transaction
 from .atlas import send_whatsapp_message
+from .dates_and_money import to_decimal, today_br, TIMEZONE_SP
+from decimal import Decimal
+from typing import Union
 
 logger = logging.getLogger("fintrack.scheduler")
 
@@ -22,7 +25,7 @@ def get_target_group_jid() -> str:
     """Retorna o JID do grupo oficial a partir das variáveis de ambiente."""
     return os.getenv("WHATSAPP_GROUP_JID", "").strip()
 
-def format_brl(valor: float) -> str:
+def format_brl(valor: Union[float, Decimal]) -> str:
     """Formata valor em padrão brasileiro de moeda R$ 1.234,56"""
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
@@ -53,17 +56,17 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
     data_formatada_br = data_alvo.strftime("%d/%m/%Y")
 
     transacoes = db.query(Transaction).filter(
-        Transaction.data == data_str,
+        Transaction.data == data_alvo,
         Transaction.tipo.in_(["despesa_variavel"])
     ).order_by(Transaction.id.asc()).all()
 
-    primeiro_dia_mes = data_alvo.replace(day=1).strftime("%Y-%m-%d")
+    primeiro_dia_mes = data_alvo.replace(day=1)
     gastos_mes = db.query(Transaction).filter(
         Transaction.data >= primeiro_dia_mes,
-        Transaction.data <= data_str,
+        Transaction.data <= data_alvo,
         Transaction.tipo == "despesa_variavel"
     ).all()
-    total_acumulado_mes = sum(float(t.valor or 0) for t in gastos_mes)
+    total_acumulado_mes = sum((to_decimal(t.valor) for t in gastos_mes), Decimal("0.00"))
 
     linhas = []
     linhas.append("🌙 *Atlas Finanças · Fechamento do Dia*")
@@ -74,20 +77,20 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
         linhas.append("\n✨ *Dia econômico!* Nenhum gasto variável foi registrado hoje no grupo.")
         linhas.append("Vocês mantiveram o foco total no orçamento! 🎯👏")
     else:
-        total_dia = sum(float(t.valor or 0) for t in transacoes)
+        total_dia = sum((to_decimal(t.valor) for t in transacoes), Decimal("0.00"))
         qtd = len(transacoes)
 
         linhas.append(f"\n📊 *Resumo Geral:*")
         linhas.append(f"• *{qtd}* lançamento{'s' if qtd > 1 else ''} registrado{'s' if qtd > 1 else ''}")
         linhas.append(f"• Total do dia: *{format_brl(total_dia)}*")
 
-        tot_bruno = 0.0
-        tot_leticia = 0.0
-        tot_outros = 0.0
+        tot_bruno = Decimal("0.00")
+        tot_leticia = Decimal("0.00")
+        tot_outros = Decimal("0.00")
 
         for t in transacoes:
             n = normalizar_nome_source(t.source)
-            v = float(t.valor or 0)
+            v = to_decimal(t.valor)
             if n == "Bruno":
                 tot_bruno += v
             elif n == "Letícia":
@@ -108,7 +111,7 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
             autor = normalizar_nome_source(t.source)
             desc = t.descricao or t.categoria or "Sem descrição"
             cat = t.categoria or "Outros"
-            val = float(t.valor or 0)
+            val = to_decimal(t.valor)
             linhas.append(f"• *{desc}* ({cat}) ➔ *{format_brl(val)}* _{autor}_")
 
     linhas.append("\n━━━━━━━━━━━━━━━━━━━━━")
@@ -133,8 +136,8 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
 
     # Busca apenas despesas variáveis (gastos cotidianos do casal)
     transacoes = db.query(Transaction).filter(
-        Transaction.data >= str_inicio,
-        Transaction.data <= str_fim,
+        Transaction.data >= data_inicio,
+        Transaction.data <= data_fim,
         Transaction.tipo.in_(["despesa_variavel"])
     ).all()
 
@@ -147,7 +150,7 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
         linhas.append("\n✨ *Semana impressionante!* Nenhum gasto variável foi registrado nos últimos 7 dias.")
         linhas.append("Parabéns pelo controle orçamentário impecável do casal! 🚀👏")
     else:
-        total_semana = sum(float(t.valor or 0) for t in transacoes)
+        total_semana = sum((to_decimal(t.valor) for t in transacoes), Decimal("0.00"))
         qtd = len(transacoes)
 
         # Agrupamento por Categoria
@@ -156,7 +159,7 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
 
         for t in transacoes:
             cat = (t.categoria or "Outros").strip()
-            val = float(t.valor or 0)
+            val = to_decimal(t.valor)
             mapa_cat[cat] = mapa_cat.get(cat, 0.0) + val
 
             nome = normalizar_nome_source(t.source)
