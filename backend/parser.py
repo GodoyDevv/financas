@@ -3,6 +3,7 @@ import calendar
 from datetime import date
 from decimal import Decimal
 from .dates_and_money import today_br, to_decimal
+from .categories import CANONICAL_CATEGORIES, resolve_canonical_name
 
 def add_months(sourcedate: date, months: int) -> date:
     """Adiciona 'months' meses a uma data mantendo o dia válido para o mês de destino."""
@@ -24,7 +25,9 @@ def parse_financial_payload(payload: dict) -> dict:
             tipo = "despesa_variavel"
 
         valor = float(payload.get("valor", 0.0))
-        categoria = str(payload.get("categoria", "Outros")).strip()
+        raw_cat = payload.get("categoria")
+        resolved = resolve_canonical_name(str(raw_cat).strip()) if raw_cat else None
+        categoria = resolved or "Outros"
         data_str = str(payload.get("data", today_br().isoformat()))
         descricao = str(payload.get("descricao", "Lançamento WhatsApp")).strip()
         source = str(payload.get("source", "WhatsApp"))
@@ -139,15 +142,17 @@ def parse_text_message(message: str) -> dict:
     else:
         desc_part = msg_cleaned
 
-    # 4. Categorização inteligente
+    # 4. Categorização inteligente com base nas categorias canônicas oficiais
     categoria = "Outros"
     
     categories_map = {
         "Alimentação": ["almoço", "almoco", "jantar", "café", "cafe", "restaurante", "ifood", "lanche", "mercado", "supermercado", "padaria", "pizza", "hamburguer", "feira", "açougue", "acougue"],
         "Transporte": ["uber", "99", "gasolina", "combustivel", "combustível", "estacionamento", "onibus", "ônibus", "metro", "metrô", "pedágio", "pedagio", "carro", "oficina", "mecânico", "mecanico", "pneu", "óleo", "oleo"],
-        "Moradia": ["aluguel", "condomínio", "condominio", "energia", "enel", "luz", "agua", "água", "internet", "iptu", "gas", "gás"],
+        "Moradia": ["aluguel", "condomínio", "condominio", "iptu"],
+        "Contas de Consumo": ["energia", "enel", "luz", "agua", "água", "sabesp", "internet", "gas", "gás"],
         "Lazer": ["cinema", "streaming", "netflix", "spotify", "show", "viagem", "bar", "cerveja", "jogos", "game", "passeio"],
         "Saúde": ["farmácia", "farmacia", "remedio", "remédio", "consulta", "médico", "medico", "exame", "hospital", "dentista", "plano"],
+        "Educação": ["escola", "faculdade", "curso", "livro", "mensalidade"],
         "Salário/Renda": ["salário", "salario", "freela", "rendimento", "dividendo", "pro-labore", "pró-labore", "bonificação", "comissão"]
     }
 
@@ -163,7 +168,7 @@ def parse_text_message(message: str) -> dict:
                 categoria = cat
                 break
         if categoria == "Outros" and tipo == "despesa_fixa":
-            categoria = "Moradia"
+            categoria = "Contas de Consumo"
 
     # 5. Descrição limpa (remove saudações ao Atlas, preposições soltas e valores)
     descricao = re.sub(r'(?:R\$\s*)?\d+(?:[\.,]\d+)?', '', desc_part)

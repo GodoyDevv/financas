@@ -8,6 +8,12 @@ from sqlalchemy import func, desc, or_
 from .database import get_db, engine, Base
 from .models import Transaction, Category
 from .dates_and_money import to_decimal, month_range, today_br
+from .categories import (
+    normalize_category_name,
+    resolve_canonical_name,
+    get_valid_category_names,
+    CANONICAL_CATEGORIES
+)
 from .schemas import (
     TransactionCreate, 
     TransactionUpdate, 
@@ -15,6 +21,8 @@ from .schemas import (
     FinancialSummary, 
     MetricsResponse, 
     CategoryMetric,
+    CategoryResponse,
+    CategoryUpdate,
     MessageParseRequest,
     MessageParseResponse
 )
@@ -85,10 +93,38 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
     # Dual-write: source recebe author ou channel para não quebrar compatibilidade
     source_val = transaction.source.strip() if transaction.source else (author_val or channel_val)
 
+    # Validação e resolução de categoria (Requisito 4):
+    # Se vier do dashboard/API e for desconhecida -> 422 com lista válida
+    canonical_name = resolve_canonical_name(transaction.categoria)
+    if not canonical_name:
+        valid_cats = get_valid_category_names()
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": f"Categoria '{transaction.categoria}' não é válida.",
+                "valid_categories": valid_cats
+            }
+        )
+
+    norm_name = normalize_category_name(canonical_name)
+    cat_db = db.query(Category).filter(Category.normalized_name == norm_name).first()
+    if not cat_db:
+        # Se categoria canônica não estiver na tabela, cria de forma resiliente
+        cat_db = Category(
+            name=canonical_name,
+            normalized_name=norm_name,
+            tipo="receita" if clean_tipo == "receita" else "despesa",
+            ativo=True
+        )
+        db.add(cat_db)
+        db.commit()
+        db.refresh(cat_db)
+
     new_item = Transaction(
         tipo=clean_tipo,
         valor=to_decimal(transaction.valor),
-        categoria=transaction.categoria.strip(),
+        categoria=cat_db.name,
+        category_id=cat_db.id,
         data=transaction.data,
         descricao=transaction.descricao.strip() if transaction.descricao else "",
         author=author_val,
@@ -128,7 +164,30 @@ def update_transaction(
     if transaction.valor is not None:
         existing.valor = to_decimal(transaction.valor)
     if transaction.categoria is not None:
-        existing.categoria = transaction.categoria.strip()
+        canonical_name = resolve_canonical_name(transaction.categoria)
+        if not canonical_name:
+            valid_cats = get_valid_category_names()
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "message": f"Categoria '{transaction.categoria}' não é válida.",
+                    "valid_categories": valid_cats
+                }
+            )
+        norm_name = normalize_category_name(canonical_name)
+        cat_db = db.query(Category).filter(Category.normalized_name == norm_name).first()
+        if not cat_db:
+            cat_db = Category(
+                name=canonical_name,
+                normalized_name=norm_name,
+                tipo="receita" if existing.tipo == "receita" else "despesa",
+                ativo=True
+            )
+            db.add(cat_db)
+            db.commit()
+            db.refresh(cat_db)
+        existing.categoria = cat_db.name
+        existing.category_id = cat_db.id
     if transaction.data is not None:
         existing.data = transaction.data
     if transaction.descricao is not None:
@@ -293,11 +352,16 @@ def get_metrics(
 
     # Distribuição de despesas por categoria
     cat_query = db.query(
-        Transaction.categoria,
+        Category.id.label("cat_id"),
+        Category.name.label("cat_name"),
+        Category.budget.label("cat_budget"),
         func.sum(Transaction.valor).label("total")
+    ).join(
+        Transaction, Transaction.category_id == Category.id
     ).filter(
         Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"])
     )
+
     if mes:
         cat_query = cat_query.filter(
             or_(
@@ -307,7 +371,7 @@ def get_metrics(
         )
     
     cat_rows = cat_query.group_by(
-        Transaction.categoria
+        Category.id, Category.name, Category.budget
     ).order_by(
         desc(func.sum(Transaction.valor))
     ).all()
@@ -315,12 +379,21 @@ def get_metrics(
     categorias = []
     base_calc = float(total_despesas) if total_despesas > Decimal("0.00") else 1.0
     for row in cat_rows:
-        cat_total = to_decimal(row[1])
+        cat_total = to_decimal(row.total)
+        cat_budget = to_decimal(row.cat_budget) if row.cat_budget is not None else None
         percentual = round((float(cat_total) / base_calc) * 100, 1) if total_despesas > Decimal("0.00") else 0.0
+        
+        percentual_budget = None
+        if cat_budget and cat_budget > Decimal("0.00"):
+            percentual_budget = round((float(cat_total) / float(cat_budget)) * 100, 1)
+
         categorias.append(CategoryMetric(
-            categoria=row[0],
+            categoria=row.cat_name,
+            category_id=row.cat_id,
             total=cat_total,
-            percentual=percentual
+            budget=cat_budget,
+            percentual=percentual,
+            percentual_budget=percentual_budget
         ))
 
     return MetricsResponse(
@@ -331,6 +404,118 @@ def get_metrics(
         saldo_livre=saldo_livre,
         total_transacoes=total_transacoes,
         categorias=categorias
+    )
+
+@router.get("/categories", response_model=List[CategoryResponse])
+def get_categories(
+    mes: Optional[str] = Query(None, description="Mês no formato YYYY-MM para calcular gasto e percentual do orçamento"),
+    ativo: Optional[bool] = Query(None, description="Filtrar categorias ativas/inativas"),
+    db: Session = Depends(get_db)
+):
+    """
+    Retorna a lista de categorias cadastradas com informações de orçamento (budget),
+    gasto acumulado no mês (se informado) e percentual do orçamento atingido.
+    """
+    query = db.query(Category)
+    if ativo is not None:
+        query = query.filter(Category.ativo == ativo)
+    categories = query.order_by(Category.id).all()
+
+    # Se mes foi passado, calcula o gasto de cada categoria no mês
+    spend_by_cat = {}
+    if mes:
+        try:
+            inicio, fim = month_range(mes)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        spend_rows = db.query(
+            Transaction.category_id,
+            func.sum(Transaction.valor).label("gasto")
+        ).filter(
+            Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"]),
+            or_(
+                Transaction.tipo == "despesa_fixa",
+                (Transaction.data >= inicio) & (Transaction.data < fim)
+            )
+        ).group_by(Transaction.category_id).all()
+
+        for r in spend_rows:
+            if r.category_id:
+                spend_by_cat[r.category_id] = to_decimal(r.gasto)
+
+    res = []
+    for cat in categories:
+        gasto = spend_by_cat.get(cat.id, Decimal("0.00"))
+        pct_budget = None
+        if cat.budget and to_decimal(cat.budget) > Decimal("0.00"):
+            pct_budget = round((float(gasto) / float(cat.budget)) * 100, 1)
+
+        res.append(CategoryResponse(
+            id=cat.id,
+            name=cat.name,
+            nome=cat.name,
+            tipo=cat.tipo,
+            budget=to_decimal(cat.budget) if cat.budget is not None else None,
+            ativo=cat.ativo,
+            gasto_mes=gasto,
+            percentual_budget=pct_budget
+        ))
+    return res
+
+@router.put("/categories/{cat_id}", response_model=CategoryResponse)
+def update_category(
+    cat_id: int,
+    payload: CategoryUpdate,
+    db: Session = Depends(get_db)
+):
+    """Atualiza dados da categoria: budget, ativo e/ou nome."""
+    category = db.query(Category).filter(Category.id == cat_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoria não encontrada")
+
+    if payload.name is not None:
+        new_name = payload.name.strip()
+        new_norm = normalize_category_name(new_name)
+        # Verifica se já existe outra categoria com esse normalized_name
+        conflict = db.query(Category).filter(
+            Category.normalized_name == new_norm,
+            Category.id != cat_id
+        ).first()
+        if conflict:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Já existe uma categoria cadastrada com o nome '{conflict.name}'."
+            )
+        category.name = new_name
+        category.normalized_name = new_norm
+        # Sincroniza também as transações associadas
+        db.query(Transaction).filter(Transaction.category_id == cat_id).update(
+            {"categoria": new_name}, synchronize_session=False
+        )
+
+    if payload.budget is not None:
+        category.budget = to_decimal(payload.budget) if payload.budget is not None else None
+
+    if payload.ativo is not None:
+        category.ativo = payload.ativo
+
+    db.commit()
+    db.refresh(category)
+
+    pct_budget = None
+    if category.budget and to_decimal(category.budget) > Decimal("0.00"):
+        pct_budget = 0.0
+
+    return CategoryResponse(
+        id=category.id,
+        name=category.name,
+        nome=category.name,
+        tipo=category.tipo,
+        budget=to_decimal(category.budget) if category.budget is not None else None,
+        ativo=category.ativo,
+        gasto_mes=Decimal("0.00"),
+        percentual_budget=pct_budget
     )
 
 @router.post("/parse-message", response_model=MessageParseResponse)

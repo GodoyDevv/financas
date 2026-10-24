@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Numeric, Date, Index
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Numeric, Date, Boolean, Index
 from sqlalchemy.orm import relationship
 from backend.database import Base
 
@@ -7,11 +7,19 @@ class Category(Base):
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
-    budget = Column(Float, default=0.0)
+    name = Column(String(60), unique=True, index=True, nullable=False)
+    normalized_name = Column(String(60), unique=True, index=True, nullable=False)
+    tipo = Column(String(20), nullable=False, default="despesa") # "despesa" ou "receita"
+    budget = Column(Numeric(12, 2), nullable=True) # Orçamento mensal planejado
+    ativo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     transactions = relationship("Transaction", back_populates="category_rel")
+
+    @property
+    def nome(self) -> str:
+        """Alias para manter conformidade com a convenção em português."""
+        return self.name
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -19,7 +27,7 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     tipo = Column(String, nullable=False) # "receita", "despesa_fixa", "despesa_variavel"
     valor = Column(Numeric(12, 2), nullable=False)
-    categoria = Column(String, nullable=False)
+    categoria = Column(String, nullable=False) # Mantido para backward compatibility / dual-write
     data = Column(Date, nullable=False, index=True) # Date object
     descricao = Column(String, nullable=True)
     source = Column(String, default="Manual") # Mantido temporariamente para backward compatibility
@@ -28,7 +36,7 @@ class Transaction(Base):
     vencimento = Column(String, nullable=True) # Para despesas fixas (ex: dia 10 ou data YYYY-MM-DD)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=False, index=True)
     category_rel = relationship("Category", back_populates="transactions")
 
     __table_args__ = (

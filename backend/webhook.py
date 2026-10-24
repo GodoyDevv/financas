@@ -9,6 +9,8 @@ from .models import Transaction
 from datetime import date
 from .parser import parse_financial_payload, parse_text_message, add_months
 from .dates_and_money import to_decimal, today_br
+from .models import Transaction, Category
+from .categories import normalize_category_name, resolve_canonical_name
 
 logger = logging.getLogger("fintrack.webhook")
 
@@ -311,6 +313,24 @@ async def handle_webhook_event(
     base_data = date.fromisoformat(str(parsed_data["data"]))
     created_ids = []
 
+    # Resolução de Categoria para o Webhook: resolve para canônico ou fallback seguro em 'Outros'
+    raw_categoria = parsed_data.get("categoria", "Outros")
+    canonical_nome = resolve_canonical_name(raw_categoria) or "Outros"
+    norm_cat = normalize_category_name(canonical_nome)
+
+    cat_db = db.query(Category).filter(Category.normalized_name == norm_cat).first()
+    if not cat_db:
+        # Se por algum motivo 'Outros' ainda não estiver na tabela, busca primeiro ou cria
+        cat_db = db.query(Category).filter(Category.normalized_name == "outros").first()
+        if not cat_db:
+            cat_db = Category(name=canonical_nome, normalized_name=norm_cat, tipo="despesa", ativo=True)
+            db.add(cat_db)
+            db.commit()
+            db.refresh(cat_db)
+
+    cat_id = cat_db.id
+    cat_nome = cat_db.name
+
     for i in range(parcelas):
         parcela_data = add_months(base_data, i).isoformat()
         if parcelas > 1:
@@ -321,7 +341,8 @@ async def handle_webhook_event(
         t_item = Transaction(
             tipo=parsed_data["tipo"],
             valor=to_decimal(parsed_data["valor"]),
-            categoria=parsed_data["categoria"],
+            categoria=cat_nome,
+            category_id=cat_id,
             data=add_months(base_data, i),
             descricao=desc_parcelada,
             author=user_name,

@@ -22,10 +22,62 @@ def sanitize_text(value: Optional[str]) -> Optional[str]:
 TipoTransacao = Literal["receita", "despesa_fixa", "despesa_variavel"]
 ChannelType = Literal["whatsapp_text", "whatsapp_audio", "dashboard", "api", "system", "unknown"]
 
+class CategoryBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=60, description="Nome da categoria")
+    tipo: Literal["despesa", "receita"] = Field("despesa", description="Tipo da categoria")
+    budget: Optional[MoneyDecimal] = Field(None, ge=0, le=1_000_000, description="Orçamento mensal planejado")
+    ativo: bool = Field(True, description="Se a categoria está ativa")
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def clean_name(cls, v):
+        return sanitize_text(v)
+
+    @field_validator("budget", mode="before")
+    @classmethod
+    def parse_budget(cls, v):
+        if v is None:
+            return None
+        return to_decimal(v)
+
+class CategoryCreate(CategoryBase):
+    pass
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=60)
+    budget: Optional[MoneyDecimal] = Field(None, ge=0, le=1_000_000)
+    ativo: Optional[bool] = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def clean_name(cls, v):
+        return sanitize_text(v)
+
+    @field_validator("budget", mode="before")
+    @classmethod
+    def parse_budget(cls, v):
+        if v is None:
+            return None
+        return to_decimal(v)
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    nome: str
+    tipo: str
+    budget: Optional[MoneyDecimal] = None
+    ativo: bool
+    gasto_mes: MoneyDecimal = Decimal("0.00")
+    percentual_budget: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
 class TransactionBase(BaseModel):
     tipo: TipoTransacao = Field(..., description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
     valor: MoneyDecimal = Field(..., gt=0, le=1_000_000, description="Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00")
     categoria: str = Field(..., min_length=1, max_length=60, description="Categoria do lançamento (máx 60 caracteres)")
+    category_id: Optional[int] = Field(None, description="ID da entidade Category associada")
     data: date
     descricao: Optional[str] = Field(None, max_length=200, description="Descrição do lançamento (máx 200 caracteres)")
     author: Optional[str] = Field(None, max_length=40, description="Autor do lançamento (ex: Bruno, Letícia)")
@@ -86,8 +138,11 @@ class FinancialSummary(BaseModel):
 
 class CategoryMetric(BaseModel):
     categoria: str
+    category_id: Optional[int] = None
     total: MoneyDecimal
+    budget: Optional[MoneyDecimal] = None
     percentual: float
+    percentual_budget: Optional[float] = None
 
 class MetricsResponse(BaseModel):
     receitas_totais: MoneyDecimal
