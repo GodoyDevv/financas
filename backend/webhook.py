@@ -9,9 +9,9 @@ from .models import Transaction
 from datetime import date
 from .parser import parse_financial_payload, parse_text_message
 from .dates_and_money import to_decimal, today_br
-from .models import Transaction, Category
+from .models import Transaction, Category, Recurrence
 from .categories import normalize_category_name, resolve_canonical_name
-from .services import criar_parcelamento, calcular_valores_parcelamento
+from .services import criar_parcelamento, calcular_valores_parcelamento, clamp_day_in_month
 
 logger = logging.getLogger("fintrack.webhook")
 
@@ -290,14 +290,17 @@ async def handle_webhook_event(
     if raw_text:
         parsed_data = parse_text_message(raw_text)
         if parsed_data:
-            parsed_data["tipo"] = "despesa_variavel"
+            # Preserva o tipo detectado pelo parser se for receita ou despesa_fixa
+            detected_tipo = parsed_data.get("tipo", "despesa_variavel")
+            parsed_data["tipo"] = detected_tipo
             parsed_data["source"] = user_name
             parsed_data["author"] = user_name
             parsed_data["channel"] = channel_type
     else:
         parsed_data = parse_financial_payload(payload)
         if parsed_data:
-            parsed_data["tipo"] = "despesa_variavel"
+            detected_tipo = parsed_data.get("tipo", "despesa_variavel")
+            parsed_data["tipo"] = detected_tipo
             parsed_data["source"] = user_name
             parsed_data["author"] = user_name
             parsed_data["channel"] = channel_type
@@ -345,13 +348,68 @@ async def handle_webhook_event(
         "vencimento": parsed_data.get("vencimento")
     }
 
-    # Invocação atômica do serviço de parcelamento com identidade UUID
-    created_transactions = criar_parcelamento(db, base_tx_dict, parcelas=parcelas)
-    created_ids = [t.id for t in created_transactions]
+    # Requisito 6:
+    # - despesa_fixa cria uma recorrência (inicio = mês atual) mais a instância do mês
+    # - receita só vira recorrente se a mensagem tiver "todo mês", "mensal" ou "fixo/fixa"
+    raw_lower = (raw_text or "").lower()
+    is_despesa_fixa = (parsed_data["tipo"] == "despesa_fixa")
+    is_receita_recorrente = (
+        parsed_data["tipo"] == "receita" and 
+        any(k in raw_lower for k in ["todo mês", "todo mes", "mensal", "fixo", "fixa"])
+    )
 
-    # Calcula valores para feedback executivo no WhatsApp (mostrando valor da parcela e total)
-    valores_p, total_geral = calcular_valores_parcelamento(to_decimal(parsed_data["valor"]), parcelas)
-    val_parcela_unit = valores_p[0]
+    is_recorrente = is_despesa_fixa or is_receita_recorrente
+    primeiro_dia_mes = base_data.replace(day=1)
+
+    if is_recorrente:
+        rec_tipo = "despesa_fixa" if is_despesa_fixa else "receita"
+        rec = Recurrence(
+            tipo=rec_tipo,
+            descricao=parsed_data["descricao"],
+            valor=to_decimal(parsed_data["valor"]),
+            category_id=cat_id,
+            author=user_name,
+            dia_do_mes=base_data.day,
+            inicio=primeiro_dia_mes,
+            fim=None,
+            ativo=True
+        )
+        db.add(rec)
+        db.commit()
+        db.refresh(rec)
+
+        # Cria a instância deste mês vinculada à recorrência
+        t_item = Transaction(
+            tipo=rec_tipo,
+            valor=to_decimal(parsed_data["valor"]),
+            categoria=cat_nome,
+            category_id=cat_id,
+            data=base_data,
+            descricao=parsed_data["descricao"],
+            author=user_name,
+            channel=channel_type,
+            source=parsed_data.get("source", user_name),
+            vencimento=f"Dia {base_data.day}" if rec_tipo == "despesa_fixa" else None,
+            recurrence_id=rec.id,
+            competencia=primeiro_dia_mes,
+            editado_manual=False
+        )
+        db.add(t_item)
+        db.commit()
+        db.refresh(t_item)
+        created_transactions = [t_item]
+        created_ids = [t_item.id]
+        valores_p = [to_decimal(parsed_data["valor"])]
+        total_geral = to_decimal(parsed_data["valor"])
+        val_parcela_unit = valores_p[0]
+    else:
+        # Invocação atômica do serviço de parcelamento com identidade UUID (ou lançamento avulso)
+        created_transactions = criar_parcelamento(db, base_tx_dict, parcelas=parcelas)
+        created_ids = [t.id for t in created_transactions]
+
+        # Calcula valores para feedback executivo no WhatsApp (mostrando valor da parcela e total)
+        valores_p, total_geral = calcular_valores_parcelamento(to_decimal(parsed_data["valor"]), parcelas)
+        val_parcela_unit = valores_p[0]
 
     from .atlas import format_atlas_confirmation, send_whatsapp_message
     from .routes import get_metrics
@@ -367,9 +425,11 @@ async def handle_webhook_event(
     except Exception as e:
         logger.debug(f"Não foi possível calcular saldo para o Atlas: {e}")
 
+    desc_feedback = f"{parsed_data['descricao']} (recorrente)" if is_recorrente else parsed_data['descricao']
+
     atlas_reply = format_atlas_confirmation(
         user_name=user_name,
-        item_desc=parsed_data['descricao'],
+        item_desc=desc_feedback,
         valor=float(val_parcela_unit),
         parcelas=parcelas,
         saldo_livre=saldo_atualizado,

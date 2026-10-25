@@ -195,7 +195,7 @@ def test_webhook_creates_installments_with_group_and_formatted_reply(auth_client
         "tipo": "despesa_variavel",
         "valor": 200.0,
         "categoria": "Alimentação",
-        "descricao": "Jantar Especial",
+        "descricao": "Jantar Especial Único",
         "data": "2026-10-24",
         "parcelas": 3
     }):
@@ -218,7 +218,7 @@ def test_webhook_creates_installments_with_group_and_formatted_reply(auth_client
 
             # Verifica que foram geradas 3 parcelas vinculadas por UUID
             rows = db_session.query(Transaction).filter(
-                Transaction.descricao.like("Jantar Especial%")
+                Transaction.descricao.like("Jantar Especial Único%")
             ).order_by(Transaction.parcela_num).all()
             assert len(rows) == 3
             grupo = rows[0].parcela_grupo_id

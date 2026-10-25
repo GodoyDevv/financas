@@ -73,6 +73,69 @@ class CategoryResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class RecurrenceBase(BaseModel):
+    tipo: Literal["receita", "despesa_fixa"] = Field(..., description="Tipo da recorrência: receita ou despesa_fixa")
+    descricao: str = Field(..., min_length=1, max_length=200, description="Descrição da regra")
+    valor: MoneyDecimal = Field(..., gt=0, le=1_000_000, description="Valor recorrente mensal")
+    categoria: str = Field(..., min_length=1, max_length=60, description="Nome da categoria")
+    author: Optional[str] = Field(None, max_length=40)
+    dia_do_mes: int = Field(..., ge=1, le=31, description="Dia do mês para vencimento/lançamento")
+    inicio: date = Field(..., description="Data de início (mês inicial)")
+    fim: Optional[date] = Field(None, description="Data limite inclusive (ou null para tempo indeterminado)")
+    ativo: bool = Field(True, description="Se a recorrência está ativa")
+
+    @field_validator("valor", mode="before")
+    @classmethod
+    def parse_money(cls, v):
+        if v is None:
+            return v
+        return to_decimal(v)
+
+    @field_validator("descricao", "categoria", "author", mode="before")
+    @classmethod
+    def clean_control_chars(cls, v):
+        return sanitize_text(v)
+
+class RecurrenceCreate(RecurrenceBase):
+    pass
+
+class RecurrenceUpdate(BaseModel):
+    descricao: Optional[str] = Field(None, max_length=200)
+    valor: Optional[MoneyDecimal] = Field(None, gt=0, le=1_000_000)
+    categoria: Optional[str] = Field(None, min_length=1, max_length=60)
+    author: Optional[str] = Field(None, max_length=40)
+    dia_do_mes: Optional[int] = Field(None, ge=1, le=31)
+    ativo: Optional[bool] = None
+    fim: Optional[date] = None
+
+    @field_validator("valor", mode="before")
+    @classmethod
+    def parse_money(cls, v):
+        if v is None:
+            return v
+        return to_decimal(v)
+
+    @field_validator("descricao", "categoria", "author", mode="before")
+    @classmethod
+    def clean_control_chars(cls, v):
+        return sanitize_text(v)
+
+class RecurrenceResponse(BaseModel):
+    id: int
+    tipo: str
+    descricao: str
+    valor: MoneyDecimal
+    category_id: int
+    categoria: str
+    author: Optional[str] = None
+    dia_do_mes: int
+    inicio: date
+    fim: Optional[date] = None
+    ativo: bool
+
+    class Config:
+        from_attributes = True
+
 class TransactionBase(BaseModel):
     tipo: TipoTransacao = Field(..., description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
     valor: MoneyDecimal = Field(..., gt=0, le=1_000_000, description="Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00")
@@ -81,6 +144,9 @@ class TransactionBase(BaseModel):
     parcela_grupo_id: Optional[str] = Field(None, max_length=36, description="UUID do grupo de parcelamento")
     parcela_num: Optional[int] = Field(None, ge=1, description="Número da parcela atual")
     parcela_total: Optional[int] = Field(None, ge=1, description="Total de parcelas do grupo")
+    recurrence_id: Optional[int] = Field(None, description="ID da regra de recorrência vinculada")
+    competencia: Optional[date] = Field(None, description="Primeiro dia do mês da competência da recorrência")
+    editado_manual: Optional[bool] = Field(False, description="Indica se a instância foi editada manualmente")
     data: date
     descricao: Optional[str] = Field(None, max_length=200, description="Descrição do lançamento (máx 200 caracteres)")
     author: Optional[str] = Field(None, max_length=40, description="Autor do lançamento (ex: Bruno, Letícia)")

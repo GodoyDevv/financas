@@ -4,9 +4,15 @@ from .installments import (
     calcular_valores_parcelamento,
     add_months_clamped
 )
+from .recurrences import (
+    ensure_recurrences,
+    clamp_day_in_month
+)
 
 __all__ = [
     "criar_parcelamento",
     "calcular_valores_parcelamento",
-    "add_months_clamped"
+    "add_months_clamped",
+    "ensure_recurrences",
+    "clamp_day_in_month"
 ]

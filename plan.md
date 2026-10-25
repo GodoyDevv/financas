@@ -1,52 +1,39 @@
-# Plano de Execução: Parcelamentos com Identidade (UUID) e Exclusão sem Regex
+# Plano de Execução: Recorrências Explícitas e Totais Escopados por Mês
 
-1. Atualizar `.gitignore`:
-   - Adicionar `scripts/out/` para garantir que relatórios CSV de auditoria nunca sejam commitados.
+## Fase 0: Mapeamento de Pontos com "OR por tipo" ou Cálculos de Mês
+1. `backend/routes.py` (linha 57): `get_transactions` filtra `or_(Transaction.tipo.in_(["receita", "despesa_fixa"]), (Transaction.data >= inicio) & (Transaction.data < fim))`.
+2. `backend/routes.py` (linha 280): `get_summary` calcula totais com `or_(Transaction.tipo.in_(["receita", "despesa_fixa"]), (Transaction.data >= inicio) & (Transaction.data < fim))`.
+3. `backend/routes.py` (linha 335): `get_metrics` calcula totais gerais com `or_(Transaction.tipo.in_(["receita", "despesa_fixa"]), (Transaction.data >= inicio) & (Transaction.data < fim))`.
+4. `backend/routes.py` (linha 377): `get_metrics` distribuição de categorias com `or_(Transaction.tipo == "despesa_fixa", (Transaction.data >= inicio) & (Transaction.data < fim))`.
+5. `backend/routes.py` (linha 447): `get_categories` gasto por categoria com `or_(Transaction.tipo == "despesa_fixa", (Transaction.data >= inicio) & (Transaction.data < fim))`.
+6. `backend/webhook.py` (linha 351): invoca `get_metrics(mes=mes_iso, db=db)` para o Atlas informar saldo livre (será mantido unificado e fiel ao mês).
+7. `backend/scheduler.py`: já filtra por datas estritas `data == data_alvo` e `primeiro_dia_mes <= data <= data_alvo`.
+8. `index.html`: consome os endpoints `/api/metrics` e `/api/transactions?mes=YYYY-MM` via API.
 
-2. Configuração Única de Modo de Parcelamento:
-   - Criar `backend/config.py` (ou `backend/installments_config.py`) com:
-     `PARCELA_MODO: Literal["valor_da_parcela", "valor_total"] = "valor_da_parcela"`
-
-3. Modelos SQLAlchemy (`backend/models.py`):
-   - Adicionar colunas em `Transaction`:
-     `parcela_grupo_id = Column(String(36), index=True, nullable=True)`
-     `parcela_num = Column(Integer, nullable=True)`
-     `parcela_total = Column(Integer, nullable=True)`
-   - Adicionar `CheckConstraint` garantindo: ou todos 3 são nulos ou todos 3 são preenchidos com `1 <= parcela_num <= parcela_total`.
-   - Adicionar `Index("uq_transactions_grupo_num", "parcela_grupo_id", "parcela_num", unique=True)`.
-
-4. Serviço Único de Parcelamento (`backend/services/installments.py`):
-   - Função `criar_parcelamento(db: Session, base_transaction_data: dict, parcelas: int, modo: Optional[str] = None) -> List[Transaction]`
-   - Se `parcelas == 1`: cria transação normal com campos de parcela nulos.
-   - Se `parcelas > 1`: gera `uuid4()`, calcula valores com `Decimal` (no modo `valor_total`, distribui centavos na 1ª parcela), calcula datas com clamp de fim de mês via `calendar.monthrange`, executa inserção atômica no banco (tudo ou nada).
-   - Função helper `calcular_valores_parcelamento(valor: Decimal, parcelas: int, modo: str) -> Tuple[Decimal, Decimal, Decimal]` (valor_parcela, valor_total, valor_primeira_parcela se diferente).
-   - Atualizar `format_atlas_confirmation` em `backend/atlas.py` para exibir `"3x de R$ 300,00 (total R$ 900,00)"`.
-
-5. Migration Alembic Reversível (`migrations/versions/XXXX_installment_groups_with_identity.py`):
-   - Adicionar colunas `parcela_grupo_id`, `parcela_num`, `parcela_total`, CheckConstraint e UniqueIndex.
-   - Script de backfill seguro e geração de relatório CSV em `scripts/out/`:
-     - Identificar grupos existentes somente com certeza absoluta (mesmo radical, valor, tipo, categoria, autor e meses consecutivos `1..N`).
-     - Casos ambíguos ou incompletos são deixados sem grupo e gravados em `scripts/out/backfill_installments_ambiguous.csv`.
-     - Casos associados com sucesso são gravados em `scripts/out/backfill_installments_grouped.csv`.
-   - Downgrade: remove colunas e índices.
-
-6. Exclusão e Schemas na API (`backend/routes.py`, `backend/schemas.py`):
-   - `TransactionResponse` e `TransactionBase` expõem `parcela_grupo_id`, `parcela_num`, `parcela_total`.
-   - `TransactionCreate` aceita `parcelas: Optional[int] = 1`. Se > 1, invoca `criar_parcelamento`.
-   - `DELETE /api/transactions/{id}?escopo=uma|grupo|futuras` (padrão `"uma"`).
-     - Remove completamente a busca por regex.
-     - `"uma"`: apaga somente a transação com ID `{id}`.
-     - `"grupo"`: se tiver `parcela_grupo_id`, apaga todas do grupo (`Transaction.parcela_grupo_id == existing.parcela_grupo_id`).
-     - `"futuras"`: se tiver `parcela_grupo_id`, apaga da parcela atual em diante (`Transaction.parcela_grupo_id == existing.parcela_grupo_id AND Transaction.parcela_num >= existing.parcela_num`).
-   - `backend/webhook.py`: passa a chamar `criar_parcelamento(...)` do serviço único.
-
-7. Frontend (`index.html`):
-   - Atualizar tabela e lista mobile para renderizar badge de parcelas (ex: `"2/3"`) com base em `t.parcela_num` e `t.parcela_total` (ou fallback seguro).
-   - Modal de exclusão: 3 opções quando for parcelada: `"Só esta parcela"`, `"Esta e as próximas"`, `"Todas as parcelas"`, passando `?escopo=uma|futuras|grupo`.
-
-8. Testes e Validação (`tests/test_installments.py`):
-   - Colisão evitada: duas compras com mesma descrição/valor/tipo excluem apenas seu respectivo grupo sem afetar a outra.
-   - Datas com clamp de fim de mês: 31/jan em 3x $\to$ 28 (ou 29)/fev e 31/mar.
-   - Divisão de centavos em `valor_total`: 100 em 3x $\to$ 33,34 + 33,33 + 33,33.
-   - Atomicidade da criação (rollback em caso de falha).
-   - Backfill e exclusão por escopos (`uma`, `futuras`, `grupo`).
+## Etapas de Implementação
+1. **Modelos (`backend/models.py`)**:
+   - Criar `Recurrence`: `id`, `tipo` ("receita"|"despesa_fixa"), `descricao`, `valor` (Numeric 12,2), `category_id` (FK categories.id), `author` (String 40), `dia_do_mes` (int 1-31), `inicio` (Date), `fim` (Date NULL), `ativo` (Boolean, default True), `created_at` (DateTime).
+   - Atualizar `Transaction`: `recurrence_id` (FK recurrences.id NULL), `competencia` (Date NULL, 1º dia do mês), `editado_manual` (Boolean, default False). Índice único `("recurrence_id", "competencia")`.
+2. **Serviço de Materialização Preguiçosa (`backend/services/recurrences.py`)**:
+   - `ensure_recurrences(db: Session, mes: str)`: extrai 1º dia do mês e calcula limite (máx mês atual + 12 meses). Busca `Recurrence` ativas onde `inicio <= primeiro_dia_mes` e `(fim IS NULL OR fim >= primeiro_dia_mes)`.
+   - Para cada recorrência, gera data com clamp `dia_do_mes` no mês e tenta inserir `Transaction(recurrence_id=r.id, competencia=primeiro_dia_mes, editado_manual=False)`. Trata `IntegrityError` como "já existe" de forma segura (corrida).
+3. **Migration Alembic (`migrations/versions/XXXX_explicit_recurrences.py`)**:
+   - Cria tabela `recurrences` e adiciona colunas `recurrence_id`, `competencia`, `editado_manual` e índice único em `transactions`. Totalmente idempotente e reversível.
+4. **Atualizar Rotas (`backend/routes.py`)**:
+   - Remover **TODOS** os `or_` identificados na Fase 0. Toda agregação e listagem com `?mes=YYYY-MM` invoca `ensure_recurrences(db, mes)` e filtra estritamente por `(Transaction.data >= inicio) & (Transaction.data < fim)`.
+   - CRUD `/api/recurrences`: GET, POST, PATCH (vale do mês atual em diante: atualiza regra e instâncias futuras não editadas manualmente), DELETE (encerra regra em `fim = mês anterior` e remove instâncias futuras não editadas).
+   - `PUT /api/transactions/{id}`: marca `editado_manual = True` se for instância de recorrência.
+5. **Integração WhatsApp/Webhook (`backend/webhook.py`, `backend/parser.py`)**:
+   - Se mensagem for `despesa_fixa`: cria `Recurrence` com `inicio = mês atual` e gera a instância do mês.
+   - Se mensagem for `receita` e contiver "todo mês", "mensal" ou "fixo"/"fixa": cria `Recurrence` e instância.
+   - Retorno do Atlas destaca `"recorrente"`.
+6. **Script CLI de Migração de Legados (`scripts/migrate_legacy_fixed.py`)**:
+   - `--dry-run` por padrão; lista 20 registros legados propondo recorrente ou avulsa.
+   - `--apply --decisions decisions.json`: exige decisões para todos os IDs; se faltar algum, aborta.
+   - Gerar `decisions.json` de exemplo.
+7. **Testes Automatizados (`tests/test_recurrences.py`)**:
+   - Renda de novembro não aparece em outubro.
+   - Recorrência de outubro aparece em out/nov/dez e não em set; clamp de dia 31 em fev/abr.
+   - Chamadas concorrentes de `ensure_recurrences` não duplicam.
+   - PATCH altera futuras não editadas e preserva passadas/editadas.
+   - Dry-run e validação do script CLI.
