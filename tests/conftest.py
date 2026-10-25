@@ -13,32 +13,30 @@ import pytest
 from alembic.config import Config
 from alembic import command
 
+# Garante que DATABASE_URL esteja definida ANTES de qualquer import do backend
+_tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_test_db_path = _tmp_db.name
+_tmp_db.close()
+_test_db_url = f"sqlite:///{_test_db_path.replace(os.sep, '/')}"
+os.environ["DATABASE_URL"] = _test_db_url
+
+# Importa database e reconfigura o engine e SessionLocal caso já tenham sido importados
+import backend.database as db_module
+db_module.engine = db_module.create_db_engine()
+db_module.SessionLocal.configure(bind=db_module.engine)
+
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_database():
-    # Cria arquivo temporário SQLite para os testes
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-        test_db_path = tmp.name
-
-    test_db_url = f"sqlite:///{test_db_path.replace(os.sep, '/')}"
-    old_db_url = os.environ.get("DATABASE_URL")
-    os.environ["DATABASE_URL"] = test_db_url
-
-    # Configura e executa `alembic upgrade head`
     alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", test_db_url)
+    alembic_cfg.set_main_option("sqlalchemy.url", _test_db_url)
     command.upgrade(alembic_cfg, "head")
 
     yield
 
-    # Teardown: restaura variável e remove o arquivo temporário
-    if old_db_url is not None:
-        os.environ["DATABASE_URL"] = old_db_url
-    else:
-        os.environ.pop("DATABASE_URL", None)
-
-    if os.path.exists(test_db_path):
+    if os.path.exists(_test_db_path):
         try:
-            os.remove(test_db_path)
+            os.remove(_test_db_path)
         except OSError:
             pass
+
