@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Transaction
 from datetime import date
-from .parser import parse_financial_payload, parse_text_message, add_months
+from .parser import parse_financial_payload, parse_text_message
 from .dates_and_money import to_decimal, today_br
 from .models import Transaction, Category
 from .categories import normalize_category_name, resolve_canonical_name
+from .services import criar_parcelamento, calcular_valores_parcelamento
 
 logger = logging.getLogger("fintrack.webhook")
 
@@ -331,30 +332,26 @@ async def handle_webhook_event(
     cat_id = cat_db.id
     cat_nome = cat_db.name
 
-    for i in range(parcelas):
-        parcela_data = add_months(base_data, i).isoformat()
-        if parcelas > 1:
-            desc_parcelada = f"{parsed_data['descricao']} ({i + 1}/{parcelas})"
-        else:
-            desc_parcelada = parsed_data["descricao"]
+    base_tx_dict = {
+        "tipo": parsed_data["tipo"],
+        "valor": to_decimal(parsed_data["valor"]),
+        "categoria": cat_nome,
+        "category_id": cat_id,
+        "data": base_data,
+        "descricao": parsed_data["descricao"],
+        "author": user_name,
+        "channel": channel_type,
+        "source": parsed_data.get("source", user_name),
+        "vencimento": parsed_data.get("vencimento")
+    }
 
-        t_item = Transaction(
-            tipo=parsed_data["tipo"],
-            valor=to_decimal(parsed_data["valor"]),
-            categoria=cat_nome,
-            category_id=cat_id,
-            data=add_months(base_data, i),
-            descricao=desc_parcelada,
-            author=user_name,
-            channel=channel_type,
-            source=parsed_data.get("source", user_name),
-            vencimento=parsed_data.get("vencimento")
-        )
-        db.add(t_item)
-        db.flush()
-        created_ids.append(t_item.id)
+    # Invocação atômica do serviço de parcelamento com identidade UUID
+    created_transactions = criar_parcelamento(db, base_tx_dict, parcelas=parcelas)
+    created_ids = [t.id for t in created_transactions]
 
-    db.commit()
+    # Calcula valores para feedback executivo no WhatsApp (mostrando valor da parcela e total)
+    valores_p, total_geral = calcular_valores_parcelamento(to_decimal(parsed_data["valor"]), parcelas)
+    val_parcela_unit = valores_p[0]
 
     from .atlas import format_atlas_confirmation, send_whatsapp_message
     from .routes import get_metrics
@@ -373,9 +370,10 @@ async def handle_webhook_event(
     atlas_reply = format_atlas_confirmation(
         user_name=user_name,
         item_desc=parsed_data['descricao'],
-        valor=float(parsed_data['valor']),
+        valor=float(val_parcela_unit),
         parcelas=parcelas,
-        saldo_livre=saldo_atualizado
+        saldo_livre=saldo_atualizado,
+        valor_total=float(total_geral) if parcelas > 1 else None
     )
 
     if remote_jid:

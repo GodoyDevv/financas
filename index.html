@@ -2110,13 +2110,17 @@
         Este lançamento faz parte de uma compra parcelada. Como você prefere realizar a exclusão?
       </p>
       <div class="modal-actions-stack">
-        <button type="button" class="btn-modal-option btn-modal-all" id="btn-confirm-delete-all" onclick="executarExclusao(true)">
-          <span id="label-delete-all">Excluir TODAS as parcelas</span>
-          <span>🔥</span>
-        </button>
-        <button type="button" class="btn-modal-option btn-modal-single" id="btn-confirm-delete-single" onclick="executarExclusao(false)">
-          <span id="label-delete-single">Excluir apenas esta parcela</span>
+        <button type="button" class="btn-modal-option btn-modal-single" id="btn-confirm-delete-single" onclick="executarExclusao('uma')">
+          <span id="label-delete-single">Só esta parcela</span>
           <span>1x</span>
+        </button>
+        <button type="button" class="btn-modal-option" style="background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.45); color: #93C5FD;" id="btn-confirm-delete-future" onclick="executarExclusao('futuras')">
+          <span id="label-delete-future">Esta e as próximas</span>
+          <span>⏭️</span>
+        </button>
+        <button type="button" class="btn-modal-option btn-modal-all" id="btn-confirm-delete-all" onclick="executarExclusao('grupo')">
+          <span id="label-delete-all">Todas as parcelas</span>
+          <span>🔥</span>
         </button>
         <button type="button" class="btn-modal-option btn-modal-cancel" onclick="fecharModalExclusao()">
           Cancelar
@@ -2861,7 +2865,10 @@
             <td>${escapeHtml(formatDateBR(t.data))}</td>
             <td>${badgeTipo(t.tipo)}</td>
             <td>${escapeHtml(t.categoria)}</td>
-            <td>${escapeHtml(t.descricao || '-')}</td>
+            <td>
+              ${escapeHtml(t.descricao || '-')}
+              ${(t.parcela_num && t.parcela_total) ? `<span class="chart-pill-badge" style="margin-left: 6px; font-size: 10px; background: rgba(59, 130, 246, 0.15); color: #93C5FD; border-color: rgba(59, 130, 246, 0.3); font-weight: 700;">${Number(t.parcela_num)}/${Number(t.parcela_total)}</span>` : ''}
+            </td>
             <td>${vStr}</td>
             <td>
               <span class="badge-source" title="Canal: ${escapeHtml(formatChannelLabel(t.channel))}">
@@ -2917,7 +2924,10 @@
                 <span style="font-size: 11.5px; color: var(--text-dim);">${escapeHtml(t.categoria)}</span>
               </div>
               <div class="mobile-card-main">
-                <div class="mobile-card-desc">${escapeHtml(t.descricao || '(Sem descrição)')}</div>
+                <div class="mobile-card-desc">
+                  ${escapeHtml(t.descricao || '(Sem descrição)')}
+                  ${(t.parcela_num && t.parcela_total) ? `<span class="chart-pill-badge" style="margin-left: 6px; font-size: 10px; background: rgba(59, 130, 246, 0.15); color: #93C5FD; border-color: rgba(59, 130, 246, 0.3); font-weight: 700;">${Number(t.parcela_num)}/${Number(t.parcela_total)}</span>` : ''}
+                </div>
                 <div class="mobile-card-val ${classValor(t.tipo)}">
                   ${sinalValor(t.tipo)} ${escapeHtml(formatBRL(t.valor))}
                 </div>
@@ -3683,14 +3693,13 @@
       if (overlay) overlay.classList.remove('active');
     }
 
-    async function executarExclusao(todasParcelas) {
+    async function executarExclusao(escopo = 'uma') {
       if (!idExclusaoPendente) return;
       const id = idExclusaoPendente;
       fecharModalExclusao();
 
       try {
-        const query = todasParcelas ? '?todas_parcelas=true' : '';
-        const res = await apiFetch(`${API_BASE}/transactions/${id}${query}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API_BASE}/transactions/${id}?escopo=${escopo}`, { method: 'DELETE' });
         if (res.ok) {
           await carregarDados();
         } else {
@@ -3703,30 +3712,29 @@
 
     async function deletar(id) {
       const transacao = (window._transacoesAtuais || []).find(t => t.id === id);
-      const desc = (transacao && transacao.descricao) ? transacao.descricao.trim() : '';
-      const matchParcela = desc.match(/^(.*?)\s*\((\d+)\/(\d+)\)\s*$/);
+      const isParcelado = Boolean(transacao && (transacao.parcela_grupo_id || (transacao.parcela_num && transacao.parcela_total)));
 
-      if (matchParcela) {
-        const nomeBase = matchParcela[1];
-        const parcelaAtual = matchParcela[2];
-        const totalParcelas = matchParcela[3];
+      if (isParcelado) {
+        const pNum = transacao.parcela_num || 1;
+        const pTot = transacao.parcela_total || 1;
+        const nomeBase = (transacao.descricao || 'Item parcelado').replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
 
         idExclusaoPendente = id;
         document.getElementById('delete-modal-title').innerText = `Excluir "${nomeBase}"`;
         const modalDescEl = document.getElementById('delete-modal-desc');
         modalDescEl.innerHTML = '';
         const p1 = document.createElement('span');
-        p1.textContent = 'O item ';
+        p1.textContent = 'O lançamento ';
         const strongDesc = document.createElement('strong');
-        strongDesc.textContent = desc;
+        strongDesc.textContent = transacao.descricao || nomeBase;
         const p2 = document.createElement('span');
-        p2.textContent = ` faz parte de um parcelamento em `;
+        p2.textContent = ` é a parcela `;
         const strongVal = document.createElement('strong');
-        strongVal.textContent = `${totalParcelas}x de ${formatBRL(transacao.valor)}`;
+        strongVal.textContent = `${pNum}/${pTot} de ${formatBRL(transacao.valor)}`;
         const br1 = document.createElement('br');
         const br2 = document.createElement('br');
         const p3 = document.createElement('span');
-        p3.textContent = `Deseja apagar todas as ${totalParcelas} parcelas de todos os meses de uma só vez ou somente a parcela (${parcelaAtual}/${totalParcelas})?`;
+        p3.textContent = `Escolha o escopo de exclusão desejado:`;
         modalDescEl.appendChild(p1);
         modalDescEl.appendChild(strongDesc);
         modalDescEl.appendChild(p2);
@@ -3734,8 +3742,10 @@
         modalDescEl.appendChild(br1);
         modalDescEl.appendChild(br2);
         modalDescEl.appendChild(p3);
-        document.getElementById('label-delete-all').innerText = `Excluir TODAS as ${totalParcelas} parcelas`;
-        document.getElementById('label-delete-single').innerText = `Excluir apenas a parcela (${parcelaAtual}/${totalParcelas})`;
+
+        document.getElementById('label-delete-single').innerText = `Só esta parcela (${pNum}/${pTot})`;
+        document.getElementById('label-delete-future').innerText = `Esta e as próximas (${pNum} a ${pTot})`;
+        document.getElementById('label-delete-all').innerText = `Todas as parcelas (1 a ${pTot})`;
 
         document.getElementById('delete-modal-overlay').classList.add('active');
         return;
@@ -3743,7 +3753,7 @@
 
       if (!confirm('Deseja realmente excluir este lançamento?')) return;
       try {
-        const res = await apiFetch(`${API_BASE}/transactions/${id}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API_BASE}/transactions/${id}?escopo=uma`, { method: 'DELETE' });
         if (res.ok) {
           await carregarDados();
         }

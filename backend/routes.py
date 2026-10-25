@@ -26,6 +26,7 @@ from .schemas import (
     MessageParseRequest,
     MessageParseResponse
 )
+from .services import criar_parcelamento
 from .parser import parse_text_message
 
 router = APIRouter(prefix="/api", tags=["Transactions & Metrics"])
@@ -120,22 +121,23 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
         db.commit()
         db.refresh(cat_db)
 
-    new_item = Transaction(
-        tipo=clean_tipo,
-        valor=to_decimal(transaction.valor),
-        categoria=cat_db.name,
-        category_id=cat_db.id,
-        data=transaction.data,
-        descricao=transaction.descricao.strip() if transaction.descricao else "",
-        author=author_val,
-        channel=channel_val,
-        source=source_val,
-        vencimento=transaction.vencimento.strip() if transaction.vencimento else None
-    )
-    db.add(new_item)
-    db.commit()
-    db.refresh(new_item)
-    return new_item
+    # Criação via serviço único de parcelamento (atômico e com identidade UUID)
+    base_tx_dict = {
+        "tipo": clean_tipo,
+        "valor": to_decimal(transaction.valor),
+        "categoria": cat_db.name,
+        "category_id": cat_db.id,
+        "data": transaction.data,
+        "descricao": transaction.descricao.strip() if transaction.descricao else "",
+        "author": author_val,
+        "channel": channel_val,
+        "source": source_val,
+        "vencimento": transaction.vencimento.strip() if transaction.vencimento else None
+    }
+    
+    parcelas_count = transaction.parcelas or 1
+    criadas = criar_parcelamento(db, base_tx_dict, parcelas=parcelas_count)
+    return criadas[0]
 
 @router.put("/transactions/{trans_id}", response_model=TransactionResponse)
 def update_transaction(
@@ -211,44 +213,51 @@ def update_transaction(
 @router.delete("/transactions/{trans_id}")
 def delete_transaction(
     trans_id: int,
-    todas_parcelas: bool = Query(False, description="Se True, remove todas as parcelas associadas ao mesmo item"),
+    escopo: str = Query("uma", description="Escopo de exclusão: 'uma', 'grupo' ou 'futuras'"),
+    todas_parcelas: bool = Query(False, description="[DEPRECATED] Compatibilidade reversa; mapeia para escopo='grupo'"),
     db: Session = Depends(get_db)
 ):
     """
-    Remove uma transação pelo seu ID.
-    Se 'todas_parcelas=True' e a descrição tiver padrão de parcelamento 'Item (X/N)',
-    remove todas as parcelas 'Item (1/N)'..'(N/N)' daquele grupo.
+    Remove uma transação pelo seu ID ou suas parcelas associadas via parcela_grupo_id.
+    Escopos:
+    - 'uma': apaga exclusivamente a transação {trans_id}.
+    - 'grupo': apaga todas as parcelas do mesmo grupo (parcela_grupo_id).
+    - 'futuras': apaga da parcela atual em diante (parcela_num >= atual) do mesmo grupo.
+    Elimina totalmente a dependência de regex na descrição.
     """
-    import re
     existing = db.query(Transaction).filter(Transaction.id == trans_id).first()
     if not existing:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
 
-    deleted_count = 1
-    if todas_parcelas and existing.descricao:
-        match = re.match(r"^(.*?)\s*\(\d+/(\d+)\)\s*$", existing.descricao.strip())
-        if match:
-            base_desc = match.group(1).strip()
-            total_n = match.group(2)
-            pattern = f"{base_desc} (%/{total_n})"
-            sibling_rows = db.query(Transaction).filter(
-                Transaction.tipo == existing.tipo,
-                Transaction.valor == existing.valor,
-                Transaction.descricao.like(pattern)
-            ).all()
-            if sibling_rows:
-                deleted_count = len(sibling_rows)
-                for row in sibling_rows:
-                    db.delete(row)
-                db.commit()
-                return {
-                    "message": f"{deleted_count} parcelas de '{base_desc}' removidas com sucesso",
-                    "deleted_count": deleted_count
-                }
+    # Mapeamento do parâmetro legado todas_parcelas
+    modo_escopo = "grupo" if todas_parcelas else escopo.lower()
 
+    deleted_count = 1
+
+    if existing.parcela_grupo_id and modo_escopo in ["grupo", "futuras"]:
+        if modo_escopo == "grupo":
+            siblings = db.query(Transaction).filter(
+                Transaction.parcela_grupo_id == existing.parcela_grupo_id
+            ).all()
+        else:  # modo_escopo == "futuras"
+            siblings = db.query(Transaction).filter(
+                Transaction.parcela_grupo_id == existing.parcela_grupo_id,
+                Transaction.parcela_num >= (existing.parcela_num or 1)
+            ).all()
+
+        deleted_count = len(siblings)
+        for row in siblings:
+            db.delete(row)
+        db.commit()
+        return {
+            "message": f"{deleted_count} parcelas removidas com sucesso (escopo: {modo_escopo})",
+            "deleted_count": deleted_count
+        }
+
+    # Exclusão simples de item único
     db.delete(existing)
     db.commit()
-    return {"message": "Transação removida com sucesso", "deleted_count": deleted_count}
+    return {"message": "Transação removida com sucesso", "deleted_count": 1}
 
 @router.get("/summary", response_model=FinancialSummary)
 def get_summary(

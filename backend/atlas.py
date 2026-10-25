@@ -179,12 +179,24 @@ def download_media_from_url(media_url: str) -> Optional[bytes]:
         logger.error(f"Erro ao baixar mídia da URL {media_url}: {e}")
     return None
 
-def format_atlas_confirmation(user_name: str, item_desc: str, valor: Union[float, Decimal], parcelas: int, saldo_livre: Optional[Union[float, Decimal]] = None) -> str:
-    """Gera a mensagem de resposta executiva do Atlas."""
+def format_atlas_confirmation(
+    user_name: str, 
+    item_desc: str, 
+    valor: Union[float, Decimal], 
+    parcelas: int, 
+    saldo_livre: Optional[Union[float, Decimal]] = None,
+    valor_total: Optional[Union[float, Decimal]] = None
+) -> str:
+    """Gera a mensagem de resposta executiva do Atlas mostrando valor da parcela e valor total."""
     val_formatado = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     
     if parcelas > 1:
-        detalhe = f"em {parcelas} parcelas de {val_formatado}"
+        if valor_total is not None:
+            tot_formatado = f"R$ {valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        else:
+            tot_val = (Decimal(str(valor)) * parcelas)
+            tot_formatado = f"R$ {tot_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        detalhe = f"{parcelas}x de {val_formatado} (total {tot_formatado})"
     else:
         detalhe = f"no valor de {val_formatado}"
 

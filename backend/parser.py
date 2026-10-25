@@ -4,14 +4,7 @@ from datetime import date
 from decimal import Decimal
 from .dates_and_money import today_br, to_decimal
 from .categories import CANONICAL_CATEGORIES, resolve_canonical_name
-
-def add_months(sourcedate: date, months: int) -> date:
-    """Adiciona 'months' meses a uma data mantendo o dia válido para o mês de destino."""
-    month = sourcedate.month - 1 + months
-    year = sourcedate.year + month // 12
-    month = month % 12 + 1
-    day = min(sourcedate.day, calendar.monthrange(year, month)[1])
-    return date(year, month, day)
+from .services.installments import add_months_clamped as add_months
 
 def parse_financial_payload(payload: dict) -> dict:
     """Extrai e normaliza dados de webhook recebidos (ex: WhatsApp/Gateway)."""

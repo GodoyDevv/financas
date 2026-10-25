@@ -1,5 +1,8 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Numeric, Date, Boolean, Index
+from sqlalchemy import (
+    Column, Integer, String, Float, DateTime, ForeignKey, 
+    Numeric, Date, Boolean, Index, CheckConstraint
+)
 from sqlalchemy.orm import relationship
 from backend.database import Base
 
@@ -39,6 +42,17 @@ class Transaction(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False, index=True)
     category_rel = relationship("Category", back_populates="transactions")
 
+    # Campos de parcelamento com identidade relacional
+    parcela_grupo_id = Column(String(36), nullable=True, index=True)
+    parcela_num = Column(Integer, nullable=True)
+    parcela_total = Column(Integer, nullable=True)
+
     __table_args__ = (
         Index("ix_transactions_data_tipo", "data", "tipo"),
+        Index("uq_transactions_grupo_num", "parcela_grupo_id", "parcela_num", unique=True),
+        CheckConstraint(
+            "(parcela_grupo_id IS NULL AND parcela_num IS NULL AND parcela_total IS NULL) OR "
+            "(parcela_grupo_id IS NOT NULL AND parcela_num IS NOT NULL AND parcela_total IS NOT NULL AND parcela_num >= 1 AND parcela_num <= parcela_total)",
+            name="ck_transactions_parcelas_valid"
+        ),
     )

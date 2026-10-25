@@ -78,6 +78,9 @@ class TransactionBase(BaseModel):
     valor: MoneyDecimal = Field(..., gt=0, le=1_000_000, description="Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00")
     categoria: str = Field(..., min_length=1, max_length=60, description="Categoria do lançamento (máx 60 caracteres)")
     category_id: Optional[int] = Field(None, description="ID da entidade Category associada")
+    parcela_grupo_id: Optional[str] = Field(None, max_length=36, description="UUID do grupo de parcelamento")
+    parcela_num: Optional[int] = Field(None, ge=1, description="Número da parcela atual")
+    parcela_total: Optional[int] = Field(None, ge=1, description="Total de parcelas do grupo")
     data: date
     descricao: Optional[str] = Field(None, max_length=200, description="Descrição do lançamento (máx 200 caracteres)")
     author: Optional[str] = Field(None, max_length=40, description="Autor do lançamento (ex: Bruno, Letícia)")
@@ -98,7 +101,7 @@ class TransactionBase(BaseModel):
         return sanitize_text(v)
 
 class TransactionCreate(TransactionBase):
-    pass
+    parcelas: Optional[int] = Field(1, ge=1, le=60, description="Quantidade de parcelas (padrão 1)")
 
 class TransactionUpdate(BaseModel):
     tipo: Optional[TipoTransacao] = Field(None, description="Tipo do lançamento: receita, despesa_fixa ou despesa_variavel")
