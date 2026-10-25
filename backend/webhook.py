@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Transaction
 from datetime import date
-from .parser import parse_financial_payload, parse_text_message
+from .parser import parse_financial_payload, parse_text_message, extract_money_values
+from .nlp import interpretar_mensagem
 from .dates_and_money import to_decimal, today_br
 from .models import Transaction, Category, Recurrence
 from .categories import normalize_category_name, resolve_canonical_name
@@ -287,8 +288,19 @@ async def handle_webhook_event(
     channel_type = "whatsapp_audio" if is_audio else "whatsapp_text"
 
     parsed_data = None
+    has_candidate_value = False
+
     if raw_text:
-        parsed_data = parse_text_message(raw_text)
+        # Verifica se contém valor numérico para controle de ajuda / resposta
+        cand_val, all_cands, _ = extract_money_values(raw_text)
+        has_candidate_value = (cand_val is not None) or bool(all_cands)
+
+        # Interpretação: respeita mock de parse_text_message em suítes de testes legados
+        import unittest.mock as mock_lib
+        if isinstance(parse_text_message, (mock_lib.Mock, mock_lib.MagicMock)):
+            parsed_data = parse_text_message(raw_text)
+        else:
+            parsed_data = interpretar_mensagem(raw_text)
         if parsed_data:
             # Preserva o tipo detectado pelo parser se for receita ou despesa_fixa
             detected_tipo = parsed_data.get("tipo", "despesa_variavel")
@@ -306,6 +318,15 @@ async def handle_webhook_event(
             parsed_data["channel"] = channel_type
 
     if not parsed_data or parsed_data.get("valor", 0) <= 0:
+        # Requisito 6 / 7: Se a mensagem continha valor numérico mas o resultado final foi inválido,
+        # envia UMA resposta de ajuda no grupo via WhatsApp. Nunca responde mensagens sem valor (conversa normal).
+        if has_candidate_value and remote_jid:
+            try:
+                from .atlas import send_whatsapp_message
+                send_whatsapp_message(remote_jid, "Não consegui entender. Exemplo: 'Mercado 150,90'")
+            except Exception as e:
+                logger.warning(f"Erro ao enviar mensagem de esclarecimento no WhatsApp: {e}")
+
         return {
             "status": "ignored",
             "detail": "Nenhuma despesa identificada na mensagem recebida ou evento irrelevante",

@@ -97,14 +97,21 @@ O Atlas Finanças foi desenvolvido adotando os princípios de **Segurança por P
 - **Proteção CSRF:** Verificação obrigatória do cabeçalho `Origin` em requisições de mutação (`POST`, `PUT`, `DELETE`).
 - **Endpoints Administrativos:** Rotas de disparo de relatórios exigem o cabeçalho `X-Admin-Token`.
 
-### 2. Blindagem do Webhook do WhatsApp
+### 2. Pipeline Híbrido de NLP & Privacidade com LLM (Google Gemini)
+- **Privacidade por Desenho (Privacy-First):** Mensagens comuns do grupo do WhatsApp (conversas cotidianas, saudações como "bom dia", piadas ou mensagens sem nenhum valor monetário) **JAMAIS saem do servidor** e nunca são transmitidas para APIs de terceiros.
+- **Parser Determinístico Primeiro:** O processamento inicial é realizado 100% localmente por regex otimizado com fronteiras de palavras (`\b`), isolando valores monetários e parcelamentos antes de classificar categorias.
+- **Fallback Inteligente:** O Google Gemini (`GEMINI_MODEL=gemini-2.5-flash`) com saída estruturada JSON (`responseSchema`) só é acionado quando a confiança da análise local for baixa (ambiguidade ou categoria desconhecida).
+- **Anti-Alucinação & Anti-Injeção:** O valor extraído pelo Gemini passa por conferência cruzada obrigatória com os números identificados no texto original. Instruções do usuário são tratadas estritamente como dados brutos em campo separado, evitando sobreposição de instruções.
+- **Fail-Safe & Timeout Curto:** Timeout estrito (<= 8s) com no máximo 1 tentativa. Em caso de falha de conexão ou resposta inválida, o sistema recorre de forma segura à classificação local ou solicita esclarecimento ao usuário.
+
+### 3. Blindagem do Webhook do WhatsApp
 - **Autenticação por Segredo:** Verificação do cabeçalho `X-Webhook-Secret` via `hmac.compare_digest` antes de qualquer processamento ou chamada de IA.
 - **Suporte Alternativo a Token na URL:** Rota opcional `/webhook/whatsapp/{token}` configurável via `WEBHOOK_ALLOW_PATH_TOKEN=1` para versões legadas da Evolution API.
 - **Autorização Estrita por Telefone:** O remetente é autorizado exclusivamente por igualdade exata de número normalizado (com ou sem DDI 55). O campo volátil `pushName` foi completamente eliminado da lógica de autorização.
 - **Limites de Entrada Rígidos (Anti-DoS):** Rejeição de requisições com corpo > 1 MB, truncamento de mensagens em 500 caracteres e rejeição de áudios acima de 2 MB antes da descriptografia ou envio para a API de IA.
 - **Deduplicação Pós-Autorização:** O registro de IDs de mensagens ocorre estritamente após a autenticação bem-sucedida.
 
-### 3. Defesa Contra Injeção e XSS (Cross-Site Scripting)
+### 4. Defesa Contra Injeção e XSS (Cross-Site Scripting)
 - **Frontend Seguro:** Todos os campos de texto vindos do banco (`descricao`, `categoria`, `source`, `vencimento`) passam por escape rigoroso via utilitário `escapeHtml()` antes da renderização no DOM. Eventos inline com interpolação de dados foram substituídos por atributos `data-*` e listeners delegados (`addEventListener`).
 - **Defesa em Profundidade no Backend:** Schemas Pydantic tipados com `Literal["receita", "despesa_fixa", "despesa_variavel"]`, limites de caracteres (`descricao` 200, `categoria` 60, `source` 40), validação de valores entre R$ 0,01 e R$ 1.000.000,00 e sanitização de caracteres de controle ASCII C0/C1.
 - **Subresource Integrity (SRI):** A biblioteca externa Chart.js (v4.4.7) possui verificação de integridade criptográfica `integrity="sha384-..."` e `crossorigin="anonymous"`.
