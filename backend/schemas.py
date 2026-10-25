@@ -230,3 +230,7 @@ class MessageParseResponse(BaseModel):
     valor: MoneyDecimal
     categoria: str
     descricao: str
+    parcelas: int = 1
+    confianca: str = "alta"
+    motivos: List[str] = Field(default_factory=list)
+

@@ -766,4 +766,9 @@ def parse_message(payload: MessageParseRequest):
         raise HTTPException(status_code=400, detail="Mensagem não pode ser vazia")
     
     parsed = parse_text_message(payload.message)
+    if not parsed:
+        raise HTTPException(
+            status_code=422,
+            detail="Nenhum valor financeiro ou transação identificada na mensagem."
+        )
     return MessageParseResponse(**parsed)
