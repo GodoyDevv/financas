@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
@@ -18,6 +17,7 @@ from backend.auth import (
     require_auth_page,
     verify_csrf_origin,
 )
+from backend.config import get_settings
 from backend.routes import router as api_router
 from backend.scheduler import (
     executar_envio_relatorio_diario,
@@ -32,9 +32,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Verificação de segurança fail-closed no startup para o Webhook
-    group_jid = os.getenv("WHATSAPP_GROUP_JID", "").strip()
-    if not group_jid:
+    # Verificação de segurança fail-closed no startup disparando get_settings()
+    settings = get_settings()
+    if not settings.WHATSAPP_GROUP_JID:
         logging.getLogger("fintrack.startup").error(
             "ERRO CRÍTICO DE SEGURANÇA: WHATSAPP_GROUP_JID não está definido no ambiente!"
         )
@@ -47,7 +47,8 @@ async def lifespan(app: FastAPI):
         await task
 
 
-is_production = os.getenv("ENV", "development").lower() == "production"
+settings = get_settings()
+is_production = settings.is_production
 
 app = FastAPI(
     title="Atlas Finanças Intelligence API",
@@ -61,7 +62,7 @@ app = FastAPI(
 
 # Configuração restritiva de CORS: front-end é same-origin por padrão (sem CORS).
 # Origens externas só são permitidas se explicitamente declaradas via ALLOWED_ORIGINS.
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "").strip()
+allowed_origins_env = settings.ALLOWED_ORIGINS
 allowed_origins_list = [orig.strip() for orig in allowed_origins_env.split(",") if orig.strip()]
 
 
@@ -88,7 +89,7 @@ async def add_security_headers(request: Request, call_next):
 
     # HSTS ativado estritamente em HTTPS ou produção
     is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
-    is_prod = os.getenv("ENV", "development").lower() == "production"
+    is_prod = get_settings().is_production
     if is_https or is_prod:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 

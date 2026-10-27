@@ -1,9 +1,7 @@
-import os
-
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+from backend.config import get_settings
 
 # Convenção de nomenclatura de constraints para integridade no Postgres e batch mode no SQLite
 convention = {
@@ -23,16 +21,7 @@ class Base(DeclarativeBase):
 
 def get_database_url() -> str:
     """Retorna e normaliza a DATABASE_URL para conexão com psycopg 3 ou fallback SQLite."""
-    url = os.getenv("DATABASE_URL")
-    if url:
-        if url.startswith("postgres://"):
-            return url.replace("postgres://", "postgresql+psycopg://", 1)
-        elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
-            return url.replace("postgresql://", "postgresql+psycopg://", 1)
-        elif url.startswith("postgresql+psycopg2://"):
-            return url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
-        return url
-    return "sqlite:///./fintrack.db"
+    return get_settings().DATABASE_URL
 
 
 def create_db_engine():

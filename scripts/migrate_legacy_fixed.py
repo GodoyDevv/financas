@@ -10,22 +10,21 @@ import json
 import os
 import sys
 from datetime import date
+from pathlib import Path
+
+# Garante raiz do projeto no sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from backend.config import get_settings
+
 
 def get_engine():
-    db_url = os.environ.get("DATABASE_URL")
-    if not db_url:
-        print("ERRO: DATABASE_URL não definida.", file=sys.stderr)
-        sys.exit(1)
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
-    elif db_url.startswith("postgresql://") and not db_url.startswith("postgresql+"):
-        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    elif db_url.startswith("postgresql+psycopg2://"):
-        db_url = db_url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+    db_url = get_settings().DATABASE_URL
 
     if db_url.startswith("sqlite"):
         return create_engine(db_url)

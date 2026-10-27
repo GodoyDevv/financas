@@ -12,7 +12,6 @@ Implementa autenticação robusta para uso pessoal de dois usuários:
 
 import hmac
 import logging
-import os
 import time
 from collections import defaultdict
 from typing import Any
@@ -22,6 +21,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel
 
+from backend.config import get_settings
+
 logger = logging.getLogger("atlas.auth")
 
 
@@ -29,40 +30,29 @@ logger = logging.getLogger("atlas.auth")
 # 1. CARREGAMENTO E VALIDAÇÃO DE VARIÁVEIS DE AMBIENTE (FALHA FECHADA)
 # ------------------------------------------------------------------------------
 def get_security_config() -> tuple[str | None, str | None, str | None, int, bool]:
-    """Lê as variáveis de ambiente ativas no momento."""
-    app_pwd = os.getenv("APP_PASSWORD")
-    sess_sec = os.getenv("SESSION_SECRET")
-    adm_tok = os.getenv("ADMIN_TOKEN")
+    """Lê as variáveis de segurança a partir da instância centralizada de Settings."""
     try:
-        ttl = int(os.getenv("SESSION_TTL_HOURS", "12"))
-    except ValueError:
-        ttl = 12
-    dev_insecure = os.getenv("DEV_INSECURE_COOKIES", "0") in ("1", "true", "True")
-    return app_pwd, sess_sec, adm_tok, ttl, dev_insecure
+        s = get_settings()
+        return (
+            s.APP_PASSWORD.get_secret_value(),
+            s.SESSION_SECRET.get_secret_value(),
+            s.ADMIN_TOKEN.get_secret_value(),
+            s.SESSION_TTL_HOURS,
+            s.DEV_INSECURE_COOKIES,
+        )
+    except Exception:
+        return None, None, None, 12, False
 
 
 def validate_security_configuration() -> None:
     """
     Garante falha fechada se qualquer credencial de segurança essencial faltar.
-    Impede que a aplicação inicie desprotegida ou em modo aberto acidentalmente.
+    Dispara validação completa do Settings.
     """
-    app_pwd, sess_sec, adm_tok, _, _ = get_security_config()
-    missing = []
-    if not app_pwd or not app_pwd.strip():
-        missing.append("APP_PASSWORD")
-    if not sess_sec or not sess_sec.strip():
-        missing.append("SESSION_SECRET")
-    elif len(sess_sec.strip()) < 32:
-        raise RuntimeError(
-            "Configuração de segurança inválida: SESSION_SECRET deve conter no mínimo 32 caracteres."
-        )
-    if not adm_tok or not adm_tok.strip():
-        missing.append("ADMIN_TOKEN")
-
-    if missing:
-        raise RuntimeError(
-            f"Configuração de segurança incompleta (FALHA FECHADA): defina as variáveis obrigatórias: {', '.join(missing)}"
-        )
+    try:
+        get_settings()
+    except Exception as e:
+        raise RuntimeError(f"Configuração de segurança incompleta (FALHA FECHADA): {e}") from e
 
 
 # Executa validação de inicialização imediata

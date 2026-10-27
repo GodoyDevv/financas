@@ -1,25 +1,17 @@
 import base64
 import io
 import logging
-import os
 from decimal import Decimal
 
 import httpx
+
+from backend.config import get_settings
 
 logger = logging.getLogger("fintrack.atlas")
 
 # Configura httpx e httpcore para WARNING para não logar URLs com parâmetros
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
-
-# Chaves de API para transcrição / IA
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-
-# Configuração da Evolution API para envio de mensagens ativas do Atlas (opcional)
-EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "").rstrip("/")
-EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "")
-EVOLUTION_INSTANCE = os.getenv("EVOLUTION_INSTANCE", "")
 
 
 def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> str | None:
@@ -31,7 +23,8 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
         return None
 
     # 1. Tentativa com Google Gemini Flash
-    gemini_key = os.getenv("GEMINI_API_KEY", "")
+    s = get_settings()
+    gemini_key = s.GEMINI_API_KEY.get_secret_value()
     if gemini_key:
         # Lista de modelos: gemini-3.5-flash-lite (sem overhead de thinking) + gemini-3.8-flash (com thinkingBudget=0)
         models_to_try = ["gemini-3.5-flash-lite", "gemini-3.8-flash"]
@@ -98,7 +91,7 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
                 logger.error(f"Erro ao transcrever com Gemini ({model_name}): {e}")
 
     # 2. Tentativa de Fallback com OpenAI Whisper
-    openai_key = os.getenv("OPENAI_API_KEY", "")
+    openai_key = s.OPENAI_API_KEY.get_secret_value()
     if openai_key:
         try:
             url = "https://api.openai.com/v1/audio/transcriptions"
@@ -130,9 +123,10 @@ def fetch_decrypted_audio_from_evolution(
     Usa o endpoint oficial getBase64FromMediaMessage da Evolution API para obter o áudio
     descriptografado (pois as URLs .enc do WhatsApp são criptografadas com mediaKey).
     """
-    api_url = os.getenv("EVOLUTION_API_URL", "").rstrip("/")
-    api_key = os.getenv("EVOLUTION_API_KEY", "")
-    instance = instance_override or os.getenv("EVOLUTION_INSTANCE", "fintrack-casal")
+    s = get_settings()
+    api_url = s.EVOLUTION_API_URL
+    api_key = s.EVOLUTION_API_KEY.get_secret_value()
+    instance = instance_override or s.EVOLUTION_INSTANCE
 
     if not (api_url and api_key and message_id):
         return None
@@ -209,12 +203,17 @@ def format_atlas_confirmation(
 
 def send_whatsapp_message(remote_jid: str, text: str) -> bool:
     """Envia uma mensagem de resposta ativa via Evolution API para o grupo do WhatsApp."""
-    if not (EVOLUTION_API_URL and EVOLUTION_API_KEY and EVOLUTION_INSTANCE):
+    s = get_settings()
+    api_url = s.EVOLUTION_API_URL
+    api_key = s.EVOLUTION_API_KEY.get_secret_value()
+    instance = s.EVOLUTION_INSTANCE
+
+    if not (api_url and api_key and instance):
         logger.debug("Evolution API não configurada para envio de mensagens ativas de resposta.")
         return False
 
-    endpoint = f"{EVOLUTION_API_URL}/message/sendText/{EVOLUTION_INSTANCE}"
-    headers = {"apikey": EVOLUTION_API_KEY, "Content-Type": "application/json"}
+    endpoint = f"{api_url}/message/sendText/{instance}"
+    headers = {"apikey": api_key, "Content-Type": "application/json"}
     payload = {"number": remote_jid, "text": text, "linkPreview": False}
 
     try:

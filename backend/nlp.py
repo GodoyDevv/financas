@@ -6,13 +6,14 @@ NENHUMA mensagem sem valor numérico é enviada para fora do servidor.
 
 import json
 import logging
-import os
 import re
 from decimal import Decimal
 from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel, Field, field_validator
+
+from backend.config import get_settings
 
 from .categories import CANONICAL_CATEGORIES, resolve_canonical_name
 from .dates_and_money import to_decimal, today_br
@@ -23,12 +24,6 @@ logger = logging.getLogger("fintrack.nlp")
 # httpx warnings silenciados para não vazar parâmetros sensíveis
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
-
-# Configurações de ambiente
-NLP_MODE = os.getenv("NLP_MODE", "hybrid").lower()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_TIMEOUT_SECONDS = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "8.0"))
 
 
 class ResultadoParse(BaseModel):
@@ -81,13 +76,14 @@ def chamar_gemini_estruturado(
     - O texto do usuário é passado puramente no corpo de conteúdo como dado não confiável.
     - Timeout curto (<= 8.0s) e no máximo 1 retry.
     """
-    key = api_key or os.getenv("GEMINI_API_KEY", "")
+    s = get_settings()
+    key = api_key or s.GEMINI_API_KEY.get_secret_value()
     if not key:
         logger.warning("GEMINI_API_KEY não configurada. Fallback LLM indisponível.")
         return None
 
-    model_name = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    timeout_sec = timeout or float(os.getenv("GEMINI_TIMEOUT_SECONDS", "8.0"))
+    model_name = model or s.GEMINI_MODEL
+    timeout_sec = timeout or s.GEMINI_TIMEOUT_SECONDS
     cat_list = _obter_nomes_categorias(categorias_validas)
     if "Outros" not in cat_list:
         cat_list.append("Outros")
@@ -225,7 +221,8 @@ def interpretar_mensagem(
 
     regex_res = parser_module.parse_text_message(texto)
 
-    mode = os.getenv("NLP_MODE", NLP_MODE).lower()
+    s = get_settings()
+    mode = s.NLP_MODE
     if mode not in ("hybrid", "regex", "llm"):
         mode = "hybrid"
 

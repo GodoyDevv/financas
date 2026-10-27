@@ -1,10 +1,11 @@
 import hmac
 import logging
-import os
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+
+from backend.config import get_settings
 
 from .categories import normalize_category_name, resolve_canonical_name
 from .database import get_db
@@ -47,8 +48,9 @@ def get_allowed_phone_mapping():
     Se configurado 11999998888 -> aceita '11999998888' e '5511999998888'.
     """
     mapping = {}
-    phone_bruno = os.getenv("WHATSAPP_USER_BRUNO", "")
-    phone_leticia = os.getenv("WHATSAPP_USER_LETICIA", "")
+    s = get_settings()
+    phone_bruno = s.WHATSAPP_USER_BRUNO
+    phone_leticia = s.WHATSAPP_USER_LETICIA
 
     for raw_p, name in [(phone_bruno, "Bruno"), (phone_leticia, "Letícia")]:
         clean = "".join(filter(str.isdigit, raw_p))
@@ -69,12 +71,13 @@ def verify_webhook_secret(request: Request, token_in_path: str | None = None):
     1. Header configurável (WEBHOOK_SECRET_HEADER, padrão X-Webhook-Secret)
     2. Se WEBHOOK_ALLOW_PATH_TOKEN == "1" e fornecido via rota /webhook/whatsapp/{token}
     """
-    expected_secret = os.getenv("WEBHOOK_SECRET", "")
+    s = get_settings()
+    expected_secret = s.WEBHOOK_SECRET.get_secret_value()
     if not expected_secret or len(expected_secret) < 32:
         logger.error("WEBHOOK_SECRET não configurado ou menor que 32 caracteres (fail-closed).")
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    header_name = os.getenv("WEBHOOK_SECRET_HEADER", "X-Webhook-Secret")
+    header_name = s.WEBHOOK_SECRET_HEADER
     # Busca cabeçalho ignorando maiúsculas/minúsculas
     provided_secret = None
     for k, v in request.headers.items():
@@ -82,7 +85,7 @@ def verify_webhook_secret(request: Request, token_in_path: str | None = None):
             provided_secret = v
             break
 
-    allow_path = os.getenv("WEBHOOK_ALLOW_PATH_TOKEN", "0").strip() == "1"
+    allow_path = s.WEBHOOK_ALLOW_PATH_TOKEN
     if not provided_secret and allow_path and token_in_path:
         provided_secret = token_in_path
 
@@ -127,7 +130,7 @@ async def extract_and_authorize_evolution_message(
 
     # Fail-closed estrito para WHATSAPP_GROUP_JID:
     # Sem GROUP_JID configurado, a rota responde 503 Service Unavailable
-    expected_group_jid = os.getenv("WHATSAPP_GROUP_JID", "").strip()
+    expected_group_jid = get_settings().WHATSAPP_GROUP_JID
     if not expected_group_jid:
         logger.error(
             "Configuração crítica ausente: WHATSAPP_GROUP_JID não foi definido no ambiente. Respondendo 503."
@@ -174,7 +177,7 @@ async def extract_and_authorize_evolution_message(
 
     # Tratamento caso fromMe seja True
     if is_from_me:
-        sender_raw = os.getenv("WHATSAPP_USER_BRUNO", "") or "Bruno"
+        sender_raw = get_settings().WHATSAPP_USER_BRUNO or "Bruno"
 
     if sender_raw and isinstance(sender_raw, str):
         # Ex: 5511999998888@s.whatsapp.net:0 -> 5511999998888

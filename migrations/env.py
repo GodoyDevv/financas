@@ -22,9 +22,10 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
-# Sobrescreve sqlalchemy.url dinamicamente usando a mesma lógica de backend/database.py
-db_url = get_database_url()
-config.set_main_option("sqlalchemy.url", db_url)
+# Sobrescreve sqlalchemy.url dinamicamente se não tiver sido definida explicitamente pelo chamador
+if not config.get_main_option("sqlalchemy.url"):
+    db_url = get_database_url()
+    config.set_main_option("sqlalchemy.url", db_url)
 
 
 def run_migrations_offline() -> None:

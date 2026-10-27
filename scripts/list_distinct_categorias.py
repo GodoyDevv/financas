@@ -1,23 +1,20 @@
 """Script de leitura para inspecionar categorias distintas e contagens em transactions."""
 
-import os
 import sys
+from pathlib import Path
+
+# Garante raiz do projeto no sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from sqlalchemy import create_engine, text
 
+from backend.config import get_settings
+
 
 def main():
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        print("ERRO: DATABASE_URL não definida.", file=sys.stderr)
-        sys.exit(1)
-
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
-    elif database_url.startswith("postgresql://") and not database_url.startswith("postgresql+"):
-        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    elif database_url.startswith("postgresql+psycopg2://"):
-        database_url = database_url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+    database_url = get_settings().DATABASE_URL
 
     engine = create_engine(database_url)
     with engine.connect() as conn:

@@ -1,10 +1,11 @@
 import asyncio
 import logging
-import os
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
+
+from backend.config import get_settings
 
 from .atlas import send_whatsapp_message
 from .database import SessionLocal
@@ -19,8 +20,8 @@ ULTIMO_RELATORIO_SEMANAL_ENVIADO: date | None = None
 
 
 def get_target_group_jid() -> str:
-    """Retorna o JID do grupo oficial a partir das variáveis de ambiente."""
-    return os.getenv("WHATSAPP_GROUP_JID", "").strip()
+    """Retorna o JID do grupo oficial a partir das configurações centralizadas."""
+    return get_settings().WHATSAPP_GROUP_JID
 
 
 def format_brl(valor: float | Decimal) -> str:
