@@ -15,8 +15,9 @@ import logging
 import os
 import time
 from collections import defaultdict
+from typing import Any
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel
@@ -27,7 +28,7 @@ logger = logging.getLogger("atlas.auth")
 # ------------------------------------------------------------------------------
 # 1. CARREGAMENTO E VALIDAÇÃO DE VARIÁVEIS DE AMBIENTE (FALHA FECHADA)
 # ------------------------------------------------------------------------------
-def get_security_config():
+def get_security_config() -> tuple[str | None, str | None, str | None, int, bool]:
     """Lê as variáveis de ambiente ativas no momento."""
     app_pwd = os.getenv("APP_PASSWORD")
     sess_sec = os.getenv("SESSION_SECRET")
@@ -40,7 +41,7 @@ def get_security_config():
     return app_pwd, sess_sec, adm_tok, ttl, dev_insecure
 
 
-def validate_security_configuration():
+def validate_security_configuration() -> None:
     """
     Garante falha fechada se qualquer credencial de segurança essencial faltar.
     Impede que a aplicação inicie desprotegida ou em modo aberto acidentalmente.
@@ -72,7 +73,7 @@ COOKIE_NAME = "atlas_session"
 
 def get_serializer() -> URLSafeTimedSerializer:
     _, sess_sec, _, _, _ = get_security_config()
-    return URLSafeTimedSerializer(sess_sec, salt="atlas-financas-session-v1")
+    return URLSafeTimedSerializer(str(sess_sec or ""), salt="atlas-financas-session-v1")
 
 
 # ------------------------------------------------------------------------------
@@ -99,7 +100,7 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "127.0.0.1"
 
 
-def check_login_rate_limit(client_ip: str):
+def check_login_rate_limit(client_ip: str) -> None:
     now = time.time()
     cutoff = now - LOGIN_WINDOW_SECONDS
     # Remove tentativas antigas fora da janela de 1 minuto
@@ -111,7 +112,7 @@ def check_login_rate_limit(client_ip: str):
         )
 
 
-def record_login_attempt(client_ip: str):
+def record_login_attempt(client_ip: str) -> None:
     login_attempts[client_ip].append(time.time())
 
 
@@ -144,7 +145,7 @@ def get_current_session(request: Request) -> dict | None:
 # ------------------------------------------------------------------------------
 # 4. VALIDAÇÃO DE CSRF BASEADA NO HEADER ORIGIN
 # ------------------------------------------------------------------------------
-def verify_csrf_origin(request: Request):
+def verify_csrf_origin(request: Request) -> None:
     """
     Protege requisições mutantes (POST, PUT, DELETE) baseadas em cookie contra CSRF.
     Se o header 'Origin' estiver presente, deve corresponder à mesma origem do servidor.
@@ -172,7 +173,7 @@ def verify_csrf_origin(request: Request):
 # ------------------------------------------------------------------------------
 # 5. DEPENDÊNCIAS DE AUTENTICAÇÃO FASTAPI
 # ------------------------------------------------------------------------------
-def require_auth_api(request: Request, _csrf: None = Depends(verify_csrf_origin)):
+def require_auth_api(request: Request, _csrf: None = Depends(verify_csrf_origin)) -> dict[str, Any]:
     """
     Exigência de autenticação para todas as rotas da API (/api/*).
     Se não autenticado, retorna 401 Unauthorized com payload JSON.
@@ -186,7 +187,7 @@ def require_auth_api(request: Request, _csrf: None = Depends(verify_csrf_origin)
     return session
 
 
-def require_auth_page(request: Request):
+def require_auth_page(request: Request) -> dict[str, Any] | None:
     """
     Exigência de autenticação para páginas HTML (rota "/").
     Se não autenticado, retorna None indicando necessidade de redirecionamento.
@@ -194,7 +195,7 @@ def require_auth_page(request: Request):
     return get_current_session(request)
 
 
-def require_admin_token(request: Request):
+def require_admin_token(request: Request) -> bool:
     """
     Exigência de autenticação para endpoints de disparos administrativos (/api/relatorio-*/disparar).
     Exige o header 'X-Admin-Token' validado com hmac.compare_digest.
@@ -464,7 +465,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
-async def login_page(request: Request):
+async def login_page(request: Request) -> Response:
     """Exibe formulário de login ou redireciona se já autenticado."""
     session = get_current_session(request)
     if session:
@@ -474,7 +475,7 @@ async def login_page(request: Request):
 
 async def login_endpoint(
     payload: LoginRequest, request: Request, _csrf: None = Depends(verify_csrf_origin)
-):
+) -> JSONResponse:
     """Valida a senha, aplica rate limit por IP e emite cookie assinado."""
     client_ip = get_client_ip(request)
     check_login_rate_limit(client_ip)
@@ -483,7 +484,7 @@ async def login_endpoint(
     max_age_seconds = ttl_hours * 3600
 
     # Comparação estrita de senha em tempo constante (contra timing attack)
-    is_valid = bool(app_pwd) and hmac.compare_digest(payload.password, app_pwd)
+    is_valid = bool(app_pwd) and hmac.compare_digest(payload.password, str(app_pwd))
 
     if not is_valid:
         record_login_attempt(client_ip)
@@ -513,7 +514,7 @@ async def login_endpoint(
     return response
 
 
-async def logout_endpoint(_csrf: None = Depends(verify_csrf_origin)):
+async def logout_endpoint(_csrf: None = Depends(verify_csrf_origin)) -> JSONResponse:
     """Invalida a sessão removendo o cookie."""
     response = JSONResponse(
         content={"status": "logged_out", "message": "Sessão encerrada com sucesso"}

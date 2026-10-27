@@ -33,7 +33,7 @@ class Category(Base):
     @property
     def nome(self) -> str:
         """Alias para manter conformidade com a convenção em português."""
-        return self.name
+        return str(self.name)
 
 
 class Recurrence(Base):

@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from backend.config import PARCELA_MODO
-from backend.dates_and_money import to_decimal
+from backend.dates_and_money import to_decimal, today_br
 from backend.models import Transaction
 
 CENT = Decimal("0.01")
@@ -68,9 +68,13 @@ def criar_parcelamento(
     Executa tudo na mesma transação de banco (tudo ou nada). Em caso de erro, efetua rollback.
     """
     parcelas_qtd = max(1, int(parcelas))
-    data_inicial = base_data.get("data")
-    if isinstance(data_inicial, str):
-        data_inicial = date.fromisoformat(data_inicial)
+    raw_data = base_data.get("data")
+    if isinstance(raw_data, str):
+        data_inicial = date.fromisoformat(raw_data)
+    elif isinstance(raw_data, date):
+        data_inicial = raw_data
+    else:
+        data_inicial = today_br()
 
     # Cálculo dos valores
     raw_valor = base_data.get("valor", Decimal("0.00"))

@@ -344,7 +344,7 @@ FIXED_EXPENSE_KEYWORDS = [
 ]
 
 
-def parse_financial_payload(payload: dict) -> dict:
+def parse_financial_payload(payload: dict) -> dict | None:
     """Extrai e normaliza dados de webhook recebidos (ex: WhatsApp/Gateway)."""
     try:
         raw_tipo = str(payload.get("tipo", "despesa_variavel")).lower()

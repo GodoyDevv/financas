@@ -54,9 +54,9 @@ def ensure_recurrences(db: Session, mes_str: str) -> None:
     recorrencias = (
         db.query(Recurrence)
         .filter(
-            Recurrence.ativo,
-            Recurrence.inicio <= primeiro_dia_mes,
-            (Recurrence.fim is None) | (Recurrence.fim >= primeiro_dia_mes),
+            Recurrence.ativo.is_(True),
+            Recurrence.inicio <= primeiro_dia_mes,  # type: ignore[arg-type] # SQLAlchemy binary expression
+            (Recurrence.fim.is_(None)) | (Recurrence.fim >= primeiro_dia_mes),  # type: ignore[arg-type] # SQLAlchemy binary expression
         )
         .all()
     )
@@ -78,7 +78,7 @@ def ensure_recurrences(db: Session, mes_str: str) -> None:
             continue
 
         data_transacao = clamp_day_in_month(
-            primeiro_dia_mes.year, primeiro_dia_mes.month, rec.dia_do_mes
+            primeiro_dia_mes.year, primeiro_dia_mes.month, int(rec.dia_do_mes)
         )
 
         # Obtém categoria canônica
@@ -88,11 +88,11 @@ def ensure_recurrences(db: Session, mes_str: str) -> None:
         else:
             cat = db.query(Category).filter(Category.id == rec.category_id).first()
             if cat:
-                cat_nome = cat.name
+                cat_nome = str(cat.name)
 
         nova_transacao = Transaction(
             tipo=rec.tipo,
-            valor=to_decimal(rec.valor),
+            valor=to_decimal(rec.valor),  # type: ignore[arg-type] # Column[Decimal] no runtime é Decimal
             categoria=cat_nome,
             category_id=rec.category_id,
             data=data_transacao,

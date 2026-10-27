@@ -42,13 +42,13 @@ class ResultadoParse(BaseModel):
     motivos: list[str] = Field(default_factory=list)
 
     @field_validator("valor", mode="before")
-    def parse_valor(cls, v):
+    def parse_valor(cls, v: Any) -> Decimal:
         if v is None:
             raise ValueError("Valor não pode ser nulo")
         return to_decimal(v)
 
     @field_validator("parcelas", mode="before")
-    def clamp_parcelas(cls, v):
+    def clamp_parcelas(cls, v: Any) -> int:
         try:
             val = int(v)
             if val < 1:
@@ -295,11 +295,13 @@ def interpretar_mensagem(
         # Validação de descrição
         desc_bruta = str(gemini_raw.get("descricao", "")).strip()
         if not desc_bruta:
-            desc_bruta = regex_res.get("descricao") if regex_res else "Diversos"
+            desc_bruta = str(regex_res.get("descricao", "Diversos")) if regex_res else "Diversos"
 
         # Constrói e valida via Pydantic
+        from typing import cast
+
         resultado_obj = ResultadoParse(
-            tipo=tipo_bruto,
+            tipo=cast(Literal["receita", "despesa_fixa", "despesa_variavel"], tipo_bruto),
             valor=val_dec,
             categoria=cat_resolvida,
             descricao=desc_bruta,

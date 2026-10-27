@@ -63,19 +63,24 @@ indent-style = "space"
 [tool.mypy]
 python_version = "3.12"
 warn_unused_configs = true
+warn_redundant_casts = true
 ignore_missing_imports = true
+explicit_package_bases = true
+files = [
+    "backend/auth.py",
+    "backend/nlp.py",
+    "backend/services",
+]
 
 [[tool.mypy.overrides]]
 module = [
-    "backend.auth.*",
-    "backend.nlp.*",
+    "backend.auth",
+    "backend.nlp",
     "backend.services.*",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
