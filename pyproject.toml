@@ -14,6 +14,7 @@ dependencies = [
     "python-dateutil==2.9.0.post0",
     "python-multipart==0.0.9",
     "sqlalchemy==2.0.35",
+    "tzdata>=2024.2; sys_platform == 'win32'",
     "uvicorn[standard]==0.30.6",
 ]
 
@@ -25,6 +26,7 @@ dev = [
     "pytest-cov==5.0.0",
     "ruff==0.6.9",
     "types-python-dateutil>=2.9.0.20241001",
+    "uv>=0.4.0",
 ]
 
 [tool.ruff]
@@ -85,6 +87,7 @@ check_untyped_defs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "--strict-markers --cov=backend --cov-fail-under=71"
 markers = [
     "e2e: end-to-end integration tests",
