@@ -217,5 +217,60 @@ uvicorn backend.main:app --reload
 
 ---
 
+## 💻 Desenvolvimento & Portões de Qualidade
+
+O projeto utiliza **uv** para gerenciamento moderno de dependências, garantindo ambientes herméticos e reprodutíveis em Windows, macOS e Linux.
+
+### 1. Sincronizar o ambiente com uv
+```bash
+# Instala e sincroniza exatamente as versões travadas no uv.lock
+uv sync --frozen
+```
+
+### 2. Executar testes e checagem de cobertura
+```bash
+# Executa a suíte completa de testes com checagem de cobertura (>= 71%)
+uv run pytest
+```
+
+### 3. Linting e Formatação (Ruff)
+```bash
+# Verifica regras de linting
+uv run ruff check .
+
+# Corrige problemas automaticamente
+uv run ruff check --fix .
+
+# Verifica formatação de código
+uv run ruff format --check .
+
+# Aplica formatação automática
+uv run ruff format .
+```
+
+### 4. Checagem Estática de Tipos (Mypy)
+```bash
+# Executa mypy com tipagem estrita nos módulos novos (auth, nlp, services)
+uv run mypy
+```
+
+### 5. Instalar Hooks de Pre-commit
+```bash
+# Instala os hooks do git (gitleaks, ruff, checagens de arquivo)
+uv run pre-commit install
+
+# Executar os hooks manualmente em todos os arquivos
+uv run pre-commit run --all-files
+```
+
+### 6. Atualizar `requirements.txt` a partir do lock
+O deploy no Render utiliza `pip` a partir do `requirements.txt`. Para regenerá-lo a partir do `uv.lock`:
+```bash
+uv export --no-dev --no-hashes --output-file requirements.txt
+```
+> O teste automatizado `tests/test_requirements_sync.py` falha automaticamente se o `requirements.txt` estiver fora de sincronia com o `uv.lock`.
+
+---
+
 ## 👨‍💻 Autor & Manutenção
 Projeto desenvolvido e mantido por **Bruno Godoy**, demonstrando excelência em Engenharia de Software, Arquitetura de Microsserviços com FastAPI, Agentes Autônomos com Google Gemini, Integração de Mensageria em Tempo Real e Foco Contínuo em Experiência do Usuário (UX/UI).
