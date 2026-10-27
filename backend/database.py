@@ -1,7 +1,7 @@
 import os
 
 from sqlalchemy import MetaData, create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -15,7 +15,10 @@ convention = {
 }
 
 metadata = MetaData(naming_convention=convention)
-Base = declarative_base(metadata=metadata)
+
+
+class Base(DeclarativeBase):
+    metadata = metadata
 
 
 def get_database_url() -> str:

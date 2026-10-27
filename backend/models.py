@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    Column,
     Date,
     DateTime,
     ForeignKey,
@@ -12,23 +12,34 @@ from sqlalchemy import (
     Numeric,
     String,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
+from backend.timeutils import utc_now_naive
 
 
 class Category(Base):
     __tablename__ = "categories"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(60), unique=True, index=True, nullable=False)
-    normalized_name = Column(String(60), unique=True, index=True, nullable=False)
-    tipo = Column(String(20), nullable=False, default="despesa")  # "despesa" ou "receita"
-    budget = Column(Numeric(12, 2), nullable=True)  # Orçamento mensal planejado
-    ativo = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(60), unique=True, index=True, nullable=False)
+    normalized_name: Mapped[str] = mapped_column(
+        String(60), unique=True, index=True, nullable=False
+    )
+    tipo: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="despesa"
+    )  # "despesa" ou "receita"
+    budget: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )  # Orçamento mensal planejado
+    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=utc_now_naive
+    )
 
-    transactions = relationship("Transaction", back_populates="category_rel")
+    transactions: Mapped[list["Transaction"]] = relationship(
+        "Transaction", back_populates="category_rel"
+    )
 
     @property
     def nome(self) -> str:
@@ -39,55 +50,83 @@ class Category(Base):
 class Recurrence(Base):
     __tablename__ = "recurrences"
 
-    id = Column(Integer, primary_key=True, index=True)
-    tipo = Column(String(20), nullable=False)  # "receita" ou "despesa_fixa"
-    descricao = Column(String(200), nullable=False)
-    valor = Column(Numeric(12, 2), nullable=False)
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=False, index=True)
-    author = Column(String(40), nullable=True)
-    dia_do_mes = Column(Integer, nullable=False)  # 1 a 31
-    inicio = Column(Date, nullable=False)  # Primeiro dia do mês inicial (YYYY-MM-01)
-    fim = Column(Date, nullable=True)  # Primeiro dia do mês final inclusive (YYYY-MM-01) ou NULL
-    ativo = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)  # "receita" ou "despesa_fixa"
+    descricao: Mapped[str] = mapped_column(String(200), nullable=False)
+    valor: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    category_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("categories.id"), nullable=False, index=True
+    )
+    author: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    dia_do_mes: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 a 31
+    inicio: Mapped[date] = mapped_column(
+        Date, nullable=False
+    )  # Primeiro dia do mês inicial (YYYY-MM-01)
+    fim: Mapped[date | None] = mapped_column(
+        Date, nullable=True
+    )  # Primeiro dia do mês final inclusive (YYYY-MM-01) ou NULL
+    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=utc_now_naive
+    )
 
-    category_rel = relationship("Category")
-    transactions = relationship("Transaction", back_populates="recurrence_rel")
+    category_rel: Mapped["Category"] = relationship("Category")
+    transactions: Mapped[list["Transaction"]] = relationship(
+        "Transaction", back_populates="recurrence_rel"
+    )
 
 
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    tipo = Column(String, nullable=False)  # "receita", "despesa_fixa", "despesa_variavel"
-    valor = Column(Numeric(12, 2), nullable=False)
-    categoria = Column(String, nullable=False)  # Mantido para backward compatibility / dual-write
-    data = Column(Date, nullable=False, index=True)  # Date object
-    descricao = Column(String, nullable=True)
-    source = Column(String, default="Manual")  # Mantido temporariamente para backward compatibility
-    author = Column(String(40), nullable=True)  # "Bruno", "Letícia" ou custom
-    channel = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tipo: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # "receita", "despesa_fixa", "despesa_variavel"
+    valor: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    categoria: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # Mantido para backward compatibility / dual-write
+    data: Mapped[date] = mapped_column(Date, nullable=False, index=True)  # Date object
+    descricao: Mapped[str | None] = mapped_column(String, nullable=True)
+    source: Mapped[str | None] = mapped_column(
+        String, nullable=True, default="Manual"
+    )  # Mantido temporariamente para backward compatibility
+    author: Mapped[str | None] = mapped_column(
+        String(40), nullable=True
+    )  # "Bruno", "Letícia" ou custom
+    channel: Mapped[str] = mapped_column(
         String(20), nullable=False, default="unknown"
     )  # "whatsapp_text", "whatsapp_audio", "dashboard", "api", "system", "unknown"
-    vencimento = Column(
+    vencimento: Mapped[str | None] = mapped_column(
         String, nullable=True
     )  # Para despesas fixas (ex: dia 10 ou data YYYY-MM-DD)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=utc_now_naive
+    )
 
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=False, index=True)
-    category_rel = relationship("Category", back_populates="transactions")
+    category_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("categories.id"), nullable=False, index=True
+    )
+    category_rel: Mapped["Category"] = relationship("Category", back_populates="transactions")
 
     # Campos de parcelamento com identidade relacional
-    parcela_grupo_id = Column(String(36), nullable=True, index=True)
-    parcela_num = Column(Integer, nullable=True)
-    parcela_total = Column(Integer, nullable=True)
+    parcela_grupo_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    parcela_num: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    parcela_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Campos de recorrência com materialização idempotente
-    recurrence_id = Column(Integer, ForeignKey("recurrences.id"), nullable=True, index=True)
-    competencia = Column(Date, nullable=True)  # Primeiro dia do mês da competência (YYYY-MM-01)
-    editado_manual = Column(Boolean, nullable=False, default=False)
+    recurrence_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("recurrences.id"), nullable=True, index=True
+    )
+    competencia: Mapped[date | None] = mapped_column(
+        Date, nullable=True
+    )  # Primeiro dia do mês da competência (YYYY-MM-01)
+    editado_manual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    recurrence_rel = relationship("Recurrence", back_populates="transactions")
+    recurrence_rel: Mapped["Recurrence | None"] = relationship(
+        "Recurrence", back_populates="transactions"
+    )
 
     __table_args__ = (
         Index("ix_transactions_data_tipo", "data", "tipo"),
