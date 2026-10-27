@@ -54,7 +54,7 @@ def get_transactions(
         try:
             inicio, fim = month_range(mes)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
         # Materialização preguiçosa de recorrências ativas
         ensure_recurrences(db, mes)
@@ -293,7 +293,7 @@ def get_summary(
         try:
             inicio, fim = month_range(mes)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
         # Materialização preguiçosa de recorrências ativas
         ensure_recurrences(db, mes)
@@ -347,7 +347,7 @@ def get_metrics(
         try:
             inicio, fim = month_range(mes)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
         # Materialização preguiçosa de recorrências ativas
         ensure_recurrences(db, mes)
@@ -457,7 +457,7 @@ def get_categories(
         try:
             inicio, fim = month_range(mes)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
         # Materialização preguiçosa de recorrências ativas
         ensure_recurrences(db, mes)
@@ -712,7 +712,7 @@ def update_recurrence(rec_id: int, payload: RecurrenceUpdate, db: Session = Depe
         .filter(
             Transaction.recurrence_id == rec.id,
             Transaction.competencia >= primeiro_dia_mes_atual,
-            Transaction.editado_manual == False,
+            not Transaction.editado_manual,
         )
         .all()
     )
@@ -777,7 +777,7 @@ def delete_recurrence(rec_id: int, db: Session = Depends(get_db)):
         .filter(
             Transaction.recurrence_id == rec.id,
             Transaction.competencia >= primeiro_dia_mes_atual,
-            Transaction.editado_manual == False,
+            not Transaction.editado_manual,
         )
         .all()
     )

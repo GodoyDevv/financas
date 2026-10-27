@@ -205,17 +205,20 @@ def test_webhook_creates_recurrence_for_fixed_expense(auth_client: TestClient, d
     webhook_secret = "webhook_secret_key_with_at_least_32_characters_12345"
     headers = {"X-Webhook-Secret": webhook_secret, "Content-Type": "application/json"}
 
-    with mock.patch(
-        "backend.webhook.parse_text_message",
-        return_value={
-            "tipo": "despesa_fixa",
-            "valor": 120.0,
-            "categoria": "Contas de Consumo",
-            "descricao": "Internet Casa",
-            "data": "2026-10-24",
-            "parcelas": 1,
-        },
-    ), mock.patch("backend.atlas.send_whatsapp_message") as mock_send:
+    with (
+        mock.patch(
+            "backend.webhook.parse_text_message",
+            return_value={
+                "tipo": "despesa_fixa",
+                "valor": 120.0,
+                "categoria": "Contas de Consumo",
+                "descricao": "Internet Casa",
+                "data": "2026-10-24",
+                "parcelas": 1,
+            },
+        ),
+        mock.patch("backend.atlas.send_whatsapp_message") as mock_send,
+    ):
         payload = {
             "event": "messages.upsert",
             "data": {
@@ -233,9 +236,7 @@ def test_webhook_creates_recurrence_for_fixed_expense(auth_client: TestClient, d
         assert res.status_code == 200
 
         # Verifica que a regra foi criada
-        rec = (
-            db_session.query(Recurrence).filter(Recurrence.descricao == "Internet Casa").first()
-        )
+        rec = db_session.query(Recurrence).filter(Recurrence.descricao == "Internet Casa").first()
         assert rec is not None
         assert rec.tipo == "despesa_fixa"
 

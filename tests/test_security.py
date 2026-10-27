@@ -188,7 +188,7 @@ def test_logout_clears_cookie(client):
 # ==============================================================================
 def test_login_rate_limiting(client):
     """Senha errada retorna 401; a partir da 6ª tentativa deve retornar 429."""
-    for i in range(5):
+    for _i in range(5):
         res = client.post(
             "/auth/login",
             json={"password": "wrong_password"},

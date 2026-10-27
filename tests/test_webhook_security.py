@@ -95,17 +95,20 @@ def test_webhook_wrong_header_returns_401(client):
 def test_webhook_path_token_support(client):
     """Com WEBHOOK_ALLOW_PATH_TOKEN=1, aceita token correto via path /webhook/whatsapp/{token}."""
     payload = make_payload(text="Café 5", msg_id="msg_token_path")
-    with mock.patch(
-        "backend.webhook.parse_text_message",
-        return_value={
-            "tipo": "despesa_variavel",
-            "valor": 5.0,
-            "categoria": "Alimentação",
-            "descricao": "Café",
-            "data": "2026-10-23",
-            "parcelas": 1,
-        },
-    ), mock.patch("backend.atlas.send_whatsapp_message", return_value=True):
+    with (
+        mock.patch(
+            "backend.webhook.parse_text_message",
+            return_value={
+                "tipo": "despesa_variavel",
+                "valor": 5.0,
+                "categoria": "Alimentação",
+                "descricao": "Café",
+                "data": "2026-10-23",
+                "parcelas": 1,
+            },
+        ),
+        mock.patch("backend.atlas.send_whatsapp_message", return_value=True),
+    ):
         res = client.post(f"/webhook/whatsapp/{TEST_WEBHOOK_SECRET}", json=payload)
         assert res.status_code == 200
         assert res.json()["status"] == "success"
@@ -160,17 +163,20 @@ def test_webhook_authorized_sender_creates_transaction(client):
     payload = make_payload(
         sender=f"{TEST_PHONE_BRUNO}@s.whatsapp.net", text="Mercado 150", msg_id="msg_valid_001"
     )
-    with mock.patch(
-        "backend.webhook.parse_text_message",
-        return_value={
-            "tipo": "despesa_variavel",
-            "valor": 150.0,
-            "categoria": "Mercado",
-            "descricao": "Mercado",
-            "data": "2026-10-23",
-            "parcelas": 1,
-        },
-    ), mock.patch("backend.atlas.send_whatsapp_message", return_value=True):
+    with (
+        mock.patch(
+            "backend.webhook.parse_text_message",
+            return_value={
+                "tipo": "despesa_variavel",
+                "valor": 150.0,
+                "categoria": "Mercado",
+                "descricao": "Mercado",
+                "data": "2026-10-23",
+                "parcelas": 1,
+            },
+        ),
+        mock.patch("backend.atlas.send_whatsapp_message", return_value=True),
+    ):
         res = client.post(
             "/webhook/whatsapp", json=payload, headers={"X-Webhook-Secret": TEST_WEBHOOK_SECRET}
         )
@@ -215,10 +221,13 @@ def test_webhook_oversized_audio_rejected_without_gemini(client):
 
     big_audio_bytes = b"0" * (2 * 1024 * 1024 + 100)
 
-    with mock.patch(
-        "backend.atlas.fetch_decrypted_audio_from_evolution",
-        return_value=(big_audio_bytes, "audio/ogg"),
-    ), mock.patch("backend.atlas.transcribe_audio_bytes") as mock_transcribe:
+    with (
+        mock.patch(
+            "backend.atlas.fetch_decrypted_audio_from_evolution",
+            return_value=(big_audio_bytes, "audio/ogg"),
+        ),
+        mock.patch("backend.atlas.transcribe_audio_bytes") as mock_transcribe,
+    ):
         res = client.post(
             "/webhook/whatsapp", json=payload, headers={"X-Webhook-Secret": TEST_WEBHOOK_SECRET}
         )

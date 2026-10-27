@@ -127,7 +127,7 @@ def extract_money_values(text: str) -> tuple[Decimal | None, list[Decimal], str]
             val_dec = to_decimal(clean_num)
             if val_dec > Decimal("0.00"):
                 matches.append((m.start(), m.end(), val_dec, m.group(0)))
-        except Exception:
+        except (ValueError, TypeError, ArithmeticError):
             continue
 
     if not matches:
@@ -463,10 +463,7 @@ def parse_text_message(message: str) -> dict | None:
         motivos.append("Nenhuma keyword de categoria identificada (fallback Outros)")
 
     # 6. Avaliação de Confiança
-    if categoria == "Outros" or len(motivos) > 0:
-        confianca = "baixa"
-    else:
-        confianca = "alta"
+    confianca = "baixa" if categoria == "Outros" or len(motivos) > 0 else "alta"
 
     # 7. Limpeza da descrição
     descricao = clean_description(msg_sem_valor, original_fallback=clean_msg)

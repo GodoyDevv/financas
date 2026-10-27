@@ -22,6 +22,8 @@ _test_db_url = f"sqlite:///{_test_db_path.replace(os.sep, '/')}"
 os.environ["DATABASE_URL"] = _test_db_url
 
 # Importa database e reconfigura o engine e SessionLocal caso já tenham sido importados
+import contextlib
+
 import backend.database as db_module
 
 db_module.engine = db_module.create_db_engine()
@@ -37,7 +39,5 @@ def setup_test_database():
     yield
 
     if os.path.exists(_test_db_path):
-        try:
+        with contextlib.suppress(OSError):
             os.remove(_test_db_path)
-        except OSError:
-            pass

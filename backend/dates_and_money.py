@@ -27,10 +27,7 @@ def to_decimal(val: str | int | float | Decimal | None) -> Decimal:
         return Decimal("0.00")
     if isinstance(val, Decimal):
         return val.quantize(CENTS, rounding=ROUND_HALF_UP)
-    if isinstance(val, float):
-        d = Decimal(str(val))
-    else:
-        d = Decimal(str(val).strip())
+    d = Decimal(str(val)) if isinstance(val, float) else Decimal(str(val).strip())
     return d.quantize(CENTS, rounding=ROUND_HALF_UP)
 
 
@@ -54,9 +51,6 @@ def month_range(mes: str) -> tuple[date, date]:
         raise ValueError(f"Mês inválido: '{mes_num}'. Deve estar entre 01 e 12.")
 
     inicio = date(ano, mes_num, 1)
-    if mes_num == 12:
-        fim_exclusivo = date(ano + 1, 1, 1)
-    else:
-        fim_exclusivo = date(ano, mes_num + 1, 1)
+    fim_exclusivo = date(ano + 1, 1, 1) if mes_num == 12 else date(ano, mes_num + 1, 1)
 
     return inicio, fim_exclusivo

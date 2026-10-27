@@ -14,6 +14,8 @@ os.environ["WEBHOOK_SECRET"] = "webhook_secret_key_with_at_least_32_characters_1
 os.environ["WHATSAPP_USER_BRUNO"] = "5511999998888"
 os.environ["WHATSAPP_USER_LETICIA"] = "5511977776666"
 
+import contextlib
+
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
@@ -292,7 +294,5 @@ def test_migration_reversibility_and_unknown_category_creation():
         else:
             os.environ.pop("DATABASE_URL", None)
         if os.path.exists(db_path):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(db_path)
-            except OSError:
-                pass

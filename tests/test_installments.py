@@ -19,6 +19,8 @@ os.environ["WEBHOOK_SECRET"] = "webhook_secret_key_with_at_least_32_characters_1
 os.environ["WHATSAPP_USER_BRUNO"] = "5511999998888"
 os.environ["WHATSAPP_USER_LETICIA"] = "5511977776666"
 
+import contextlib
+
 from alembic import command
 from alembic.config import Config
 
@@ -89,10 +91,13 @@ def test_atomic_installment_creation_rollback_on_failure(db_session):
     }
 
     # Simula falha na segunda chamada de add_months_clamped
-    with mock.patch(
-        "backend.services.installments.add_months_clamped",
-        side_effect=[date(2026, 10, 24), RuntimeError("Falha simulada")],
-    ), pytest.raises(RuntimeError):
+    with (
+        mock.patch(
+            "backend.services.installments.add_months_clamped",
+            side_effect=[date(2026, 10, 24), RuntimeError("Falha simulada")],
+        ),
+        pytest.raises(RuntimeError),
+    ):
         criar_parcelamento(db_session, base_data, parcelas=3)
 
     # Verifica que nenhuma parcela do item foi gravada no banco
@@ -211,17 +216,20 @@ def test_webhook_creates_installments_with_group_and_formatted_reply(
     webhook_secret = "webhook_secret_key_with_at_least_32_characters_12345"
     headers = {"X-Webhook-Secret": webhook_secret, "Content-Type": "application/json"}
 
-    with mock.patch(
-        "backend.webhook.parse_text_message",
-        return_value={
-            "tipo": "despesa_variavel",
-            "valor": 200.0,
-            "categoria": "Alimentação",
-            "descricao": "Jantar Especial Único",
-            "data": "2026-10-24",
-            "parcelas": 3,
-        },
-    ), mock.patch("backend.atlas.send_whatsapp_message") as mock_send:
+    with (
+        mock.patch(
+            "backend.webhook.parse_text_message",
+            return_value={
+                "tipo": "despesa_variavel",
+                "valor": 200.0,
+                "categoria": "Alimentação",
+                "descricao": "Jantar Especial Único",
+                "data": "2026-10-24",
+                "parcelas": 3,
+            },
+        ),
+        mock.patch("backend.atlas.send_whatsapp_message") as mock_send,
+    ):
         payload = {
             "event": "messages.upsert",
             "data": {
@@ -336,7 +344,5 @@ def test_migration_backfill_and_ambiguity_handling():
         else:
             os.environ.pop("DATABASE_URL", None)
         if os.path.exists(db_path):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(db_path)
-            except OSError:
-                pass

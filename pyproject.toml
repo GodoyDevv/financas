@@ -35,10 +35,26 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "S", "C4", "SIM", "RUF"]
 ignore = [
     "E501",  # line-length tratado prioritariamente pelo ruff format
+    "B008",  # FastAPI pattern padrão para injeção de dependências via Depends()
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]  # asserts permitidos em testes
+"tests/*" = [
+    "S101",  # asserts permitidos em suíte de testes
+    "S105",  # credenciais falsas de teste
+    "S106",  # senhas em fixtures e mocks
+    "S603",  # execução de subprocess nos testes de migração e sync
+    "E402",  # configuração de variáveis de ambiente de teste antes de importar main
+    "SIM115", # NamedTemporaryFile fechado manualmente para SQLite temp DB
+]
+"scripts/*" = [
+    "E402",  # sys.path manipulado antes dos imports de backend
+    "S608",  # script local de backup / dump
+]
+"migrations/*" = [
+    "S110",  # try-except-pass em migrações idempotentes de tabelas/constraints
+    "B007",  # loop variables em scripts de backfill
+]
 
 [tool.ruff.format]
 quote-style = "double"

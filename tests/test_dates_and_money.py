@@ -33,6 +33,8 @@ os.environ["DEV_INSECURE_COOKIES"] = "0"
 os.environ["WHATSAPP_GROUP_JID"] = "120363000000000000@g.us"
 os.environ["WEBHOOK_SECRET"] = "webhook_secret_key_with_at_least_32_characters_12345"
 
+import contextlib
+
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
@@ -193,10 +195,8 @@ def test_migration_abort_on_invalid_date():
 
     finally:
         if os.path.exists(db_path):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(db_path)
-            except OSError:
-                pass
 
 
 def test_migration_legacy_data_conversion_and_downgrade():
@@ -240,7 +240,5 @@ def test_migration_legacy_data_conversion_and_downgrade():
         command.downgrade(cfg, "266f67827cdb")
     finally:
         if os.path.exists(db_path):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(db_path)
-            except OSError:
-                pass

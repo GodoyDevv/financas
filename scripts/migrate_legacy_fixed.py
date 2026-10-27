@@ -146,10 +146,7 @@ def main():
             tid_str = str(tid)
             decisao = decisions[tid_str]
 
-            if isinstance(dt, str):
-                dt_obj = date.fromisoformat(dt)
-            else:
-                dt_obj = dt
+            dt_obj = date.fromisoformat(dt) if isinstance(dt, str) else dt
 
             if decisao == "recorrente":
                 primeiro_dia_mes = dt_obj.replace(day=1)

@@ -172,12 +172,14 @@ def test_nlp_mode_regex_only():
     """Se NLP_MODE='regex', o Gemini nunca é acionado, mesmo em caso de baixa confiança."""
     texto = "Tênis 199,90"  # Cai em baixa confiança no regex
 
-    with patch.dict(os.environ, {"NLP_MODE": "regex"}):
-        with patch("backend.nlp.chamar_gemini_estruturado") as mock_gemini:
-            res = interpretar_mensagem(texto)
-            assert res is not None
-            assert res["valor"] == Decimal("199.90")
-            mock_gemini.assert_not_called()
+    with (
+        patch.dict(os.environ, {"NLP_MODE": "regex"}),
+        patch("backend.nlp.chamar_gemini_estruturado") as mock_gemini,
+    ):
+        res = interpretar_mensagem(texto)
+        assert res is not None
+        assert res["valor"] == Decimal("199.90")
+        mock_gemini.assert_not_called()
 
 
 def test_payload_structure_and_prompt_injection_resistance():

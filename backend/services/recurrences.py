@@ -54,9 +54,9 @@ def ensure_recurrences(db: Session, mes_str: str) -> None:
     recorrencias = (
         db.query(Recurrence)
         .filter(
-            Recurrence.ativo == True,
+            Recurrence.ativo,
             Recurrence.inicio <= primeiro_dia_mes,
-            (Recurrence.fim == None) | (Recurrence.fim >= primeiro_dia_mes),
+            (Recurrence.fim is None) | (Recurrence.fim >= primeiro_dia_mes),
         )
         .all()
     )

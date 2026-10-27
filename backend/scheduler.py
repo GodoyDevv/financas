@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import os
-import zoneinfo
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -13,8 +12,6 @@ from .dates_and_money import TIMEZONE_SP, to_decimal
 from .models import Transaction
 
 logger = logging.getLogger("fintrack.scheduler")
-
-TIMEZONE_SP = zoneinfo.ZoneInfo("America/Sao_Paulo")
 
 # Controle em memória para não disparar relatórios duplicados
 ULTIMO_RELATORIO_ENVIADO: date | None = None
@@ -65,7 +62,7 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
     Constrói a mensagem executiva formatada em WhatsApp Markdown elegante
     apenas com as despesas variáveis registradas naquele dia.
     """
-    data_str = data_alvo.strftime("%Y-%m-%d")
+    data_alvo.strftime("%Y-%m-%d")
     data_formatada_br = data_alvo.strftime("%d/%m/%Y")
 
     transacoes = (
@@ -150,8 +147,8 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
     agrupado por CATEGORIA (Transporte, Alimentação, Saúde, Lazer, etc).
     """
     data_inicio = data_fim - timedelta(days=6)
-    str_inicio = data_inicio.strftime("%Y-%m-%d")
-    str_fim = data_fim.strftime("%Y-%m-%d")
+    data_inicio.strftime("%Y-%m-%d")
+    data_fim.strftime("%Y-%m-%d")
 
     data_fmt_inicio = data_inicio.strftime("%d/%m")
     data_fmt_fim = data_fim.strftime("%d/%m/%Y")
@@ -232,9 +229,7 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
     return "\n".join(linhas)
 
 
-def executar_envio_relatorio_diario(
-    data_custom: date | None = None, force: bool = False
-) -> bool:
+def executar_envio_relatorio_diario(data_custom: date | None = None, force: bool = False) -> bool:
     """Dispara o envio do relatório diário para o WhatsApp."""
     global ULTIMO_RELATORIO_ENVIADO
 
@@ -268,9 +263,7 @@ def executar_envio_relatorio_diario(
         db.close()
 
 
-def executar_envio_relatorio_semanal(
-    data_custom: date | None = None, force: bool = False
-) -> bool:
+def executar_envio_relatorio_semanal(data_custom: date | None = None, force: bool = False) -> bool:
     """Dispara o relatório semanal macro para o WhatsApp (Sábados às 22h)."""
     global ULTIMO_RELATORIO_SEMANAL_ENVIADO
 
@@ -322,12 +315,16 @@ async def loop_agendador_relatorio_noturno():
             dia_da_semana = agora.weekday()  # 5 = Sábado
 
             # RELATÓRIO SEMANAL MACRO: Sábado entre 22h00 e 22h15
-            if dia_da_semana == 5 and hora == 22 and minuto <= 15:
-                if hoje != ULTIMO_RELATORIO_SEMANAL_ENVIADO:
-                    logger.info(
-                        "Horário do Relatório Semanal Macro alcançado (Sábado 22h). Disparando..."
-                    )
-                    executar_envio_relatorio_semanal(data_custom=hoje, force=False)
+            if (
+                dia_da_semana == 5
+                and hora == 22
+                and minuto <= 15
+                and hoje != ULTIMO_RELATORIO_SEMANAL_ENVIADO
+            ):
+                logger.info(
+                    "Horário do Relatório Semanal Macro alcançado (Sábado 22h). Disparando..."
+                )
+                executar_envio_relatorio_semanal(data_custom=hoje, force=False)
 
             # RELATÓRIO DIÁRIO: Entre 21h30 e 22h00
             na_janela_diaria = (hora == 21 and minuto >= 30) or (

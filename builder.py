@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 from google import genai
@@ -66,8 +67,6 @@ response = client.models.generate_content(
 content = response.text
 
 # Processa e salva os arquivos automaticamente na máquina
-import re
-
 pattern = r"<<<FILE:\s*(.*?)>>>\n(.*?)<<<END_FILE>>>"
 matches = re.findall(pattern, content, re.DOTALL)
 

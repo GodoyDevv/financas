@@ -6,6 +6,7 @@ Create Date: 2026-10-24 21:19:29.000000
 
 """
 
+import contextlib
 import csv
 import logging
 import os
@@ -77,7 +78,7 @@ def upgrade() -> None:
     # Agrupa candidatos por chave canônica: (radical, valor, tipo, categoria, author)
     candidates_by_key = defaultdict(list)
     for r in rows:
-        tid, desc, val, tipo, cat, dt, author, cat_id = (
+        tid, desc, val, tipo, cat, dt, author, _cat_id = (
             r[0],
             r[1],
             r[2],
@@ -94,10 +95,7 @@ def upgrade() -> None:
             total = int(m.group(3))
 
             # Se dt for string (ex: em SQLite puro), converte
-            if isinstance(dt, str):
-                dt_obj = date.fromisoformat(dt)
-            else:
-                dt_obj = dt
+            dt_obj = date.fromisoformat(dt) if isinstance(dt, str) else dt
 
             key = (radical, str(val), tipo, cat, str(author or ""))
             candidates_by_key[key].append(
@@ -285,10 +283,8 @@ def downgrade() -> None:
             if "parcela_grupo_id" in tx_cols:
                 batch_op.drop_column("parcela_grupo_id")
     else:
-        try:
+        with contextlib.suppress(Exception):
             op.drop_constraint("ck_transactions_parcelas_valid", "transactions", type_="check")
-        except Exception:
-            pass
         if "uq_transactions_grupo_num" in tx_indexes:
             op.drop_index("uq_transactions_grupo_num", table_name="transactions")
         if "ix_transactions_parcela_grupo_id" in tx_indexes:

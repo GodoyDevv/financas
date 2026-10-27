@@ -26,6 +26,8 @@ os.environ["WEBHOOK_SECRET"] = "webhook_secret_key_with_at_least_32_characters_1
 os.environ["WHATSAPP_USER_BRUNO"] = "5511999998888"
 os.environ["WHATSAPP_USER_LETICIA"] = "5511977776666"
 
+import contextlib
+
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
@@ -106,10 +108,8 @@ def test_migration_split_source_backfill_and_downgrade():
 
     finally:
         if os.path.exists(db_path):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(db_path)
-            except OSError:
-                pass
 
 
 def test_dashboard_create_transaction_without_author(auth_client):
@@ -232,13 +232,15 @@ def test_webhook_records_author_and_channel_for_text_and_audio(auth_client):
         },
     }
 
-    with mock.patch("backend.atlas.transcribe_audio_bytes", return_value="Almoço 35"):
-        with mock.patch("backend.atlas.send_whatsapp_message", return_value=True):
-            res_audio = auth_client.post(
-                "/webhook/whatsapp", json=payload_audio, headers={"X-Webhook-Secret": secret}
-            )
-            assert res_audio.status_code == 200
-            tx_id_audio = res_audio.json()["id"]
+    with (
+        mock.patch("backend.atlas.transcribe_audio_bytes", return_value="Almoço 35"),
+        mock.patch("backend.atlas.send_whatsapp_message", return_value=True),
+    ):
+        res_audio = auth_client.post(
+            "/webhook/whatsapp", json=payload_audio, headers={"X-Webhook-Secret": secret}
+        )
+        assert res_audio.status_code == 200
+        tx_id_audio = res_audio.json()["id"]
 
     res_check_audio = auth_client.get("/api/transactions")
     tx_audio = next(t for t in res_check_audio.json() if t["id"] == tx_id_audio)

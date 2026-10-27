@@ -31,7 +31,7 @@ def format_sql_val(val):
     return f"'{safe_str}'"
 
 
-def executar_backup(destino_custom: str = None):
+def executar_backup(destino_custom: str | None = None):
     pasta_backups = Path(destino_custom) if destino_custom else PROJECT_ROOT / "backups"
     pasta_backups.mkdir(parents=True, exist_ok=True)
 

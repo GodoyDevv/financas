@@ -234,9 +234,8 @@ def interpretar_mensagem(
         return regex_res
 
     # Se modo for hybrid e confiança for alta, economiza 100% de custo/latência
-    if mode == "hybrid":
-        if regex_res and regex_res.get("confianca") == "alta":
-            return regex_res
+    if mode == "hybrid" and regex_res and regex_res.get("confianca") == "alta":
+        return regex_res
 
     # Caso precise chamar o Gemini (hybrid com baixa confiança, ou llm, ou regex falhou)
     gemini_raw = chamar_gemini_estruturado(texto, categorias_validas=categorias_validas)

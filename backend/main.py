@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import os
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
@@ -43,10 +43,8 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(loop_agendador_relatorio_noturno())
     yield
     task.cancel()
-    try:
+    with suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass
 
 
 is_production = os.getenv("ENV", "development").lower() == "production"
