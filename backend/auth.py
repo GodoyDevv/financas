@@ -240,7 +240,7 @@ LOGIN_HTML_PAGE = """<!DOCTYPE html>
 
     body {
       background-color: var(--bg-dark);
-      background-image: 
+      background-image:
         radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.15) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.15) 0px, transparent 50%);
       color: var(--text-main);

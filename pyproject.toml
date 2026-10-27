@@ -36,6 +36,7 @@ select = ["E", "F", "I", "B", "UP", "S", "C4", "SIM", "RUF"]
 ignore = [
     "E501",  # line-length tratado prioritariamente pelo ruff format
     "B008",  # FastAPI pattern padrão para injeção de dependências via Depends()
+    "UP038", # Uso de isinstance(x, (A, B)) é mais legível e idiomático que isinstance(x, A | B)
 ]
 
 [tool.ruff.lint.per-file-ignores]
