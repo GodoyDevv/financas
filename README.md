@@ -272,5 +272,47 @@ uv export --no-dev --no-hashes --output-file requirements.txt
 
 ---
 
+## 🐳 Rodando com Docker (Desenvolvimento Local & PostgreSQL)
+
+Para executar localmente em um ambiente idêntico à produção com PostgreSQL:
+
+### 1. Subir a aplicação e o banco
+```bash
+docker compose up --build -d
+```
+- A aplicação aplicará automaticamente as migrações do Alembic na inicialização.
+- Dashboard web disponível em: `http://localhost:8000` (com credenciais de desenvolvimento pré-configuradas).
+- Endpoint de saúde: `http://localhost:8000/health`.
+
+### 2. Acompanhar os logs
+```bash
+# Ver logs de todos os serviços
+docker compose logs -f
+
+# Ver logs apenas da aplicação
+docker compose logs -f app
+```
+
+### 3. Rodar migrações manualmente (se necessário)
+```bash
+docker compose exec app alembic upgrade head
+```
+
+### 4. Executar os testes automatizados contra o PostgreSQL
+```bash
+docker compose --profile test run --rm tests
+```
+
+### 5. Parar os containers e resetar volumes
+```bash
+# Para os serviços mantendo os dados
+docker compose down
+
+# Para e reseta o volume do PostgreSQL (limpeza completa de dados locais)
+docker compose down -v
+```
+
+---
+
 ## 👨‍💻 Autor & Manutenção
 Projeto desenvolvido e mantido por **Bruno Godoy**, demonstrando excelência em Engenharia de Software, Arquitetura de Microsserviços com FastAPI, Agentes Autônomos com Google Gemini, Integração de Mensageria em Tempo Real e Foco Contínuo em Experiência do Usuário (UX/UI).

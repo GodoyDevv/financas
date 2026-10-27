@@ -1,0 +1,82 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: fintrack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: dev_password_insecure
+      POSTGRES_DB: dev_financas
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d dev_financas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fintrack-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://dev_user:dev_password_insecure@db:5432/dev_financas
+      APP_PASSWORD: "dev_password_only_for_local_testing"
+      SESSION_SECRET: "dev_session_secret_key_at_least_32_characters_12345"
+      ADMIN_TOKEN: "dev_admin_token_for_local_tests_12345"
+      WEBHOOK_SECRET: "dev_webhook_secret_key_32_chars_long_12345"
+      WHATSAPP_GROUP_JID: "120363000000000000@g.us"
+      WHATSAPP_USER_BRUNO: "5511999998888"
+      WHATSAPP_USER_LETICIA: "5511977776666"
+      WEBHOOK_SECRET_HEADER: "X-Webhook-Secret"
+      WEBHOOK_ALLOW_PATH_TOKEN: "1"
+      DEV_INSECURE_COOKIES: "1"
+      ENV: "development"
+      PORT: "8000"
+
+  tests:
+    profiles:
+      - test
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fintrack-tests
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://dev_user:dev_password_insecure@db:5432/dev_financas
+      APP_PASSWORD: "dev_password_only_for_local_testing"
+      SESSION_SECRET: "dev_session_secret_key_at_least_32_characters_12345"
+      ADMIN_TOKEN: "dev_admin_token_for_local_tests_12345"
+      WEBHOOK_SECRET: "dev_webhook_secret_key_32_chars_long_12345"
+      WHATSAPP_GROUP_JID: "120363000000000000@g.us"
+      WHATSAPP_USER_BRUNO: "5511999998888"
+      WHATSAPP_USER_LETICIA: "5511977776666"
+      WEBHOOK_SECRET_HEADER: "X-Webhook-Secret"
+      WEBHOOK_ALLOW_PATH_TOKEN: "1"
+      DEV_INSECURE_COOKIES: "1"
+      ENV: "development"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        uv sync --frozen
+        alembic upgrade head
+        pytest
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+      - ./uv.lock:/app/uv.lock:ro
+
+volumes:
+  postgres_data:
+    name: fintrack_postgres_data
