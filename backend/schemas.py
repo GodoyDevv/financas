@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, PlainSerializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
 
 from backend.dates_and_money import to_decimal
 
@@ -73,6 +73,8 @@ class CategoryUpdate(BaseModel):
 
 
 class CategoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     nome: str
@@ -81,9 +83,6 @@ class CategoryResponse(BaseModel):
     ativo: bool
     gasto_mes: MoneyDecimal = Decimal("0.00")
     percentual_budget: float | None = None
-
-    class Config:
-        from_attributes = True
 
 
 class RecurrenceBase(BaseModel):
@@ -141,6 +140,8 @@ class RecurrenceUpdate(BaseModel):
 
 
 class RecurrenceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     tipo: str
     descricao: str
@@ -152,9 +153,6 @@ class RecurrenceResponse(BaseModel):
     inicio: date
     fim: date | None = None
     ativo: bool
-
-    class Config:
-        from_attributes = True
 
 
 class TransactionBase(BaseModel):
@@ -241,10 +239,9 @@ class TransactionUpdate(BaseModel):
 
 
 class TransactionResponse(TransactionBase):
-    id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+    id: int
 
 
 class FinancialSummary(BaseModel):
