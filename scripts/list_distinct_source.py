@@ -9,15 +9,15 @@ tabela 'transactions', junto com a contagem de ocorrências de cada um.
 
 import sys
 from pathlib import Path
-from collections import Counter
 
 # Adiciona raiz do projeto ao path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.database import create_db_engine
 import sqlalchemy as sa
+
+from backend.database import create_db_engine
 
 
 def main() -> int:

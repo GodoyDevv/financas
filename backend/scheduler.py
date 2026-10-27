@@ -1,35 +1,37 @@
-import os
 import asyncio
 import logging
-from datetime import datetime, date, timedelta
-from typing import Optional
+import os
 import zoneinfo
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
-from .database import SessionLocal
-from .models import Transaction
+
 from .atlas import send_whatsapp_message
-from .dates_and_money import to_decimal, today_br, TIMEZONE_SP
-from decimal import Decimal
-from typing import Union
+from .database import SessionLocal
+from .dates_and_money import TIMEZONE_SP, to_decimal
+from .models import Transaction
 
 logger = logging.getLogger("fintrack.scheduler")
 
 TIMEZONE_SP = zoneinfo.ZoneInfo("America/Sao_Paulo")
 
 # Controle em memória para não disparar relatórios duplicados
-ULTIMO_RELATORIO_ENVIADO: Optional[date] = None
-ULTIMO_RELATORIO_SEMANAL_ENVIADO: Optional[date] = None
+ULTIMO_RELATORIO_ENVIADO: date | None = None
+ULTIMO_RELATORIO_SEMANAL_ENVIADO: date | None = None
+
 
 def get_target_group_jid() -> str:
     """Retorna o JID do grupo oficial a partir das variáveis de ambiente."""
     return os.getenv("WHATSAPP_GROUP_JID", "").strip()
 
-def format_brl(valor: Union[float, Decimal]) -> str:
+
+def format_brl(valor: float | Decimal) -> str:
     """Formata valor em padrão brasileiro de moeda R$ 1.234,56"""
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def normalizar_nome_source(source: Optional[str]) -> str:
+
+def normalizar_nome_source(source: str | None) -> str:
     if not source:
         return "Outros"
     s = str(source).strip()
@@ -40,6 +42,7 @@ def normalizar_nome_source(source: Optional[str]) -> str:
         return "Bruno"
     return s
 
+
 def obter_autor_transacao(t: Transaction) -> str:
     """Retorna o autor normalizado priorizando o campo t.author ou fallback para t.source."""
     if t.author:
@@ -48,12 +51,14 @@ def obter_autor_transacao(t: Transaction) -> str:
         return normalizar_nome_source(t.source)
     return "Outros"
 
+
 def gerar_barra_progresso(percentual: float, total_blocos: int = 10) -> str:
     """Gera uma barra visual de blocos para WhatsApp (ex: [████░░░░░░] 40%)"""
     preenchidos = round((percentual / 100) * total_blocos)
     preenchidos = max(0, min(total_blocos, preenchidos))
     vazios = total_blocos - preenchidos
     return f"{'■' * preenchidos}{'□' * vazios}"
+
 
 def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
     """
@@ -63,17 +68,23 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
     data_str = data_alvo.strftime("%Y-%m-%d")
     data_formatada_br = data_alvo.strftime("%d/%m/%Y")
 
-    transacoes = db.query(Transaction).filter(
-        Transaction.data == data_alvo,
-        Transaction.tipo.in_(["despesa_variavel"])
-    ).order_by(Transaction.id.asc()).all()
+    transacoes = (
+        db.query(Transaction)
+        .filter(Transaction.data == data_alvo, Transaction.tipo.in_(["despesa_variavel"]))
+        .order_by(Transaction.id.asc())
+        .all()
+    )
 
     primeiro_dia_mes = data_alvo.replace(day=1)
-    gastos_mes = db.query(Transaction).filter(
-        Transaction.data >= primeiro_dia_mes,
-        Transaction.data <= data_alvo,
-        Transaction.tipo == "despesa_variavel"
-    ).all()
+    gastos_mes = (
+        db.query(Transaction)
+        .filter(
+            Transaction.data >= primeiro_dia_mes,
+            Transaction.data <= data_alvo,
+            Transaction.tipo == "despesa_variavel",
+        )
+        .all()
+    )
     total_acumulado_mes = sum((to_decimal(t.valor) for t in gastos_mes), Decimal("0.00"))
 
     linhas = []
@@ -88,8 +99,10 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
         total_dia = sum((to_decimal(t.valor) for t in transacoes), Decimal("0.00"))
         qtd = len(transacoes)
 
-        linhas.append(f"\n📊 *Resumo Geral:*")
-        linhas.append(f"• *{qtd}* lançamento{'s' if qtd > 1 else ''} registrado{'s' if qtd > 1 else ''}")
+        linhas.append("\n📊 *Resumo Geral:*")
+        linhas.append(
+            f"• *{qtd}* lançamento{'s' if qtd > 1 else ''} registrado{'s' if qtd > 1 else ''}"
+        )
         linhas.append(f"• Total do dia: *{format_brl(total_dia)}*")
 
         tot_bruno = Decimal("0.00")
@@ -106,7 +119,7 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
             else:
                 tot_outros += v
 
-        linhas.append(f"\n👥 *Quem Lançou Hoje:*")
+        linhas.append("\n👥 *Quem Lançou Hoje:*")
         if tot_bruno > 0:
             linhas.append(f"• 👤 *Bruno:* {format_brl(tot_bruno)}")
         if tot_leticia > 0:
@@ -114,7 +127,7 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
         if tot_outros > 0:
             linhas.append(f"• 📝 *Outros/Manual:* {format_brl(tot_outros)}")
 
-        linhas.append(f"\n🧾 *Detalhamento dos Gastos:*")
+        linhas.append("\n🧾 *Detalhamento dos Gastos:*")
         for t in transacoes:
             autor = obter_autor_transacao(t)
             desc = t.descricao or t.categoria or "Sem descrição"
@@ -128,6 +141,7 @@ def gerar_texto_relatorio_diario(data_alvo: date, db: Session) -> str:
     linhas.append("Tenham uma ótima noite de descanso! 💤✨")
 
     return "\n".join(linhas)
+
 
 def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
     """
@@ -143,11 +157,15 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
     data_fmt_fim = data_fim.strftime("%d/%m/%Y")
 
     # Busca apenas despesas variáveis (gastos cotidianos do casal)
-    transacoes = db.query(Transaction).filter(
-        Transaction.data >= data_inicio,
-        Transaction.data <= data_fim,
-        Transaction.tipo.in_(["despesa_variavel"])
-    ).all()
+    transacoes = (
+        db.query(Transaction)
+        .filter(
+            Transaction.data >= data_inicio,
+            Transaction.data <= data_fim,
+            Transaction.tipo.in_(["despesa_variavel"]),
+        )
+        .all()
+    )
 
     linhas = []
     linhas.append("🗓️ *Atlas Finanças · Balanço Semanal Macro*")
@@ -155,7 +173,9 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
     linhas.append("━━━━━━━━━━━━━━━━━━━━━")
 
     if not transacoes:
-        linhas.append("\n✨ *Semana impressionante!* Nenhum gasto variável foi registrado nos últimos 7 dias.")
+        linhas.append(
+            "\n✨ *Semana impressionante!* Nenhum gasto variável foi registrado nos últimos 7 dias."
+        )
         linhas.append("Parabéns pelo controle orçamentário impecável do casal! 🚀👏")
     else:
         total_semana = sum((to_decimal(t.valor) for t in transacoes), Decimal("0.00"))
@@ -177,7 +197,7 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
         ranking_cat = sorted(mapa_cat.items(), key=lambda x: x[1], reverse=True)
 
         linhas.append(f"\n💰 *Total da Semana:* *{format_brl(total_semana)}* ({qtd} despesas)")
-        linhas.append(f"\n📁 *Gastos por Categoria (Visão Macro):*")
+        linhas.append("\n📁 *Gastos por Categoria (Visão Macro):*")
 
         for cat, val in ranking_cat:
             pct = (val / total_semana * 100) if total_semana > 0 else 0
@@ -185,7 +205,7 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
             linhas.append(f"• *{cat}*: *{format_brl(val)}* ({pct:.0f}%)\n  `{barra}`")
 
         # Divisão Macro Casal na Semana
-        linhas.append(f"\n👥 *Divisão do Casal na Semana:*")
+        linhas.append("\n👥 *Divisão do Casal na Semana:*")
         tot_bruno = mapa_source.get("Bruno", 0.0)
         tot_leticia = mapa_source.get("Letícia", 0.0)
         tot_outros = mapa_source.get("Outros", 0.0)
@@ -201,7 +221,9 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
 
         # Categoria campeã
         top_cat, top_val = ranking_cat[0]
-        linhas.append(f"\n💡 *Principal Ofensor:* A categoria *{top_cat}* representou *{(top_val/total_semana*100):.0f}%* do orçamento semanal.")
+        linhas.append(
+            f"\n💡 *Principal Ofensor:* A categoria *{top_cat}* representou *{(top_val / total_semana * 100):.0f}%* do orçamento semanal."
+        )
 
     linhas.append("\n━━━━━━━━━━━━━━━━━━━━━")
     linhas.append("🌐 Painel Completo: fintrack-intelligence.onrender.com")
@@ -209,14 +231,17 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
 
     return "\n".join(linhas)
 
-def executar_envio_relatorio_diario(data_custom: Optional[date] = None, force: bool = False) -> bool:
+
+def executar_envio_relatorio_diario(
+    data_custom: date | None = None, force: bool = False
+) -> bool:
     """Dispara o envio do relatório diário para o WhatsApp."""
     global ULTIMO_RELATORIO_ENVIADO
 
     agora = datetime.now(TIMEZONE_SP)
     data_alvo = data_custom or agora.date()
 
-    if not force and ULTIMO_RELATORIO_ENVIADO == data_alvo:
+    if not force and data_alvo == ULTIMO_RELATORIO_ENVIADO:
         logger.info(f"Relatório de {data_alvo} já foi enviado hoje. Pulando envio duplicado.")
         return False
 
@@ -242,14 +267,17 @@ def executar_envio_relatorio_diario(data_custom: Optional[date] = None, force: b
     finally:
         db.close()
 
-def executar_envio_relatorio_semanal(data_custom: Optional[date] = None, force: bool = False) -> bool:
+
+def executar_envio_relatorio_semanal(
+    data_custom: date | None = None, force: bool = False
+) -> bool:
     """Dispara o relatório semanal macro para o WhatsApp (Sábados às 22h)."""
     global ULTIMO_RELATORIO_SEMANAL_ENVIADO
 
     agora = datetime.now(TIMEZONE_SP)
     data_alvo = data_custom or agora.date()
 
-    if not force and ULTIMO_RELATORIO_SEMANAL_ENVIADO == data_alvo:
+    if not force and data_alvo == ULTIMO_RELATORIO_SEMANAL_ENVIADO:
         logger.info(f"Relatório semanal de {data_alvo} já foi enviado esta semana. Pulando.")
         return False
 
@@ -275,32 +303,41 @@ def executar_envio_relatorio_semanal(data_custom: Optional[date] = None, force: 
     finally:
         db.close()
 
+
 async def loop_agendador_relatorio_noturno():
     """
     Loop assíncrono em background.
     1. Diário: Verifica se o horário atual de Brasília está entre 21h30 e 22h00 (Domingo a Sexta).
     2. Semanal: No Sábado às 22h00 (weekday == 5), dispara o Relatório Semanal Macro por Categoria!
     """
-    logger.info("Iniciando agendador em background para Relatórios (Diário 21h30 e Semanal Sábado 22h00 BRT)...")
+    logger.info(
+        "Iniciando agendador em background para Relatórios (Diário 21h30 e Semanal Sábado 22h00 BRT)..."
+    )
     while True:
         try:
             agora = datetime.now(TIMEZONE_SP)
             hora = agora.hour
             minuto = agora.minute
             hoje = agora.date()
-            dia_da_semana = agora.weekday() # 5 = Sábado
+            dia_da_semana = agora.weekday()  # 5 = Sábado
 
             # RELATÓRIO SEMANAL MACRO: Sábado entre 22h00 e 22h15
             if dia_da_semana == 5 and hora == 22 and minuto <= 15:
-                if ULTIMO_RELATORIO_SEMANAL_ENVIADO != hoje:
-                    logger.info("Horário do Relatório Semanal Macro alcançado (Sábado 22h). Disparando...")
+                if hoje != ULTIMO_RELATORIO_SEMANAL_ENVIADO:
+                    logger.info(
+                        "Horário do Relatório Semanal Macro alcançado (Sábado 22h). Disparando..."
+                    )
                     executar_envio_relatorio_semanal(data_custom=hoje, force=False)
 
             # RELATÓRIO DIÁRIO: Entre 21h30 e 22h00
-            na_janela_diaria = (hora == 21 and minuto >= 30) or (hora == 22 and minuto == 0 and dia_da_semana != 5)
+            na_janela_diaria = (hora == 21 and minuto >= 30) or (
+                hora == 22 and minuto == 0 and dia_da_semana != 5
+            )
 
-            if na_janela_diaria and ULTIMO_RELATORIO_ENVIADO != hoje:
-                logger.info(f"Horário de fechamento diário ({hora:02d}:{minuto:02d} BRT). Disparando...")
+            if na_janela_diaria and hoje != ULTIMO_RELATORIO_ENVIADO:
+                logger.info(
+                    f"Horário de fechamento diário ({hora:02d}:{minuto:02d} BRT). Disparando..."
+                )
                 executar_envio_relatorio_diario(data_custom=hoje, force=False)
 
             # Aguarda 30 segundos antes da próxima checagem

@@ -8,9 +8,8 @@ Funcionalidades:
 - Valida integridade e contagem dos registros exportados.
 """
 
-import os
-import sys
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -18,8 +17,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.database import SessionLocal, engine
+from backend.database import SessionLocal
 from backend.models import Transaction
+
 
 def format_sql_val(val):
     if val is None:
@@ -30,6 +30,7 @@ def format_sql_val(val):
     safe_str = str(val).replace("'", "''")
     return f"'{safe_str}'"
 
+
 def executar_backup(destino_custom: str = None):
     pasta_backups = Path(destino_custom) if destino_custom else PROJECT_ROOT / "backups"
     pasta_backups.mkdir(parents=True, exist_ok=True)
@@ -39,7 +40,7 @@ def executar_backup(destino_custom: str = None):
     arquivo_sql = pasta_backups / f"backup_atlas_financas_{timestamp}.sql"
 
     print(f"[*] Iniciando backup seguro do banco de dados ({timestamp})...")
-    
+
     db = SessionLocal()
     try:
         transacoes = db.query(Transaction).order_by(Transaction.id.asc()).all()
@@ -48,12 +49,12 @@ def executar_backup(destino_custom: str = None):
 
         dados_exportados = []
         linhas_sql = [
-            f"-- Snapshot de Produção do Atlas Finanças",
+            "-- Snapshot de Produção do Atlas Finanças",
             f"-- Gerado em: {datetime.now().isoformat()}",
             f"-- Total de registros: {total}",
-            f"",
-            f"BEGIN TRANSACTION;",
-            f""
+            "",
+            "BEGIN TRANSACTION;",
+            "",
         ]
 
         for t in transacoes:
@@ -66,7 +67,9 @@ def executar_backup(destino_custom: str = None):
                 "descricao": t.descricao,
                 "source": t.source,
                 "vencimento": t.vencimento,
-                "created_at": t.created_at.isoformat() if hasattr(t, "created_at") and t.created_at else None
+                "created_at": t.created_at.isoformat()
+                if hasattr(t, "created_at") and t.created_at
+                else None,
             }
             dados_exportados.append(item)
 
@@ -93,7 +96,7 @@ def executar_backup(destino_custom: str = None):
         tamanho_json = arquivo_json.stat().st_size
         tamanho_sql = arquivo_sql.stat().st_size
 
-        print(f"[+] Backup concluído com 100% de sucesso!")
+        print("[+] Backup concluído com 100% de sucesso!")
         print(f"    - JSON: {arquivo_json.name} ({tamanho_json} bytes)")
         print(f"    - SQL:  {arquivo_sql.name} ({tamanho_sql} bytes)")
         print(f"    - Pasta de destino: {pasta_backups}")
@@ -101,7 +104,7 @@ def executar_backup(destino_custom: str = None):
             "status": "success",
             "total_registros": total,
             "json_path": str(arquivo_json),
-            "sql_path": str(arquivo_sql)
+            "sql_path": str(arquivo_sql),
         }
 
     except Exception as e:
@@ -109,6 +112,7 @@ def executar_backup(destino_custom: str = None):
         raise e
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     executar_backup()

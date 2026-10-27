@@ -10,11 +10,11 @@ Testes para a separação de 'source' em 'author' e 'channel':
 """
 
 import os
-import pytest
-from unittest import mock
-import tempfile
 import sqlite3
-from decimal import Decimal
+import tempfile
+from unittest import mock
+
+import pytest
 
 # Configura ambiente de testes antes dos imports da aplicação
 os.environ["APP_PASSWORD"] = "StrongMasterPassword123!"
@@ -26,11 +26,12 @@ os.environ["WEBHOOK_SECRET"] = "webhook_secret_key_with_at_least_32_characters_1
 os.environ["WHATSAPP_USER_BRUNO"] = "5511999998888"
 os.environ["WHATSAPP_USER_LETICIA"] = "5511977776666"
 
-from fastapi.testclient import TestClient
-from backend.main import app
-from backend.auth import COOKIE_NAME, create_session_token
-from alembic.config import Config
 from alembic import command
+from alembic.config import Config
+from fastapi.testclient import TestClient
+
+from backend.auth import COOKIE_NAME, create_session_token
+from backend.main import app
 
 
 @pytest.fixture
@@ -71,7 +72,10 @@ def test_migration_split_source_backfill_and_downgrade():
         command.upgrade(cfg, "9240c01a1280")
 
         con = sqlite3.connect(db_path)
-        rows = {r[0]: (r[1], r[2], r[3]) for r in con.execute("SELECT id, author, channel, source FROM transactions").fetchall()}
+        rows = {
+            r[0]: (r[1], r[2], r[3])
+            for r in con.execute("SELECT id, author, channel, source FROM transactions").fetchall()
+        }
         con.close()
 
         # 1: Manual -> author None, channel dashboard, source Mantido
@@ -115,7 +119,7 @@ def test_dashboard_create_transaction_without_author(auth_client):
         "valor": 75.50,
         "categoria": "Lazer",
         "data": "2026-10-24",
-        "descricao": "Cinema Sem Autor"
+        "descricao": "Cinema Sem Autor",
     }
     res = auth_client.post("/api/transactions", json=payload)
     assert res.status_code == 200
@@ -133,7 +137,7 @@ def test_dashboard_create_transaction_with_author(auth_client):
         "categoria": "Farmácia",
         "data": "2026-10-24",
         "descricao": "Medicamentos",
-        "author": "Bruno"
+        "author": "Bruno",
     }
     res = auth_client.post("/api/transactions", json=payload)
     assert res.status_code == 200
@@ -146,14 +150,17 @@ def test_dashboard_create_transaction_with_author(auth_client):
 def test_filter_transactions_by_author_and_channel(auth_client):
     """GET /api/transactions?author=... e ?channel=... filtram corretamente."""
     # Cria uma transação para Letícia no dashboard
-    auth_client.post("/api/transactions", json={
-        "tipo": "despesa_variavel",
-        "valor": 45.0,
-        "categoria": "Padaria",
-        "data": "2026-10-24",
-        "descricao": "Café Letícia",
-        "author": "Letícia"
-    })
+    auth_client.post(
+        "/api/transactions",
+        json={
+            "tipo": "despesa_variavel",
+            "valor": 45.0,
+            "categoria": "Padaria",
+            "data": "2026-10-24",
+            "descricao": "Café Letícia",
+            "author": "Letícia",
+        },
+    )
 
     # Filtra por autor Letícia
     res_author = auth_client.get("/api/transactions?author=Letícia")
@@ -186,19 +193,15 @@ def test_webhook_records_author_and_channel_for_text_and_audio(auth_client):
             "key": {
                 "remoteJid": "120363000000000000@g.us",
                 "participant": "5511999998888@s.whatsapp.net",
-                "id": "msg_txt_test_001"
+                "id": "msg_txt_test_001",
             },
-            "message": {
-                "conversation": "Gasolina 80"
-            }
-        }
+            "message": {"conversation": "Gasolina 80"},
+        },
     }
 
     with mock.patch("backend.atlas.send_whatsapp_message", return_value=True):
         res_text = auth_client.post(
-            "/webhook/whatsapp",
-            json=payload_text,
-            headers={"X-Webhook-Secret": secret}
+            "/webhook/whatsapp", json=payload_text, headers={"X-Webhook-Secret": secret}
         )
         assert res_text.status_code == 200
         tx_id_text = res_text.json()["id"]
@@ -218,23 +221,21 @@ def test_webhook_records_author_and_channel_for_text_and_audio(auth_client):
             "key": {
                 "remoteJid": "120363000000000000@g.us",
                 "participant": "5511977776666@s.whatsapp.net",
-                "id": "msg_audio_test_002"
+                "id": "msg_audio_test_002",
             },
             "message": {
                 "audioMessage": {
                     "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
-                    "mimetype": "audio/ogg"
+                    "mimetype": "audio/ogg",
                 }
-            }
-        }
+            },
+        },
     }
 
     with mock.patch("backend.atlas.transcribe_audio_bytes", return_value="Almoço 35"):
         with mock.patch("backend.atlas.send_whatsapp_message", return_value=True):
             res_audio = auth_client.post(
-                "/webhook/whatsapp",
-                json=payload_audio,
-                headers={"X-Webhook-Secret": secret}
+                "/webhook/whatsapp", json=payload_audio, headers={"X-Webhook-Secret": secret}
             )
             assert res_audio.status_code == 200
             tx_id_audio = res_audio.json()["id"]

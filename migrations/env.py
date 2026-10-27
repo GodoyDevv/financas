@@ -1,15 +1,13 @@
-import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
+
+# Garante que todos os modelos estejam importados e registrados no metadata
+import backend.models  # noqa: F401
 
 # Importa Base e função de normalização de URL da aplicação
 from backend.database import Base, get_database_url
-# Garante que todos os modelos estejam importados e registrados no metadata
-import backend.models  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

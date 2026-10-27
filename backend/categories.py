@@ -1,11 +1,12 @@
 """Fonte única de verdade para Categorias, normalização e resolução de aliases."""
-import re
-import unicodedata
-from typing import Optional, List, Dict, Any
 
-def normalize_category_name(name: Optional[str]) -> str:
+import unicodedata
+from typing import Any
+
+
+def normalize_category_name(name: str | None) -> str:
     """Normaliza o nome da categoria para comparação insensível a maiúsculas, espaços e acentos.
-    
+
     Ex: '  Alimentação  ' -> 'alimentacao'
     'Moradia (Aluguel/Condomínio)' -> 'moradia (aluguel/condominio)'
     """
@@ -18,9 +19,10 @@ def normalize_category_name(name: Optional[str]) -> str:
     s_no_accents = "".join(c for c in s_decomposed if not unicodedata.combining(c))
     return s_no_accents.lower()
 
+
 # Lista canônica oficial do sistema: (nome, tipo, ordem)
 # tipo: 'despesa' ou 'receita'
-CANONICAL_CATEGORIES: List[Dict[str, Any]] = [
+CANONICAL_CATEGORIES: list[dict[str, Any]] = [
     {"name": "Salário/Renda", "tipo": "receita", "ordem": 1},
     {"name": "Moradia", "tipo": "despesa", "ordem": 2},
     {"name": "Contas de Consumo", "tipo": "despesa", "ordem": 3},
@@ -34,12 +36,11 @@ CANONICAL_CATEGORIES: List[Dict[str, Any]] = [
 ]
 
 # Aliases legados mapeados para categorias canônicas
-CATEGORY_ALIASES: Dict[str, str] = {
+CATEGORY_ALIASES: dict[str, str] = {
     # Moradia
     "moradia (aluguel/condominio)": "Moradia",
     "aluguel": "Moradia",
     "condominio": "Moradia",
-    
     # Contas de consumo
     "contas de consumo (luz/agua)": "Contas de Consumo",
     "contas de consumo": "Contas de Consumo",
@@ -50,59 +51,49 @@ CATEGORY_ALIASES: Dict[str, str] = {
     "sabesp": "Contas de Consumo",
     "internet": "Contas de Consumo",
     "gas": "Contas de Consumo",
-    
     # Salário e Renda
     "salario": "Salário/Renda",
     "salario/renda": "Salário/Renda",
     "renda": "Salário/Renda",
     "freela": "Salário/Renda",
-    
     # Alimentação
     "alimentacao": "Alimentação",
     "mercado": "Alimentação",
     "supermercado": "Alimentação",
     "padaria": "Alimentação",
     "restaurante": "Alimentação",
-    
     # Transporte
     "transporte": "Transporte",
     "combustivel": "Transporte",
     "gasolina": "Transporte",
     "uber": "Transporte",
-    
     # Saúde
     "saude": "Saúde",
     "farmacia": "Saúde",
     "medico": "Saúde",
-    
     # Educação
     "educacao": "Educação",
     "faculdade": "Educação",
     "escola": "Educação",
     "curso": "Educação",
-    
     # Lazer
     "lazer": "Lazer",
     "viagem": "Lazer",
     "cinema": "Lazer",
-    
     # Serviços
     "servicos": "Serviços",
-    
     # Outros
     "outros": "Outros",
     "outro": "Outros",
 }
 
 # Mapa de busca rápida: normalized_name -> canonical_name
-_CANONICAL_BY_NORM = {
-    normalize_category_name(c["name"]): c["name"]
-    for c in CANONICAL_CATEGORIES
-}
+_CANONICAL_BY_NORM = {normalize_category_name(c["name"]): c["name"] for c in CANONICAL_CATEGORIES}
 
-def resolve_canonical_name(raw_name: Optional[str]) -> Optional[str]:
+
+def resolve_canonical_name(raw_name: str | None) -> str | None:
     """Resolve qualquer string de categoria (com acentos, maiúsculas ou aliases) para o nome canônico oficial.
-    
+
     Retorna o nome canônico (ex: 'Moradia') ou None se não for conhecido.
     """
     if not raw_name:
@@ -116,6 +107,7 @@ def resolve_canonical_name(raw_name: Optional[str]) -> Optional[str]:
         return CATEGORY_ALIASES[norm]
     return None
 
-def get_valid_category_names() -> List[str]:
+
+def get_valid_category_names() -> list[str]:
     """Retorna a lista de nomes canônicos oficiais."""
     return [c["name"] for c in CANONICAL_CATEGORIES]

@@ -1,4 +1,5 @@
 """Configurações globais de negócio da aplicação."""
+
 from typing import Literal
 
 # Decisão de produto para cálculo de parcelamentos:

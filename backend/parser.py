@@ -1,10 +1,9 @@
 import re
 import unicodedata
-from datetime import date
 from decimal import Decimal
-from typing import Optional, Dict, Any, List, Tuple
-from .dates_and_money import today_br, to_decimal
-from .categories import CANONICAL_CATEGORIES, resolve_canonical_name
+
+from .categories import resolve_canonical_name
+from .dates_and_money import to_decimal, today_br
 
 
 def normalize_text_for_matching(text: str) -> str:
@@ -14,7 +13,7 @@ def normalize_text_for_matching(text: str) -> str:
     decomposed = unicodedata.normalize("NFKD", text)
     no_accents = "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
     # Converte qualquer caractere não alfanumérico em espaço
-    cleaned = re.sub(r'[^a-z0-9]+', ' ', no_accents)
+    cleaned = re.sub(r"[^a-z0-9]+", " ", no_accents)
     return " ".join(cleaned.split())
 
 
@@ -24,16 +23,19 @@ def match_keyword_in_text(kw: str, normalized_text: str) -> bool:
     if not norm_kw:
         return False
     # Para palavras ou frases com mais de um termo, exige fronteira no início e fim
-    pattern = rf'\b{re.escape(norm_kw)}\b'
+    pattern = rf"\b{re.escape(norm_kw)}\b"
     return bool(re.search(pattern, normalized_text))
 
 
-def extract_installments_and_clean(text: str) -> Tuple[int, str]:
+def extract_installments_and_clean(text: str) -> tuple[int, str]:
     """Detecta menções a parcelamento ('3x', 'em 3 vezes', '10 parcelas') e remove do texto."""
     extenso_map = {
-        "uma": "1", "um": "1",
-        "duas": "2", "dois": "2",
-        "três": "3", "tres": "3",
+        "uma": "1",
+        "um": "1",
+        "duas": "2",
+        "dois": "2",
+        "três": "3",
+        "tres": "3",
         "quatro": "4",
         "cinco": "5",
         "seis": "6",
@@ -47,21 +49,21 @@ def extract_installments_and_clean(text: str) -> Tuple[int, str]:
         "vinte e quatro": "24",
         "vinte": "20",
         "trinta e seis": "36",
-        "quarenta e oito": "48"
+        "quarenta e oito": "48",
     }
 
     norm_msg = text
     for word, digit in sorted(extenso_map.items(), key=lambda x: -len(x[0])):
         norm_msg = re.sub(
-            rf'\b{word}\b(?=\s*(?:x|vezes|parcelas|parcela)\b)',
+            rf"\b{word}\b(?=\s*(?:x|vezes|parcelas|parcela)\b)",
             digit,
             norm_msg,
-            flags=re.IGNORECASE
+            flags=re.IGNORECASE,
         )
 
     pattern = re.compile(
-        r'\b(?:parcelado\s+em\s+|dividido\s+em\s+|em\s+)?(\d{1,2})\s*(?:x|vezes|parcelas|parcela)\b',
-        re.IGNORECASE
+        r"\b(?:parcelado\s+em\s+|dividido\s+em\s+|em\s+)?(\d{1,2})\s*(?:x|vezes|parcelas|parcela)\b",
+        re.IGNORECASE,
     )
 
     parcelas = 1
@@ -72,16 +74,16 @@ def extract_installments_and_clean(text: str) -> Tuple[int, str]:
             qtd = int(m.group(1))
             if 1 <= qtd <= 60:
                 parcelas = qtd
-                cleaned_text = norm_msg[:m.start()] + " " + norm_msg[m.end():]
+                cleaned_text = norm_msg[: m.start()] + " " + norm_msg[m.end() :]
         except ValueError:
             parcelas = 1
 
     return parcelas, cleaned_text
 
 
-def extract_money_values(text: str) -> Tuple[Optional[Decimal], List[Decimal], str]:
+def extract_money_values(text: str) -> tuple[Decimal | None, list[Decimal], str]:
     """Extrai valores monetários suportando formatos brasileiros e internacionais.
-    
+
     Formatos suportados:
     - 'R$ 1.299,90', '1299,90', '1.299', '50', '50,5', '50 reais', 'R$50'
     Retorna: (valor_principal, todos_os_valores_encontrados, texto_sem_valores)
@@ -91,9 +93,9 @@ def extract_money_values(text: str) -> Tuple[Optional[Decimal], List[Decimal], s
     # Grupo 2: número (1.299,90 ou 1299,90 ou 1.299 ou 50,5 ou 50)
     # Grupo 3: sufixo opcional (reais, real, conto, contos, pilas)
     money_pattern = re.compile(
-        r'(?i)(?:\b(?:r\$|rs)\s*)?'
-        r'(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})|\d+(?:\.\d{1,2})|\d{1,3}(?:\.\d{3})+|\b\d+\b)'
-        r'(?:\s*(?:reais|real|conto|contos|pilas)\b)?'
+        r"(?i)(?:\b(?:r\$|rs)\s*)?"
+        r"(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})|\d+(?:\.\d{1,2})|\d{1,3}(?:\.\d{3})+|\b\d+\b)"
+        r"(?:\s*(?:reais|real|conto|contos|pilas)\b)?"
     )
 
     matches = []
@@ -149,25 +151,29 @@ def clean_description(text: str, original_fallback: str) -> str:
     """Limpa pontuação órfã nas pontas e entre palavras, saudações ao bot e colapsa espaços."""
     desc = text
     # Remove palavras de moeda remanescentes
-    desc = re.sub(r'(?i)\b(?:r\$|rs|reais|real|conto|contos|pilas)\b', ' ', desc)
+    desc = re.sub(r"(?i)\b(?:r\$|rs|reais|real|conto|contos|pilas)\b", " ", desc)
 
     # Remove invocações ao Atlas e comandos comuns
     for _ in range(3):
         desc = re.sub(
-            r'(?i)^(?:fala\s+|oi\s+|olá\s+|ola\s+|ei\s+|bom\s+dia\s+|boa\s+tarde\s+|boa\s+noite\s+|cara\s+)?'
-            r'(?:atlas[\s,:-]+)?'
-            r'(?:anota\s+aí|anota\s+ai|anota|registra|lança\s+aí|lança|lanca|coloca|comprei|paguei|gastei(?:\s+com)?|foi|fiz)?[\s,:-]*',
-            ' ',
-            desc.strip(" ,.-!?")
+            r"(?i)^(?:fala\s+|oi\s+|olá\s+|ola\s+|ei\s+|bom\s+dia\s+|boa\s+tarde\s+|boa\s+noite\s+|cara\s+)?"
+            r"(?:atlas[\s,:-]+)?"
+            r"(?:anota\s+aí|anota\s+ai|anota|registra|lança\s+aí|lança|lanca|coloca|comprei|paguei|gastei(?:\s+com)?|foi|fiz)?[\s,:-]*",
+            " ",
+            desc.strip(" ,.-!?"),
         )
 
     # Remove preposições soltas nas pontas
     for _ in range(2):
-        desc = re.sub(r'(?i)\b(?:no\s+valor\s+de|valor\s+de|de|por|em|no|na|para|pra)\s*$', ' ', desc.strip(" ,.-!?"))
-    desc = re.sub(r'(?i)^(?:um|uma|o|a|os|as|de|do|da|no|na)\s+', ' ', desc.strip(" ,.-!?"))
+        desc = re.sub(
+            r"(?i)\b(?:no\s+valor\s+de|valor\s+de|de|por|em|no|na|para|pra)\s*$",
+            " ",
+            desc.strip(" ,.-!?"),
+        )
+    desc = re.sub(r"(?i)^(?:um|uma|o|a|os|as|de|do|da|no|na)\s+", " ", desc.strip(" ,.-!?"))
 
     # Remove pontuações órfãs mantendo palavras juntas: "Lanche ,pp" -> "Lanche pp"
-    desc = re.sub(r'[\s,._\-:;]+', ' ', desc).strip(" ,.-!?")
+    desc = re.sub(r"[\s,._\-:;]+", " ", desc).strip(" ,.-!?")
 
     if not desc:
         desc = original_fallback.strip()[:60]
@@ -180,56 +186,161 @@ def clean_description(text: str, original_fallback: str) -> str:
 
 
 # Dicionário canônico de palavras-chave para categorias com casamento estrito
-CATEGORIES_KEYWORDS: Dict[str, List[str]] = {
+CATEGORIES_KEYWORDS: dict[str, list[str]] = {
     "Alimentação": [
-        "almoco", "almoco", "jantar", "cafe", "cafezinho", "restaurante", "ifood",
-        "lanche", "mercado", "supermercado", "padaria", "pizza", "pizzaria", "hamburguer",
-        "hamburgueria", "feira", "acougue", "hortifruti", "comida", "churrasco", "acai"
+        "almoco",
+        "almoco",
+        "jantar",
+        "cafe",
+        "cafezinho",
+        "restaurante",
+        "ifood",
+        "lanche",
+        "mercado",
+        "supermercado",
+        "padaria",
+        "pizza",
+        "pizzaria",
+        "hamburguer",
+        "hamburgueria",
+        "feira",
+        "acougue",
+        "hortifruti",
+        "comida",
+        "churrasco",
+        "acai",
     ],
     "Transporte": [
-        "uber", "99", "99pop", "gasolina", "combustivel", "etanol", "diesel",
-        "estacionamento", "onibus", "metro", "pedagio", "carro", "moto",
-        "oficina", "mecanico", "pneu", "oleo", "troca de oleo", "ipva"
+        "uber",
+        "99",
+        "99pop",
+        "gasolina",
+        "combustivel",
+        "etanol",
+        "diesel",
+        "estacionamento",
+        "onibus",
+        "metro",
+        "pedagio",
+        "carro",
+        "moto",
+        "oficina",
+        "mecanico",
+        "pneu",
+        "oleo",
+        "troca de oleo",
+        "ipva",
     ],
-    "Moradia": [
-        "aluguel", "condominio", "iptu", "imovel", "reforma", "casa", "apartamento"
-    ],
+    "Moradia": ["aluguel", "condominio", "iptu", "imovel", "reforma", "casa", "apartamento"],
     "Contas de Consumo": [
-        "energia", "enel", "luz", "agua", "sabesp", "internet", "gas", "botijao de gas",
-        "conta de luz", "conta de agua", "fatura internet"
+        "energia",
+        "enel",
+        "luz",
+        "agua",
+        "sabesp",
+        "internet",
+        "gas",
+        "botijao de gas",
+        "conta de luz",
+        "conta de agua",
+        "fatura internet",
     ],
     "Lazer": [
-        "cinema", "streaming", "netflix", "spotify", "show", "viagem", "bar",
-        "boteco", "cerveja", "chopp", "jogos", "game", "steam", "passeio", "parque",
-        "barbeiro", "balada", "festa"
+        "cinema",
+        "streaming",
+        "netflix",
+        "spotify",
+        "show",
+        "viagem",
+        "bar",
+        "boteco",
+        "cerveja",
+        "chopp",
+        "jogos",
+        "game",
+        "steam",
+        "passeio",
+        "parque",
+        "barbeiro",
+        "balada",
+        "festa",
     ],
     "Saúde": [
-        "farmacia", "drogaria", "remedio", "medicamento", "consulta", "medico",
-        "exame", "hospital", "dentista", "plano de saude", "psicologo", "terapia"
+        "farmacia",
+        "drogaria",
+        "remedio",
+        "medicamento",
+        "consulta",
+        "medico",
+        "exame",
+        "hospital",
+        "dentista",
+        "plano de saude",
+        "psicologo",
+        "terapia",
     ],
     "Educação": [
-        "escola", "faculdade", "curso", "livro", "mensalidade", "material escolar", "idiomas", "ingles"
+        "escola",
+        "faculdade",
+        "curso",
+        "livro",
+        "mensalidade",
+        "material escolar",
+        "idiomas",
+        "ingles",
     ],
     "Salário/Renda": [
-        "salario", "freela", "freelance", "rendimento", "dividendo",
-        "pro-labore", "bonificacao", "comissao", "decimo terceiro"
+        "salario",
+        "freela",
+        "freelance",
+        "rendimento",
+        "dividendo",
+        "pro-labore",
+        "bonificacao",
+        "comissao",
+        "decimo terceiro",
     ],
-    "Serviços": [
-        "lavanderia", "chaveiro", "faxina", "diarista", "costureira", "manicure", "salao"
-    ]
+    "Serviços": ["lavanderia", "chaveiro", "faxina", "diarista", "costureira", "manicure", "salao"],
 }
 
 
 INCOME_STRONG_KEYWORDS = [
-    "recebi", "salario", "vendi", "venda de", "venda do", "venda da",
-    "freela", "freelance", "reembolso", "rendimento", "pix recebido",
-    "deposito", "pro-labore", "comissao recebida", "lucro", "bonificacao"
+    "recebi",
+    "salario",
+    "vendi",
+    "venda de",
+    "venda do",
+    "venda da",
+    "freela",
+    "freelance",
+    "reembolso",
+    "rendimento",
+    "pix recebido",
+    "deposito",
+    "pro-labore",
+    "comissao recebida",
+    "lucro",
+    "bonificacao",
 ]
 
 FIXED_EXPENSE_KEYWORDS = [
-    "aluguel", "condominio", "seguro", "plano de saude", "internet",
-    "iptu", "ipva", "energia", "enel", "luz", "agua", "sabesp",
-    "mensalidade", "escola", "faculdade", "plano", "assinatura"
+    "aluguel",
+    "condominio",
+    "seguro",
+    "plano de saude",
+    "internet",
+    "iptu",
+    "ipva",
+    "energia",
+    "enel",
+    "luz",
+    "agua",
+    "sabesp",
+    "mensalidade",
+    "escola",
+    "faculdade",
+    "plano",
+    "assinatura",
 ]
 
 
@@ -265,15 +376,15 @@ def parse_financial_payload(payload: dict) -> dict:
             "vencimento": str(vencimento) if vencimento else None,
             "parcelas": parcelas,
             "confianca": "alta",
-            "motivos": []
+            "motivos": [],
         }
     except Exception:
         return None
 
 
-def parse_text_message(message: str) -> Optional[dict]:
+def parse_text_message(message: str) -> dict | None:
     """Interpreta mensagens em linguagem natural de forma determinística com fronteiras de palavra (\b).
-    
+
     Requisitos:
     - Extrai e remove o valor numérico e parcelas ANTES de qualquer classificação de texto.
     - Se não houver valor numérico positivo, retorna None (ignora saudações ou conversas do grupo).
@@ -296,7 +407,7 @@ def parse_text_message(message: str) -> Optional[dict]:
         # Sem valor numérico positivo -> Mensagem ignorada (ex: 'bom dia', 'quem vai ao mercado?')
         return None
 
-    motivos: List[str] = []
+    motivos: list[str] = []
 
     # Se houver mais de um número detectado que poderia ser valor, sinaliza ambiguidade
     if len(all_values) > 1:
@@ -320,7 +431,7 @@ def parse_text_message(message: str) -> Optional[dict]:
         tipo = "despesa_variavel"
 
     # 5. Categorização por contagem de casamentos estritos com word boundary
-    categoria_scores: Dict[str, int] = {}
+    categoria_scores: dict[str, int] = {}
     for cat, kws in CATEGORIES_KEYWORDS.items():
         score = sum(1 for kw in kws if match_keyword_in_text(kw, text_to_classify))
         if score > 0:
@@ -369,5 +480,5 @@ def parse_text_message(message: str) -> Optional[dict]:
         "source": "WhatsApp",
         "parcelas": parcelas,
         "confianca": confianca,
-        "motivos": motivos
+        "motivos": motivos,
     }

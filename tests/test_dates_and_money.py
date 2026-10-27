@@ -17,12 +17,13 @@ Critérios de Aceite Cobertos:
 """
 
 import os
-import pytest
-from datetime import date, datetime, timedelta
-import zoneinfo
-from decimal import Decimal
-import tempfile
 import sqlite3
+import tempfile
+import zoneinfo
+from datetime import date, datetime
+from decimal import Decimal
+
+import pytest
 
 # Define variáveis de ambiente necessárias para o fail-closed do auth antes dos imports do backend
 os.environ["APP_PASSWORD"] = "StrongMasterPassword123!"
@@ -32,14 +33,13 @@ os.environ["DEV_INSECURE_COOKIES"] = "0"
 os.environ["WHATSAPP_GROUP_JID"] = "120363000000000000@g.us"
 os.environ["WEBHOOK_SECRET"] = "webhook_secret_key_with_at_least_32_characters_12345"
 
-from backend.dates_and_money import to_decimal, month_range, today_br, now_br, TIMEZONE_SP
-from backend.schemas import TransactionCreate, TransactionResponse
-from backend.auth import COOKIE_NAME, create_session_token
-from backend.main import app
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
 
-from alembic.config import Config
-from alembic import command
+from backend.auth import COOKIE_NAME, create_session_token
+from backend.dates_and_money import TIMEZONE_SP, month_range, to_decimal
+from backend.main import app
 
 
 @pytest.fixture
@@ -138,7 +138,7 @@ def test_api_returns_valor_as_number_in_json(auth_client):
         "categoria": "Alimentação",
         "data": "2026-10-23",
         "descricao": "Jantar Decimal",
-        "source": "Manual"
+        "source": "Manual",
     }
     create_res = auth_client.post("/api/transactions", json=payload)
     assert create_res.status_code == 200
@@ -186,7 +186,10 @@ def test_migration_abort_on_invalid_date():
         with pytest.raises(Exception) as exc_info:
             command.upgrade(cfg, "c84794fd1d00")
 
-        assert "data inválido" in str(exc_info.value).lower() or "abortado" in str(exc_info.value).lower()
+        assert (
+            "data inválido" in str(exc_info.value).lower()
+            or "abortado" in str(exc_info.value).lower()
+        )
 
     finally:
         if os.path.exists(db_path):

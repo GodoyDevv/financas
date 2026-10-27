@@ -9,9 +9,10 @@ completa das migrations durante a execução da suíte de testes.
 
 import os
 import tempfile
+
 import pytest
-from alembic.config import Config
 from alembic import command
+from alembic.config import Config
 
 # Garante que DATABASE_URL esteja definida ANTES de qualquer import do backend
 _tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -22,6 +23,7 @@ os.environ["DATABASE_URL"] = _test_db_url
 
 # Importa database e reconfigura o engine e SessionLocal caso já tenham sido importados
 import backend.database as db_module
+
 db_module.engine = db_module.create_db_engine()
 db_module.SessionLocal.configure(bind=db_module.engine)
 
@@ -39,4 +41,3 @@ def setup_test_database():
             os.remove(_test_db_path)
         except OSError:
             pass
-

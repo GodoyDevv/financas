@@ -1,16 +1,17 @@
 """Serviço de gerenciamento e materialização preguiçosa de recorrências financeiras."""
+
 import calendar
 import logging
 from datetime import date
-from typing import Optional, List
-from decimal import Decimal
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 
-from backend.models import Recurrence, Transaction, Category
-from backend.dates_and_money import month_range, today_br, to_decimal
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from backend.dates_and_money import month_range, to_decimal, today_br
+from backend.models import Category, Recurrence, Transaction
 
 logger = logging.getLogger("fintrack.recurrences")
+
 
 def clamp_day_in_month(year: int, month: int, day: int) -> date:
     """Retorna uma data ajustando o dia ao último dia válido do mês se necessário."""
@@ -18,9 +19,10 @@ def clamp_day_in_month(year: int, month: int, day: int) -> date:
     safe_day = min(day, max_day)
     return date(year, month, safe_day)
 
+
 def ensure_recurrences(db: Session, mes_str: str) -> None:
     """Materializa de forma idempotente e preguiçosa transações recorrentes para o mês solicitado (YYYY-MM).
-    
+
     Regras:
     - O mês solicitado não pode ultrapassar o mês atual + 12 meses.
     - Seleciona Recurrence onde ativo=True, inicio <= primeiro_dia_mes e (fim IS NULL ou fim >= primeiro_dia_mes).
@@ -49,27 +51,36 @@ def ensure_recurrences(db: Session, mes_str: str) -> None:
         return
 
     # Busca regras ativas que cobrem o mês solicitado
-    recorrencias = db.query(Recurrence).filter(
-        Recurrence.ativo == True,
-        Recurrence.inicio <= primeiro_dia_mes,
-        (Recurrence.fim == None) | (Recurrence.fim >= primeiro_dia_mes)
-    ).all()
+    recorrencias = (
+        db.query(Recurrence)
+        .filter(
+            Recurrence.ativo == True,
+            Recurrence.inicio <= primeiro_dia_mes,
+            (Recurrence.fim == None) | (Recurrence.fim >= primeiro_dia_mes),
+        )
+        .all()
+    )
 
     if not recorrencias:
         return
 
     for rec in recorrencias:
         # Verifica se já existe instância criada para esta competência
-        existente = db.query(Transaction).filter(
-            Transaction.recurrence_id == rec.id,
-            Transaction.competencia == primeiro_dia_mes
-        ).first()
+        existente = (
+            db.query(Transaction)
+            .filter(
+                Transaction.recurrence_id == rec.id, Transaction.competencia == primeiro_dia_mes
+            )
+            .first()
+        )
 
         if existente:
             continue
 
-        data_transacao = clamp_day_in_month(primeiro_dia_mes.year, primeiro_dia_mes.month, rec.dia_do_mes)
-        
+        data_transacao = clamp_day_in_month(
+            primeiro_dia_mes.year, primeiro_dia_mes.month, rec.dia_do_mes
+        )
+
         # Obtém categoria canônica
         cat_nome = "Outros"
         if rec.category_rel:
@@ -92,7 +103,7 @@ def ensure_recurrences(db: Session, mes_str: str) -> None:
             vencimento=f"Dia {rec.dia_do_mes}" if rec.tipo == "despesa_fixa" else None,
             recurrence_id=rec.id,
             competencia=primeiro_dia_mes,
-            editado_manual=False
+            editado_manual=False,
         )
 
         try:
@@ -101,7 +112,9 @@ def ensure_recurrences(db: Session, mes_str: str) -> None:
         except IntegrityError:
             # Concorrência/corrida: outra thread/processo já inseriu esta mesma recorrência + competência
             db.rollback()
-            logger.debug(f"Instância de recorrência {rec.id} para {primeiro_dia_mes} já existia (IntegrityError tratado).")
+            logger.debug(
+                f"Instância de recorrência {rec.id} para {primeiro_dia_mes} já existia (IntegrityError tratado)."
+            )
         except Exception as e:
             db.rollback()
             logger.error(f"Erro ao materializar recorrência {rec.id}: {e}")

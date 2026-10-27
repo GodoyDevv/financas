@@ -10,7 +10,6 @@ Sai com código 0 se não houver diferenças (schema idêntico).
 Sai com código 1 se houver drift (tabelas, colunas, tipos, nullable ou índices divergentes).
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -19,11 +18,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from alembic.migration import MigrationContext
 from alembic.autogenerate import compare_metadata
+from alembic.migration import MigrationContext
 
-from backend.database import create_db_engine, Base
-import backend.models  # Garante que todos os models estão registrados
+from backend.database import Base, create_db_engine
 
 
 def main() -> int:
@@ -38,10 +36,7 @@ def main() -> int:
     print(f"Destino: ...@{sanitized_url}" if "@" in raw_url else f"Destino: {sanitized_url}")
 
     with engine.connect() as connection:
-        context = MigrationContext.configure(
-            connection,
-            opts={"compare_type": True}
-        )
+        context = MigrationContext.configure(connection, opts={"compare_type": True})
         diff = compare_metadata(context, Base.metadata)
 
     if not diff:
@@ -55,7 +50,7 @@ def main() -> int:
     print("\nAcao recomendada:")
     print("  1. Verifique se as migrations necessarias foram executadas (`alembic upgrade head`).")
     print("  2. Se os modelos foram alterados no codigo, gere uma nova revision:")
-    print("     alembic revision --autogenerate -m \"descreva as mudancas\"")
+    print('     alembic revision --autogenerate -m "descreva as mudancas"')
     return 1
 
 

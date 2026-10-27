@@ -5,18 +5,18 @@ Revises: c84794fd1d00
 Create Date: 2026-10-24 03:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.sql import text
 
-
 # revision identifiers, used by Alembic.
-revision: str = '9240c01a1280'
-down_revision: Union[str, None] = 'c84794fd1d00'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "9240c01a1280"
+down_revision: str | None = "c84794fd1d00"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 VALID_CHANNELS = ["whatsapp_text", "whatsapp_audio", "dashboard", "api", "system", "unknown"]
 
@@ -43,26 +43,30 @@ def upgrade() -> None:
         if dialect == "postgresql":
             op.add_column(
                 "transactions",
-                sa.Column("channel", sa.String(20), nullable=False, server_default=sa.text("'unknown'"))
+                sa.Column(
+                    "channel", sa.String(20), nullable=False, server_default=sa.text("'unknown'")
+                ),
             )
             op.create_check_constraint(
-                "ck_transactions_channel",
-                "transactions",
-                sa.column("channel").in_(VALID_CHANNELS)
+                "ck_transactions_channel", "transactions", sa.column("channel").in_(VALID_CHANNELS)
             )
         else:
             with op.batch_alter_table("transactions") as batch_op:
                 batch_op.add_column(
-                    sa.Column("channel", sa.String(20), nullable=False, server_default=sa.text("'unknown'"))
+                    sa.Column(
+                        "channel",
+                        sa.String(20),
+                        nullable=False,
+                        server_default=sa.text("'unknown'"),
+                    )
                 )
                 batch_op.create_check_constraint(
-                    "ck_transactions_channel",
-                    sa.column("channel").in_(VALID_CHANNELS)
+                    "ck_transactions_channel", sa.column("channel").in_(VALID_CHANNELS)
                 )
 
     # 2. Backfill de dados a partir de 'source'
     rows = bind.execute(text("SELECT id, source FROM transactions")).fetchall()
-    
+
     count_bruno = 0
     count_leticia = 0
     count_dashboard = 0
@@ -106,7 +110,7 @@ def upgrade() -> None:
 
         bind.execute(
             text("UPDATE transactions SET author = :a, channel = :c WHERE id = :id"),
-            {"a": target_author, "c": target_channel, "id": row_id}
+            {"a": target_author, "c": target_channel, "id": row_id},
         )
 
     print(

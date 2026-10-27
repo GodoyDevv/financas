@@ -1,20 +1,23 @@
 """Serviço centralizado para criação e gerenciamento de parcelamentos."""
+
 import calendar
 import uuid
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
-from typing import List, Optional, Tuple, Dict, Any
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
+
 from sqlalchemy.orm import Session
 
-from backend.models import Transaction
-from backend.dates_and_money import to_decimal
 from backend.config import PARCELA_MODO
+from backend.dates_and_money import to_decimal
+from backend.models import Transaction
 
 CENT = Decimal("0.01")
 
+
 def add_months_clamped(sourcedate: date, months: int) -> date:
     """Adiciona 'months' meses a uma data respeitando rigorosamente o limite de dias do mês de destino.
-    
+
     Exemplo: 31/01 + 1 mês -> 28/02 (ou 29/02 em ano bissexto), e + 2 meses -> 31/03.
     """
     month = sourcedate.month - 1 + months
@@ -24,13 +27,12 @@ def add_months_clamped(sourcedate: date, months: int) -> date:
     day = min(sourcedate.day, max_day)
     return date(year, month, day)
 
+
 def calcular_valores_parcelamento(
-    valor_input: Decimal,
-    parcelas: int,
-    modo: Optional[str] = None
-) -> Tuple[List[Decimal], Decimal]:
+    valor_input: Decimal, parcelas: int, modo: str | None = None
+) -> tuple[list[Decimal], Decimal]:
     """Calcula o valor de cada parcela e o total geral com base na decisão de produto configurada.
-    
+
     Retorna (lista_valores_parcelas, valor_total_geral).
     - modo 'valor_da_parcela': cada parcela vale valor_input. Total = valor_input * parcelas.
     - modo 'valor_total': o total geral é valor_input. Cada parcela vale floor(total / N), e os centavos
@@ -57,14 +59,12 @@ def calcular_valores_parcelamento(
         valores = [primeira_parcela] + [val_base] * (parcelas - 1)
         return valores, total_geral
 
+
 def criar_parcelamento(
-    db: Session,
-    base_data: Dict[str, Any],
-    parcelas: int = 1,
-    modo: Optional[str] = None
-) -> List[Transaction]:
+    db: Session, base_data: dict[str, Any], parcelas: int = 1, modo: str | None = None
+) -> list[Transaction]:
     """Cria uma transação única ou um conjunto de N parcelas vinculadas por UUID.
-    
+
     Executa tudo na mesma transação de banco (tudo ou nada). Em caso de erro, efetua rollback.
     """
     parcelas_qtd = max(1, int(parcelas))
@@ -79,7 +79,7 @@ def criar_parcelamento(
     grupo_id = str(uuid.uuid4()) if parcelas_qtd > 1 else None
     descricao_base = str(base_data.get("descricao") or "").strip()
 
-    novas_transacoes: List[Transaction] = []
+    novas_transacoes: list[Transaction] = []
 
     try:
         for i in range(parcelas_qtd):
@@ -88,7 +88,11 @@ def criar_parcelamento(
 
             if parcelas_qtd > 1:
                 p_num = i + 1
-                desc_parcela = f"{descricao_base} ({p_num}/{parcelas_qtd})".strip() if descricao_base else f"Parcela ({p_num}/{parcelas_qtd})"
+                desc_parcela = (
+                    f"{descricao_base} ({p_num}/{parcelas_qtd})".strip()
+                    if descricao_base
+                    else f"Parcela ({p_num}/{parcelas_qtd})"
+                )
             else:
                 p_num = None
                 desc_parcela = descricao_base
@@ -106,7 +110,7 @@ def criar_parcelamento(
                 vencimento=base_data.get("vencimento"),
                 parcela_grupo_id=grupo_id,
                 parcela_num=p_num,
-                parcela_total=parcelas_qtd if parcelas_qtd > 1 else None
+                parcela_total=parcelas_qtd if parcelas_qtd > 1 else None,
             )
             db.add(tx)
             novas_transacoes.append(tx)

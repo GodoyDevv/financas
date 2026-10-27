@@ -1,11 +1,9 @@
-from typing import Union
-from decimal import Decimal
-import os
-import io
-import re
 import base64
+import io
 import logging
-from typing import Optional, Tuple
+import os
+from decimal import Decimal
+
 import httpx
 
 logger = logging.getLogger("fintrack.atlas")
@@ -23,7 +21,8 @@ EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "").rstrip("/")
 EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "")
 EVOLUTION_INSTANCE = os.getenv("EVOLUTION_INSTANCE", "")
 
-def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> Optional[str]:
+
+def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> str | None:
     """
     Transcreve áudio utilizando Google Gemini Flash ou OpenAI Whisper.
     Prioriza Gemini (gratuito/baixíssimo custo e veloz).
@@ -37,7 +36,7 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
         # Lista de modelos: gemini-3.5-flash-lite (sem overhead de thinking) + gemini-3.8-flash (com thinkingBudget=0)
         models_to_try = ["gemini-3.5-flash-lite", "gemini-3.8-flash"]
         b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
-        
+
         clean_mime = mime_type.split(";")[0].strip() or "audio/ogg"
         if "ogg" in clean_mime:
             clean_mime = "audio/ogg"
@@ -48,10 +47,7 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
 
         for model_name in models_to_try:
             try:
-                gen_config = {
-                    "temperature": 0.0,
-                    "maxOutputTokens": 1024
-                }
+                gen_config = {"temperature": 0.0, "maxOutputTokens": 1024}
                 if "3.8" in model_name:
                     gen_config["thinkingConfig"] = {"thinkingBudget": 0}
 
@@ -59,23 +55,18 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
                     "contents": [
                         {
                             "parts": [
-                                {
-                                    "inline_data": {
-                                        "mime_type": clean_mime,
-                                        "data": b64_audio
-                                    }
-                                },
+                                {"inline_data": {"mime_type": clean_mime, "data": b64_audio}},
                                 {
                                     "text": (
                                         "Você é o Atlas, secretário pessoal. Transcreva o áudio acima com fidelidade total em português do Brasil. "
                                         "Sempre escreva valores e números de parcelas em algarismos numéricos (ex: 200, 4 vezes). "
                                         "Retorne EXCLUSIVAMENTE o texto transcrito, sem introduções, aspas ou comentários adicionais."
                                     )
-                                }
+                                },
                             ]
                         }
                     ],
-                    "generationConfig": gen_config
+                    "generationConfig": gen_config,
                 }
 
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
@@ -89,7 +80,9 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
                             parts = candidates[0].get("content", {}).get("parts", [])
                             if parts:
                                 text = parts[0].get("text", "").strip()
-                                logger.info(f"Atlas transcreveu áudio com sucesso via Gemini ({model_name}): '{text}'")
+                                logger.info(
+                                    f"Atlas transcreveu áudio com sucesso via Gemini ({model_name}): '{text}'"
+                                )
                                 return text
                     else:
                         # Log seguro: reporta apenas status e código do erro sem logar corpo de resposta bruto
@@ -98,7 +91,9 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
                             err_code = res.json().get("error", {}).get("status", res.status_code)
                         except Exception:
                             err_code = res.status_code
-                        logger.warning(f"Falha na API Gemini ({model_name}) status={res.status_code} erro={err_code}")
+                        logger.warning(
+                            f"Falha na API Gemini ({model_name}) status={res.status_code} erro={err_code}"
+                        )
             except Exception as e:
                 logger.error(f"Erro ao transcrever com Gemini ({model_name}): {e}")
 
@@ -122,10 +117,15 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
         except Exception as e:
             logger.error(f"Erro ao transcrever áudio com Whisper: {e}")
 
-    logger.warning("Nenhuma chave de IA (GEMINI_API_KEY ou OPENAI_API_KEY) configurada ou erro em ambos.")
+    logger.warning(
+        "Nenhuma chave de IA (GEMINI_API_KEY ou OPENAI_API_KEY) configurada ou erro em ambos."
+    )
     return None
 
-def fetch_decrypted_audio_from_evolution(message_id: str, instance_override: Optional[str] = None) -> Optional[Tuple[bytes, str]]:
+
+def fetch_decrypted_audio_from_evolution(
+    message_id: str, instance_override: str | None = None
+) -> tuple[bytes, str] | None:
     """
     Usa o endpoint oficial getBase64FromMediaMessage da Evolution API para obter o áudio
     descriptografado (pois as URLs .enc do WhatsApp são criptografadas com mediaKey).
@@ -138,17 +138,8 @@ def fetch_decrypted_audio_from_evolution(message_id: str, instance_override: Opt
         return None
 
     endpoint = f"{api_url}/chat/getBase64FromMediaMessage/{instance}"
-    headers = {
-        "apikey": api_key,
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "message": {
-            "key": {
-                "id": message_id
-            }
-        }
-    }
+    headers = {"apikey": api_key, "Content-Type": "application/json"}
+    payload = {"message": {"key": {"id": message_id}}}
 
     try:
         with httpx.Client(timeout=25.0) as client:
@@ -162,13 +153,16 @@ def fetch_decrypted_audio_from_evolution(message_id: str, instance_override: Opt
                         b64_str = b64_str.split(",", 1)[1]
                     return base64.b64decode(b64_str), mime
             else:
-                logger.warning(f"Erro ao descriptografar mídia via Evolution ({res.status_code}): {res.text}")
+                logger.warning(
+                    f"Erro ao descriptografar mídia via Evolution ({res.status_code}): {res.text}"
+                )
     except Exception as e:
         logger.error(f"Exceção ao buscar base64 de mídia na Evolution API: {e}")
 
     return None
 
-def download_media_from_url(media_url: str) -> Optional[bytes]:
+
+def download_media_from_url(media_url: str) -> bytes | None:
     """Baixa o arquivo de mídia a partir de uma URL pública ou pré-assinada."""
     try:
         with httpx.Client(timeout=30.0) as client:
@@ -179,23 +173,28 @@ def download_media_from_url(media_url: str) -> Optional[bytes]:
         logger.error(f"Erro ao baixar mídia da URL {media_url}: {e}")
     return None
 
+
 def format_atlas_confirmation(
-    user_name: str, 
-    item_desc: str, 
-    valor: Union[float, Decimal], 
-    parcelas: int, 
-    saldo_livre: Optional[Union[float, Decimal]] = None,
-    valor_total: Optional[Union[float, Decimal]] = None
+    user_name: str,
+    item_desc: str,
+    valor: float | Decimal,
+    parcelas: int,
+    saldo_livre: float | Decimal | None = None,
+    valor_total: float | Decimal | None = None,
 ) -> str:
     """Gera a mensagem de resposta executiva do Atlas mostrando valor da parcela e valor total."""
     val_formatado = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    
+
     if parcelas > 1:
         if valor_total is not None:
-            tot_formatado = f"R$ {valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            tot_formatado = (
+                f"R$ {valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
         else:
-            tot_val = (Decimal(str(valor)) * parcelas)
-            tot_formatado = f"R$ {tot_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            tot_val = Decimal(str(valor)) * parcelas
+            tot_formatado = (
+                f"R$ {tot_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
         detalhe = f"{parcelas}x de {val_formatado} (total {tot_formatado})"
     else:
         detalhe = f"no valor de {val_formatado}"
@@ -204,8 +203,9 @@ def format_atlas_confirmation(
     if saldo_livre is not None:
         saldo_fmt = f"R$ {saldo_livre:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         msg += f"\n📊 *Saldo Livre do Mês:* {saldo_fmt}"
-        
+
     return msg
+
 
 def send_whatsapp_message(remote_jid: str, text: str) -> bool:
     """Envia uma mensagem de resposta ativa via Evolution API para o grupo do WhatsApp."""
@@ -214,15 +214,8 @@ def send_whatsapp_message(remote_jid: str, text: str) -> bool:
         return False
 
     endpoint = f"{EVOLUTION_API_URL}/message/sendText/{EVOLUTION_INSTANCE}"
-    headers = {
-        "apikey": EVOLUTION_API_KEY,
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "number": remote_jid,
-        "text": text,
-        "linkPreview": False
-    }
+    headers = {"apikey": EVOLUTION_API_KEY, "Content-Type": "application/json"}
+    payload = {"number": remote_jid, "text": text, "linkPreview": False}
 
     try:
         with httpx.Client(timeout=10.0) as client:
@@ -231,7 +224,9 @@ def send_whatsapp_message(remote_jid: str, text: str) -> bool:
                 logger.info(f"Atlas enviou resposta para {remote_jid} com sucesso.")
                 return True
             else:
-                logger.warning(f"Erro ao enviar resposta via Evolution ({res.status_code}): {res.text}")
+                logger.warning(
+                    f"Erro ao enviar resposta via Evolution ({res.status_code}): {res.text}"
+                )
     except Exception as e:
         logger.error(f"Exceção ao disparar resposta do Atlas via WhatsApp: {e}")
 

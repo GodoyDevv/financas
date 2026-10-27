@@ -1,12 +1,15 @@
 import os
 import sys
+
 from google import genai
 
 # 1. Obter API Key a partir de variável de ambiente
 API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 if not API_KEY or API_KEY == "SUA_API_KEY_AQUI":
-    print("❌ Erro: Defina a variável de ambiente GEMINI_API_KEY ou configure-a no arquivo builder.py!")
+    print(
+        "❌ Erro: Defina a variável de ambiente GEMINI_API_KEY ou configure-a no arquivo builder.py!"
+    )
     sys.exit(1)
 
 client = genai.Client(api_key=API_KEY)
@@ -17,18 +20,22 @@ FILES_TO_PROCESS = [
     "backend/routes.py",
     "backend/webhook.py",
     "backend/parser.py",
-    "index.html"
+    "index.html",
 ]
+
 
 def get_project_context():
     context = "Estrutura e arquivos atuais do projeto:\n\n"
     for filepath in FILES_TO_PROCESS:
         if os.path.exists(filepath):
-            with open(filepath, "r", encoding="utf-8") as f:
-                context += f"--- INÍCIO DE {filepath} ---\n{f.read()}\n--- FIM DE {filepath} ---\n\n"
+            with open(filepath, encoding="utf-8") as f:
+                context += (
+                    f"--- INÍCIO DE {filepath} ---\n{f.read()}\n--- FIM DE {filepath} ---\n\n"
+                )
         else:
             context += f"--- {filepath} (arquivo ainda não existe) ---\n\n"
     return context
+
 
 prompt_master = f"""
 Você é o Agente Builder Fullstack Python/FastAPI.
@@ -60,11 +67,14 @@ content = response.text
 
 # Processa e salva os arquivos automaticamente na máquina
 import re
+
 pattern = r"<<<FILE:\s*(.*?)>>>\n(.*?)<<<END_FILE>>>"
 matches = re.findall(pattern, content, re.DOTALL)
 
 if not matches:
-    print("⚠️ Resposta gerada, mas o formato de arquivos não foi identificado automaticamente. Exibindo resposta:\n")
+    print(
+        "⚠️ Resposta gerada, mas o formato de arquivos não foi identificado automaticamente. Exibindo resposta:\n"
+    )
     print(content)
 else:
     for filepath, file_code in matches:

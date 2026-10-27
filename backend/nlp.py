@@ -3,18 +3,20 @@
 Garante privacidade estrita, baixíssimo custo e tolerância a falhas.
 NENHUMA mensagem sem valor numérico é enviada para fora do servidor.
 """
-import os
-import re
+
 import json
 import logging
+import os
+import re
 from decimal import Decimal
-from typing import Optional, List, Dict, Any, Literal
-from pydantic import BaseModel, Field, field_validator
-import httpx
+from typing import Any, Literal
 
-from .parser import parse_text_message, extract_money_values, extract_installments_and_clean
+import httpx
+from pydantic import BaseModel, Field, field_validator
+
 from .categories import CANONICAL_CATEGORIES, resolve_canonical_name
-from .dates_and_money import today_br, to_decimal
+from .dates_and_money import to_decimal, today_br
+from .parser import extract_money_values
 
 logger = logging.getLogger("fintrack.nlp")
 
@@ -35,9 +37,9 @@ class ResultadoParse(BaseModel):
     categoria: str
     descricao: str
     parcelas: int = Field(default=1, ge=1, le=48)
-    data: Optional[str] = None
+    data: str | None = None
     confianca: Literal["alta", "baixa"] = "alta"
-    motivos: List[str] = Field(default_factory=list)
+    motivos: list[str] = Field(default_factory=list)
 
     @field_validator("valor", mode="before")
     def parse_valor(cls, v):
@@ -58,7 +60,7 @@ class ResultadoParse(BaseModel):
             return 1
 
 
-def _obter_nomes_categorias(categorias_validas: Optional[List[str]] = None) -> List[str]:
+def _obter_nomes_categorias(categorias_validas: list[str] | None = None) -> list[str]:
     """Retorna lista de categorias válidas unificadas."""
     if categorias_validas:
         return [c for c in categorias_validas if c]
@@ -67,13 +69,13 @@ def _obter_nomes_categorias(categorias_validas: Optional[List[str]] = None) -> L
 
 def chamar_gemini_estruturado(
     texto: str,
-    categorias_validas: Optional[List[str]] = None,
-    api_key: Optional[str] = None,
-    model: Optional[str] = None,
-    timeout: Optional[float] = None,
-) -> Optional[Dict[str, Any]]:
+    categorias_validas: list[str] | None = None,
+    api_key: str | None = None,
+    model: str | None = None,
+    timeout: float | None = None,
+) -> dict[str, Any] | None:
     """Chama a API do Google Gemini com saída JSON estruturada via responseSchema.
-    
+
     Protegido contra prompt injection:
     - O prompt do sistema é curto e estrito (systemInstruction).
     - O texto do usuário é passado puramente no corpo de conteúdo como dado não confiável.
@@ -97,31 +99,31 @@ def chamar_gemini_estruturado(
             "tipo": {
                 "type": "STRING",
                 "enum": ["receita", "despesa_fixa", "despesa_variavel"],
-                "description": "Classificação financeira: receita (ganhos, salário, vendas), despesa_fixa (recorrente mensal essencial como aluguel, luz, condomínio) ou despesa_variavel (compras do dia a dia, mercado, restaurantes)."
+                "description": "Classificação financeira: receita (ganhos, salário, vendas), despesa_fixa (recorrente mensal essencial como aluguel, luz, condomínio) ou despesa_variavel (compras do dia a dia, mercado, restaurantes).",
             },
             "valor": {
                 "type": "NUMBER",
-                "description": "Valor monetário numérico principal da transação."
+                "description": "Valor monetário numérico principal da transação.",
             },
             "categoria": {
                 "type": "STRING",
                 "enum": cat_list,
-                "description": "Categoria canônica mais adequada. Se em dúvida, use Outros."
+                "description": "Categoria canônica mais adequada. Se em dúvida, use Outros.",
             },
             "descricao": {
                 "type": "STRING",
-                "description": "Descrição curta e limpa do item ou serviço (sem saudações, sem valor, sem parcelas)."
+                "description": "Descrição curta e limpa do item ou serviço (sem saudações, sem valor, sem parcelas).",
             },
             "parcelas": {
                 "type": "INTEGER",
-                "description": "Quantidade de parcelas (1 para compras à vista, ou N se parcelado)."
+                "description": "Quantidade de parcelas (1 para compras à vista, ou N se parcelado).",
             },
             "data": {
                 "type": "STRING",
-                "description": "Data no formato AAAA-MM-DD se mencionada, ou vazio/null."
-            }
+                "description": "Data no formato AAAA-MM-DD se mencionada, ou vazio/null.",
+            },
         },
-        "required": ["tipo", "valor", "categoria", "descricao", "parcelas"]
+        "required": ["tipo", "valor", "categoria", "descricao", "parcelas"],
     }
 
     system_instruction = (
@@ -137,28 +139,18 @@ def chamar_gemini_estruturado(
     )
 
     payload = {
-        "systemInstruction": {
-            "parts": [{"text": system_instruction}]
-        },
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": f"Transação a analisar: \"{texto}\""}]
-            }
-        ],
+        "systemInstruction": {"parts": [{"text": system_instruction}]},
+        "contents": [{"role": "user", "parts": [{"text": f'Transação a analisar: "{texto}"'}]}],
         "generationConfig": {
             "responseMimeType": "application/json",
             "responseSchema": response_schema,
             "temperature": 0.1,
-            "maxOutputTokens": 500
-        }
+            "maxOutputTokens": 500,
+        },
     }
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-    headers = {
-        "x-goog-api-key": key,
-        "Content-Type": "application/json"
-    }
+    headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
 
     # Tentativa com no máximo 1 retry em caso de falha de rede/5xx
     max_attempts = 2
@@ -185,7 +177,9 @@ def chamar_gemini_estruturado(
                     logger.warning(f"Erro na chamada Gemini REST: HTTP {res.status_code}")
                     return None
         except httpx.TimeoutException:
-            logger.warning(f"Timeout ({timeout_sec}s) ao chamar Gemini na tentativa {attempt}/{max_attempts}")
+            logger.warning(
+                f"Timeout ({timeout_sec}s) ao chamar Gemini na tentativa {attempt}/{max_attempts}"
+            )
             if attempt >= max_attempts:
                 return None
         except Exception as e:
@@ -197,11 +191,10 @@ def chamar_gemini_estruturado(
 
 
 def interpretar_mensagem(
-    texto: str,
-    categorias_validas: Optional[List[str]] = None
-) -> Optional[Dict[str, Any]]:
+    texto: str, categorias_validas: list[str] | None = None
+) -> dict[str, Any] | None:
     """Pipeline central de interpretação:
-    
+
     1. Verifica se texto contém valor numérico (PRIVACIDADE E CUSTO: mensagens sem valor JAMAIS saem do servidor).
     2. Roda parser determinístico (regex).
     3. Conforme NLP_MODE ("hybrid", "regex", "llm"):
@@ -229,6 +222,7 @@ def interpretar_mensagem(
 
     # Step 2: Executa parser regex determinístico (permite mock ou importação dinâmica de parse_text_message)
     import backend.parser as parser_module
+
     regex_res = parser_module.parse_text_message(texto)
 
     mode = os.getenv("NLP_MODE", NLP_MODE).lower()
@@ -289,11 +283,12 @@ def interpretar_mensagem(
 
         # Validação de data
         data_str = gemini_raw.get("data")
-        if not data_str or not re.match(r'^\d{4}-\d{2}-\d{2}$', str(data_str)):
+        if not data_str or not re.match(r"^\d{4}-\d{2}-\d{2}$", str(data_str)):
             data_val = today_br()
         else:
             try:
                 from datetime import date
+
                 data_val = date.fromisoformat(str(data_str))
             except Exception:
                 data_val = today_br()
@@ -312,7 +307,7 @@ def interpretar_mensagem(
             parcelas=parcelas_int,
             data=str(data_val),
             confianca="alta",
-            motivos=["gemini_fallback_resolvido"]
+            motivos=["gemini_fallback_resolvido"],
         )
 
         return resultado_obj.model_dump()

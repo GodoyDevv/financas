@@ -5,17 +5,17 @@ Revises: 0001_baseline
 Create Date: 2026-10-23 20:03:26.708683
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '266f67827cdb'
-down_revision: Union[str, None] = '0001_baseline'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "266f67827cdb"
+down_revision: str | None = "0001_baseline"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -42,10 +42,16 @@ def upgrade() -> None:
     else:
         # SQLite: usa batch_alter_table para garantir compatibilidade
         with op.batch_alter_table("categories") as batch_op:
-            batch_op.create_index(op.f("ix_categories_id"), ["id"], unique=False, if_not_exists=True)
-            batch_op.create_index(op.f("ix_categories_name"), ["name"], unique=True, if_not_exists=True)
+            batch_op.create_index(
+                op.f("ix_categories_id"), ["id"], unique=False, if_not_exists=True
+            )
+            batch_op.create_index(
+                op.f("ix_categories_name"), ["name"], unique=True, if_not_exists=True
+            )
         with op.batch_alter_table("transactions") as batch_op:
-            batch_op.create_index(op.f("ix_transactions_id"), ["id"], unique=False, if_not_exists=True)
+            batch_op.create_index(
+                op.f("ix_transactions_id"), ["id"], unique=False, if_not_exists=True
+            )
 
 
 def downgrade() -> None:

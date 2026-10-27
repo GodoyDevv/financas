@@ -12,8 +12,9 @@ Critérios de Aceite Cobertos:
 """
 
 import os
-import pytest
 from unittest import mock
+
+import pytest
 from fastapi.testclient import TestClient
 
 # Define variáveis de teste antes de importar a aplicação para satisfazer a validação estrita
@@ -27,13 +28,14 @@ os.environ["ADMIN_TOKEN"] = TEST_ADMIN_TOKEN
 os.environ["DEV_INSECURE_COOKIES"] = "0"
 os.environ["SESSION_TTL_HOURS"] = "12"
 
-from backend.main import app
 from backend.auth import (
-    validate_security_configuration,
-    login_attempts,
     COOKIE_NAME,
-    create_session_token
+    create_session_token,
+    login_attempts,
+    validate_security_configuration,
 )
+from backend.main import app
+
 
 @pytest.fixture(autouse=True)
 def reset_rate_limit():
@@ -41,6 +43,7 @@ def reset_rate_limit():
     login_attempts.clear()
     yield
     login_attempts.clear()
+
 
 @pytest.fixture
 def client():
@@ -53,25 +56,49 @@ def client():
 def test_fail_closed_missing_env_vars():
     """Garante que a aplicação se recusa a iniciar se qualquer variável obrigatória faltar."""
     # Sem APP_PASSWORD
-    with mock.patch.dict(os.environ, {"APP_PASSWORD": "", "SESSION_SECRET": TEST_SESSION_SECRET, "ADMIN_TOKEN": TEST_ADMIN_TOKEN}):
+    with mock.patch.dict(
+        os.environ,
+        {
+            "APP_PASSWORD": "",
+            "SESSION_SECRET": TEST_SESSION_SECRET,
+            "ADMIN_TOKEN": TEST_ADMIN_TOKEN,
+        },
+    ):
         with pytest.raises(RuntimeError) as excinfo:
             validate_security_configuration()
         assert "APP_PASSWORD" in str(excinfo.value)
 
     # Sem SESSION_SECRET
-    with mock.patch.dict(os.environ, {"APP_PASSWORD": TEST_APP_PASSWORD, "SESSION_SECRET": "", "ADMIN_TOKEN": TEST_ADMIN_TOKEN}):
+    with mock.patch.dict(
+        os.environ,
+        {"APP_PASSWORD": TEST_APP_PASSWORD, "SESSION_SECRET": "", "ADMIN_TOKEN": TEST_ADMIN_TOKEN},
+    ):
         with pytest.raises(RuntimeError) as excinfo:
             validate_security_configuration()
         assert "SESSION_SECRET" in str(excinfo.value)
 
     # SESSION_SECRET curto (< 32 caracteres)
-    with mock.patch.dict(os.environ, {"APP_PASSWORD": TEST_APP_PASSWORD, "SESSION_SECRET": "curto", "ADMIN_TOKEN": TEST_ADMIN_TOKEN}):
+    with mock.patch.dict(
+        os.environ,
+        {
+            "APP_PASSWORD": TEST_APP_PASSWORD,
+            "SESSION_SECRET": "curto",
+            "ADMIN_TOKEN": TEST_ADMIN_TOKEN,
+        },
+    ):
         with pytest.raises(RuntimeError) as excinfo:
             validate_security_configuration()
         assert "mínimo 32 caracteres" in str(excinfo.value)
 
     # Sem ADMIN_TOKEN
-    with mock.patch.dict(os.environ, {"APP_PASSWORD": TEST_APP_PASSWORD, "SESSION_SECRET": TEST_SESSION_SECRET, "ADMIN_TOKEN": ""}):
+    with mock.patch.dict(
+        os.environ,
+        {
+            "APP_PASSWORD": TEST_APP_PASSWORD,
+            "SESSION_SECRET": TEST_SESSION_SECRET,
+            "ADMIN_TOKEN": "",
+        },
+    ):
         with pytest.raises(RuntimeError) as excinfo:
             validate_security_configuration()
         assert "ADMIN_TOKEN" in str(excinfo.value)
@@ -85,6 +112,7 @@ def test_get_root_without_session_redirects_to_login(client):
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 302
     assert response.headers["location"] == "/login"
+
 
 def test_get_root_with_valid_session_returns_200(client):
     """GET / com cookie de sessão válido deve retornar 200 (HTML do dashboard)."""
@@ -103,6 +131,7 @@ def test_get_api_without_session_returns_401(client):
     response = client.get("/api/transactions")
     assert response.status_code == 401
     assert "Autenticação necessária" in response.json()["detail"]
+
 
 def test_get_api_with_valid_session_returns_200(client):
     """GET /api/transactions com sessão válida deve retornar 200."""
@@ -132,7 +161,7 @@ def test_login_success_and_cookie_attributes(client):
     response = client.post(
         "/auth/login",
         json={"password": TEST_APP_PASSWORD},
-        headers={"Origin": "https://testserver"}
+        headers={"Origin": "https://testserver"},
     )
     assert response.status_code == 200
     assert COOKIE_NAME in response.cookies
@@ -143,6 +172,7 @@ def test_login_success_and_cookie_attributes(client):
     assert "SameSite=strict" in set_cookie_header or "SameSite=Strict" in set_cookie_header
     assert "Secure" in set_cookie_header
 
+
 def test_logout_clears_cookie(client):
     """Logout remove o cookie de sessão com flags de segurança."""
     valid_token = create_session_token()
@@ -150,7 +180,7 @@ def test_logout_clears_cookie(client):
     response = client.post("/auth/logout", headers={"Origin": "https://testserver"})
     assert response.status_code == 200
     set_cookie_header = response.headers.get("set-cookie", "")
-    assert f'{COOKIE_NAME}=""' in set_cookie_header or f'{COOKIE_NAME}=;' in set_cookie_header
+    assert f'{COOKIE_NAME}=""' in set_cookie_header or f"{COOKIE_NAME}=;" in set_cookie_header
 
 
 # ==============================================================================
@@ -162,16 +192,14 @@ def test_login_rate_limiting(client):
         res = client.post(
             "/auth/login",
             json={"password": "wrong_password"},
-            headers={"Origin": "https://testserver"}
+            headers={"Origin": "https://testserver"},
         )
         assert res.status_code == 401
         assert "Senha de acesso incorreta" in res.json()["detail"]
 
     # 6ª tentativa dentro de 1 minuto: Rate limit disparado
     res_blocked = client.post(
-        "/auth/login",
-        json={"password": "wrong_password"},
-        headers={"Origin": "https://testserver"}
+        "/auth/login", json={"password": "wrong_password"}, headers={"Origin": "https://testserver"}
     )
     assert res_blocked.status_code == 429
     assert "Muitas tentativas de login" in res_blocked.json()["detail"]
@@ -186,7 +214,7 @@ def test_csrf_origin_validation(client):
     response = client.post(
         "/auth/login",
         json={"password": TEST_APP_PASSWORD},
-        headers={"Origin": "https://attacker-site.com"}
+        headers={"Origin": "https://attacker-site.com"},
     )
     assert response.status_code == 403
     assert "CSRF" in response.json()["detail"]
@@ -203,16 +231,14 @@ def test_admin_endpoints_require_admin_token(client):
 
     # Com token inválido -> 401
     res_bad_token = client.post(
-        "/api/relatorio-diario/disparar",
-        headers={"X-Admin-Token": "token_falso_invalido"}
+        "/api/relatorio-diario/disparar", headers={"X-Admin-Token": "token_falso_invalido"}
     )
     assert res_bad_token.status_code == 401
 
     # Com token válido -> 200 (Mockando a execução para não disparar rede real)
     with mock.patch("backend.main.executar_envio_relatorio_diario", return_value=True):
         res_ok = client.post(
-            "/api/relatorio-diario/disparar",
-            headers={"X-Admin-Token": TEST_ADMIN_TOKEN}
+            "/api/relatorio-diario/disparar", headers={"X-Admin-Token": TEST_ADMIN_TOKEN}
         )
         assert res_ok.status_code == 200
         assert res_ok.json() == {"status": "success", "enviado": True}

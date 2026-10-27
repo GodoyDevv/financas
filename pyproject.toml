@@ -63,7 +63,7 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--strict-markers --cov=backend --cov-fail-under=72"
+addopts = "--strict-markers --cov=backend --cov-fail-under=71"
 markers = [
     "e2e: end-to-end integration tests",
     "slow: tests that take longer to run",

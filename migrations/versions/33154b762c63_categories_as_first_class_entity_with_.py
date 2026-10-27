@@ -5,20 +5,23 @@ Revises: 9240c01a1280
 Create Date: 2026-10-24 20:41:46.812293
 
 """
-from typing import Sequence, Union
+
 import logging
 import unicodedata
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
-from sqlalchemy.sql import table, column
+from alembic import op
+from sqlalchemy.sql import column, table
 
 # revision identifiers, used by Alembic.
-revision: str = '33154b762c63'
-down_revision: Union[str, None] = '9240c01a1280'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "33154b762c63"
+down_revision: str | None = "9240c01a1280"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 logger = logging.getLogger("alembic.migration.categories")
+
 
 # Função de normalização idêntica à do domínio, autossuficiente dentro da migration
 def _normalize_name(name: str) -> str:
@@ -28,6 +31,7 @@ def _normalize_name(name: str) -> str:
     s_decomposed = unicodedata.normalize("NFKD", s)
     s_no_accents = "".join(c for c in s_decomposed if not unicodedata.combining(c))
     return s_no_accents.lower()
+
 
 # Categorias canônicas iniciais
 SEED_CANONICAL = [
@@ -90,7 +94,7 @@ def upgrade() -> None:
     bind = op.get_bind()
     insp = sa.inspect(bind)
     dialect_name = bind.dialect.name
-    is_sqlite = (dialect_name == "sqlite")
+    is_sqlite = dialect_name == "sqlite"
 
     cat_cols = [c["name"] for c in insp.get_columns("categories")]
 
@@ -100,23 +104,33 @@ def upgrade() -> None:
             if "normalized_name" not in cat_cols:
                 batch_op.add_column(sa.Column("normalized_name", sa.String(60), nullable=True))
             if "tipo" not in cat_cols:
-                batch_op.add_column(sa.Column("tipo", sa.String(20), server_default="despesa", nullable=False))
+                batch_op.add_column(
+                    sa.Column("tipo", sa.String(20), server_default="despesa", nullable=False)
+                )
             if "ativo" not in cat_cols:
-                batch_op.add_column(sa.Column("ativo", sa.Boolean(), server_default=sa.true(), nullable=False))
+                batch_op.add_column(
+                    sa.Column("ativo", sa.Boolean(), server_default=sa.true(), nullable=False)
+                )
             batch_op.alter_column("budget", type_=sa.Numeric(12, 2), nullable=True)
     else:
         if "normalized_name" not in cat_cols:
             op.add_column("categories", sa.Column("normalized_name", sa.String(60), nullable=True))
         if "tipo" not in cat_cols:
-            op.add_column("categories", sa.Column("tipo", sa.String(20), server_default="despesa", nullable=False))
+            op.add_column(
+                "categories",
+                sa.Column("tipo", sa.String(20), server_default="despesa", nullable=False),
+            )
         if "ativo" not in cat_cols:
-            op.add_column("categories", sa.Column("ativo", sa.Boolean(), server_default=sa.true(), nullable=False))
+            op.add_column(
+                "categories",
+                sa.Column("ativo", sa.Boolean(), server_default=sa.true(), nullable=False),
+            )
         op.alter_column(
             "categories",
             "budget",
             type_=sa.Numeric(12, 2),
             nullable=True,
-            postgresql_using="budget::numeric(12,2)"
+            postgresql_using="budget::numeric(12,2)",
         )
 
     # 2. Popular / Sincronizar categorias canônicas
@@ -127,11 +141,13 @@ def upgrade() -> None:
         column("normalized_name", sa.String),
         column("tipo", sa.String),
         column("budget", sa.Numeric),
-        column("ativo", sa.Boolean)
+        column("ativo", sa.Boolean),
     )
 
     # Inspeciona linhas existentes em categories
-    existing_rows = bind.execute(sa.text("SELECT id, name, normalized_name FROM categories")).fetchall()
+    existing_rows = bind.execute(
+        sa.text("SELECT id, name, normalized_name FROM categories")
+    ).fetchall()
     cat_by_norm = {}
     for r in existing_rows:
         cid, cname, cnorm = r[0], r[1], r[2]
@@ -139,7 +155,7 @@ def upgrade() -> None:
             cnorm = _normalize_name(cname)
             bind.execute(
                 sa.text("UPDATE categories SET normalized_name = :norm WHERE id = :id"),
-                {"norm": cnorm, "id": cid}
+                {"norm": cnorm, "id": cid},
             )
         if cnorm:
             cat_by_norm[cnorm] = cid
@@ -149,16 +165,12 @@ def upgrade() -> None:
         if norm not in cat_by_norm:
             bind.execute(
                 categories_tbl.insert().values(
-                    name=item["name"],
-                    normalized_name=norm,
-                    tipo=item["tipo"],
-                    ativo=True
+                    name=item["name"], normalized_name=norm, tipo=item["tipo"], ativo=True
                 )
             )
             # Recupera o id inserido
             new_row = bind.execute(
-                sa.text("SELECT id FROM categories WHERE normalized_name = :norm"),
-                {"norm": norm}
+                sa.text("SELECT id FROM categories WHERE normalized_name = :norm"), {"norm": norm}
             ).fetchone()
             cat_by_norm[norm] = new_row[0]
 
@@ -171,7 +183,9 @@ def upgrade() -> None:
         op.alter_column("categories", "normalized_name", nullable=False)
         cat_indexes = [ix["name"] for ix in insp.get_indexes("categories")]
         if "ix_categories_normalized_name" not in cat_indexes:
-            op.create_index("ix_categories_normalized_name", "categories", ["normalized_name"], unique=True)
+            op.create_index(
+                "ix_categories_normalized_name", "categories", ["normalized_name"], unique=True
+            )
 
     # 3. Backfill em 'transactions'
     # Consulta todas as categorias distintas atualmente em transactions
@@ -198,15 +212,11 @@ def upgrade() -> None:
             # Categoria desconhecida: cria nova categoria na tabela categories com o nome original (não perde dados!)
             bind.execute(
                 categories_tbl.insert().values(
-                    name=raw_cat.strip(),
-                    normalized_name=norm,
-                    tipo="despesa",
-                    ativo=True
+                    name=raw_cat.strip(), normalized_name=norm, tipo="despesa", ativo=True
                 )
             )
             new_cat_row = bind.execute(
-                sa.text("SELECT id FROM categories WHERE normalized_name = :norm"),
-                {"norm": norm}
+                sa.text("SELECT id FROM categories WHERE normalized_name = :norm"), {"norm": norm}
             ).fetchone()
             target_id = new_cat_row[0]
             cat_by_norm[norm] = target_id
@@ -217,13 +227,15 @@ def upgrade() -> None:
         # Se target_name for canônico diferente do antigo, também sincroniza categoria
         if target_name:
             bind.execute(
-                sa.text("UPDATE transactions SET category_id = :cid, categoria = :cname WHERE categoria = :raw"),
-                {"cid": target_id, "cname": target_name, "raw": raw_cat}
+                sa.text(
+                    "UPDATE transactions SET category_id = :cid, categoria = :cname WHERE categoria = :raw"
+                ),
+                {"cid": target_id, "cname": target_name, "raw": raw_cat},
             )
         else:
             bind.execute(
                 sa.text("UPDATE transactions SET category_id = :cid WHERE categoria = :raw"),
-                {"cid": target_id, "raw": raw_cat}
+                {"cid": target_id, "raw": raw_cat},
             )
 
     if created_unknown_categories:
@@ -236,7 +248,7 @@ def upgrade() -> None:
     if outros_id:
         bind.execute(
             sa.text("UPDATE transactions SET category_id = :oid WHERE category_id IS NULL"),
-            {"oid": outros_id}
+            {"oid": outros_id},
         )
 
     # 4. Ajustar 'transactions': criar índice e definir category_id NOT NULL
@@ -257,7 +269,7 @@ def downgrade() -> None:
     bind = op.get_bind()
     insp = sa.inspect(bind)
     dialect_name = bind.dialect.name
-    is_sqlite = (dialect_name == "sqlite")
+    is_sqlite = dialect_name == "sqlite"
 
     tx_indexes = [ix["name"] for ix in insp.get_indexes("transactions")]
     cat_indexes = [ix["name"] for ix in insp.get_indexes("categories")]
@@ -297,5 +309,5 @@ def downgrade() -> None:
             "budget",
             type_=sa.Float(),
             nullable=True,
-            postgresql_using="budget::float"
+            postgresql_using="budget::float",
         )

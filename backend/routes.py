@@ -1,46 +1,48 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import List, Optional
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, or_
 
-from .database import get_db, engine, Base
-from .models import Transaction, Category, Recurrence
-from .dates_and_money import to_decimal, month_range, today_br
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session
+
 from .categories import (
+    get_valid_category_names,
     normalize_category_name,
     resolve_canonical_name,
-    get_valid_category_names,
-    CANONICAL_CATEGORIES
 )
+from .database import get_db
+from .dates_and_money import month_range, to_decimal, today_br
+from .models import Category, Recurrence, Transaction
+from .parser import parse_text_message
 from .schemas import (
-    TransactionCreate, 
-    TransactionUpdate, 
-    TransactionResponse, 
-    FinancialSummary, 
-    MetricsResponse, 
     CategoryMetric,
     CategoryResponse,
     CategoryUpdate,
-    RecurrenceCreate,
-    RecurrenceUpdate,
-    RecurrenceResponse,
+    FinancialSummary,
     MessageParseRequest,
-    MessageParseResponse
+    MessageParseResponse,
+    MetricsResponse,
+    RecurrenceCreate,
+    RecurrenceResponse,
+    RecurrenceUpdate,
+    TransactionCreate,
+    TransactionResponse,
+    TransactionUpdate,
 )
-from .services import criar_parcelamento, ensure_recurrences, clamp_day_in_month
-from .parser import parse_text_message
+from .services import clamp_day_in_month, criar_parcelamento, ensure_recurrences
 
 router = APIRouter(prefix="/api", tags=["Transactions & Metrics"])
 
-@router.get("/transactions", response_model=List[TransactionResponse])
+
+@router.get("/transactions", response_model=list[TransactionResponse])
 def get_transactions(
-    tipo: Optional[str] = None, 
-    author: Optional[str] = Query(None, description="Filtra por autor (ex: Bruno, Letícia)"),
-    channel: Optional[str] = Query(None, description="Filtra por canal (ex: whatsapp_text, whatsapp_audio, dashboard)"),
-    mes: Optional[str] = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
-    db: Session = Depends(get_db)
+    tipo: str | None = None,
+    author: str | None = Query(None, description="Filtra por autor (ex: Bruno, Letícia)"),
+    channel: str | None = Query(
+        None, description="Filtra por canal (ex: whatsapp_text, whatsapp_audio, dashboard)"
+    ),
+    mes: str | None = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
+    db: Session = Depends(get_db),
 ):
     """
     Retorna a lista de transações.
@@ -62,7 +64,7 @@ def get_transactions(
         )
     else:
         query = db.query(Transaction)
-    
+
     if tipo:
         query = query.filter(Transaction.tipo == tipo.lower())
 
@@ -71,29 +73,34 @@ def get_transactions(
 
     if channel:
         query = query.filter(Transaction.channel == channel)
-    
+
     rows = query.order_by(desc(Transaction.id)).all()
     return rows
+
 
 @router.post("/transactions", response_model=TransactionResponse)
 def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
     """Cadastra um novo registro de receita, despesa fixa ou despesa variável."""
     valid_types = ["receita", "despesa_fixa", "despesa_variavel"]
     clean_tipo = transaction.tipo.lower()
-    
+
     if clean_tipo == "despesa":
         clean_tipo = "despesa_variavel"
 
     if clean_tipo not in valid_types:
         raise HTTPException(
-            status_code=400, 
-            detail=f"Tipo inválido. Escolha um dos seguintes: {', '.join(valid_types)}"
+            status_code=400,
+            detail=f"Tipo inválido. Escolha um dos seguintes: {', '.join(valid_types)}",
         )
 
     # Canal e autor para chamadas da API/Dashboard
     author_val = transaction.author.strip() if transaction.author else None
-    channel_val = transaction.channel if transaction.channel and transaction.channel != "unknown" else "dashboard"
-    
+    channel_val = (
+        transaction.channel
+        if transaction.channel and transaction.channel != "unknown"
+        else "dashboard"
+    )
+
     # Dual-write: source recebe author ou channel para não quebrar compatibilidade
     source_val = transaction.source.strip() if transaction.source else (author_val or channel_val)
 
@@ -106,8 +113,8 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
             status_code=422,
             detail={
                 "message": f"Categoria '{transaction.categoria}' não é válida.",
-                "valid_categories": valid_cats
-            }
+                "valid_categories": valid_cats,
+            },
         )
 
     norm_name = normalize_category_name(canonical_name)
@@ -118,7 +125,7 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
             name=canonical_name,
             normalized_name=norm_name,
             tipo="receita" if clean_tipo == "receita" else "despesa",
-            ativo=True
+            ativo=True,
         )
         db.add(cat_db)
         db.commit()
@@ -135,37 +142,36 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
         "author": author_val,
         "channel": channel_val,
         "source": source_val,
-        "vencimento": transaction.vencimento.strip() if transaction.vencimento else None
+        "vencimento": transaction.vencimento.strip() if transaction.vencimento else None,
     }
-    
+
     parcelas_count = transaction.parcelas or 1
     criadas = criar_parcelamento(db, base_tx_dict, parcelas=parcelas_count)
     return criadas[0]
 
+
 @router.put("/transactions/{trans_id}", response_model=TransactionResponse)
 def update_transaction(
-    trans_id: int, 
-    transaction: TransactionUpdate, 
-    db: Session = Depends(get_db)
+    trans_id: int, transaction: TransactionUpdate, db: Session = Depends(get_db)
 ):
     """Atualiza um registro existente de receita, despesa fixa ou despesa variável."""
     existing = db.query(Transaction).filter(Transaction.id == trans_id).first()
     if not existing:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
-    
+
     valid_types = ["receita", "despesa_fixa", "despesa_variavel"]
-    
+
     if transaction.tipo is not None:
         new_tipo = transaction.tipo.lower()
         if new_tipo == "despesa":
             new_tipo = "despesa_variavel"
         if new_tipo not in valid_types:
             raise HTTPException(
-                status_code=400, 
-                detail=f"Tipo inválido. Escolha um dos seguintes: {', '.join(valid_types)}"
+                status_code=400,
+                detail=f"Tipo inválido. Escolha um dos seguintes: {', '.join(valid_types)}",
             )
         existing.tipo = new_tipo
-        
+
     if transaction.valor is not None:
         existing.valor = to_decimal(transaction.valor)
     if transaction.categoria is not None:
@@ -176,8 +182,8 @@ def update_transaction(
                 status_code=422,
                 detail={
                     "message": f"Categoria '{transaction.categoria}' não é válida.",
-                    "valid_categories": valid_cats
-                }
+                    "valid_categories": valid_cats,
+                },
             )
         norm_name = normalize_category_name(canonical_name)
         cat_db = db.query(Category).filter(Category.normalized_name == norm_name).first()
@@ -186,7 +192,7 @@ def update_transaction(
                 name=canonical_name,
                 normalized_name=norm_name,
                 tipo="receita" if existing.tipo == "receita" else "despesa",
-                ativo=True
+                ativo=True,
             )
             db.add(cat_db)
             db.commit()
@@ -217,12 +223,15 @@ def update_transaction(
     db.refresh(existing)
     return existing
 
+
 @router.delete("/transactions/{trans_id}")
 def delete_transaction(
     trans_id: int,
     escopo: str = Query("uma", description="Escopo de exclusão: 'uma', 'grupo' ou 'futuras'"),
-    todas_parcelas: bool = Query(False, description="[DEPRECATED] Compatibilidade reversa; mapeia para escopo='grupo'"),
-    db: Session = Depends(get_db)
+    todas_parcelas: bool = Query(
+        False, description="[DEPRECATED] Compatibilidade reversa; mapeia para escopo='grupo'"
+    ),
+    db: Session = Depends(get_db),
 ):
     """
     Remove uma transação pelo seu ID ou suas parcelas associadas via parcela_grupo_id.
@@ -243,14 +252,20 @@ def delete_transaction(
 
     if existing.parcela_grupo_id and modo_escopo in ["grupo", "futuras"]:
         if modo_escopo == "grupo":
-            siblings = db.query(Transaction).filter(
-                Transaction.parcela_grupo_id == existing.parcela_grupo_id
-            ).all()
+            siblings = (
+                db.query(Transaction)
+                .filter(Transaction.parcela_grupo_id == existing.parcela_grupo_id)
+                .all()
+            )
         else:  # modo_escopo == "futuras"
-            siblings = db.query(Transaction).filter(
-                Transaction.parcela_grupo_id == existing.parcela_grupo_id,
-                Transaction.parcela_num >= (existing.parcela_num or 1)
-            ).all()
+            siblings = (
+                db.query(Transaction)
+                .filter(
+                    Transaction.parcela_grupo_id == existing.parcela_grupo_id,
+                    Transaction.parcela_num >= (existing.parcela_num or 1),
+                )
+                .all()
+            )
 
         deleted_count = len(siblings)
         for row in siblings:
@@ -258,7 +273,7 @@ def delete_transaction(
         db.commit()
         return {
             "message": f"{deleted_count} parcelas removidas com sucesso (escopo: {modo_escopo})",
-            "deleted_count": deleted_count
+            "deleted_count": deleted_count,
         }
 
     # Exclusão simples de item único
@@ -266,16 +281,14 @@ def delete_transaction(
     db.commit()
     return {"message": "Transação removida com sucesso", "deleted_count": 1}
 
+
 @router.get("/summary", response_model=FinancialSummary)
 def get_summary(
-    mes: Optional[str] = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
-    db: Session = Depends(get_db)
+    mes: str | None = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
+    db: Session = Depends(get_db),
 ):
     """Resumo consolidado por tipos, opcionalmente filtrado por mês."""
-    query = db.query(
-        Transaction.tipo,
-        func.sum(Transaction.valor).label("total")
-    )
+    query = db.query(Transaction.tipo, func.sum(Transaction.valor).label("total"))
     if mes:
         try:
             inicio, fim = month_range(mes)
@@ -285,16 +298,14 @@ def get_summary(
         # Materialização preguiçosa de recorrências ativas
         ensure_recurrences(db, mes)
 
-        query = query.filter(
-            (Transaction.data >= inicio) & (Transaction.data < fim)
-        )
-    
+        query = query.filter((Transaction.data >= inicio) & (Transaction.data < fim))
+
     totals = query.group_by(Transaction.tipo).all()
-    
+
     total_receitas = Decimal("0.00")
     total_despesas_fixas = Decimal("0.00")
     total_despesas_variaveis = Decimal("0.00")
-    
+
     for row in totals:
         t = str(row[0]).lower() if row[0] else ""
         val = to_decimal(row[1])
@@ -313,13 +324,14 @@ def get_summary(
         "total_despesas_fixas": total_despesas_fixas,
         "total_despesas_variaveis": total_despesas_variaveis,
         "total_despesas": total_despesas,
-        "saldo_livre": saldo_livre
+        "saldo_livre": saldo_livre,
     }
+
 
 @router.get("/metrics", response_model=MetricsResponse)
 def get_metrics(
-    mes: Optional[str] = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
-    db: Session = Depends(get_db)
+    mes: str | None = Query(None, description="Mês no formato YYYY-MM (ex: 2026-10)"),
+    db: Session = Depends(get_db),
 ):
     """
     Retorna métricas para Planejamento Financeiro Doméstico (Geral ou Mensal):
@@ -329,7 +341,7 @@ def get_metrics(
     query_totals = db.query(
         Transaction.tipo,
         func.sum(Transaction.valor).label("total"),
-        func.count(Transaction.id).label("qtd")
+        func.count(Transaction.id).label("qtd"),
     )
     if mes:
         try:
@@ -340,11 +352,9 @@ def get_metrics(
         # Materialização preguiçosa de recorrências ativas
         ensure_recurrences(db, mes)
 
-        query_totals = query_totals.filter(
-            (Transaction.data >= inicio) & (Transaction.data < fim)
-        )
+        query_totals = query_totals.filter((Transaction.data >= inicio) & (Transaction.data < fim))
     totals = query_totals.group_by(Transaction.tipo).all()
-    
+
     receitas_totais = Decimal("0.00")
     contas_fixas = Decimal("0.00")
     gastos_whatsapp = Decimal("0.00")
@@ -367,47 +377,51 @@ def get_metrics(
     saldo_livre = receitas_totais - total_despesas
 
     # Distribuição de despesas por categoria
-    cat_query = db.query(
-        Category.id.label("cat_id"),
-        Category.name.label("cat_name"),
-        Category.budget.label("cat_budget"),
-        func.sum(Transaction.valor).label("total")
-    ).join(
-        Transaction, Transaction.category_id == Category.id
-    ).filter(
-        Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"])
+    cat_query = (
+        db.query(
+            Category.id.label("cat_id"),
+            Category.name.label("cat_name"),
+            Category.budget.label("cat_budget"),
+            func.sum(Transaction.valor).label("total"),
+        )
+        .join(Transaction, Transaction.category_id == Category.id)
+        .filter(Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"]))
     )
 
     if mes:
-        cat_query = cat_query.filter(
-            (Transaction.data >= inicio) & (Transaction.data < fim)
-        )
-    
-    cat_rows = cat_query.group_by(
-        Category.id, Category.name, Category.budget
-    ).order_by(
-        desc(func.sum(Transaction.valor))
-    ).all()
-    
+        cat_query = cat_query.filter((Transaction.data >= inicio) & (Transaction.data < fim))
+
+    cat_rows = (
+        cat_query.group_by(Category.id, Category.name, Category.budget)
+        .order_by(desc(func.sum(Transaction.valor)))
+        .all()
+    )
+
     categorias = []
     base_calc = float(total_despesas) if total_despesas > Decimal("0.00") else 1.0
     for row in cat_rows:
         cat_total = to_decimal(row.total)
         cat_budget = to_decimal(row.cat_budget) if row.cat_budget is not None else None
-        percentual = round((float(cat_total) / base_calc) * 100, 1) if total_despesas > Decimal("0.00") else 0.0
-        
+        percentual = (
+            round((float(cat_total) / base_calc) * 100, 1)
+            if total_despesas > Decimal("0.00")
+            else 0.0
+        )
+
         percentual_budget = None
         if cat_budget and cat_budget > Decimal("0.00"):
             percentual_budget = round((float(cat_total) / float(cat_budget)) * 100, 1)
 
-        categorias.append(CategoryMetric(
-            categoria=row.cat_name,
-            category_id=row.cat_id,
-            total=cat_total,
-            budget=cat_budget,
-            percentual=percentual,
-            percentual_budget=percentual_budget
-        ))
+        categorias.append(
+            CategoryMetric(
+                categoria=row.cat_name,
+                category_id=row.cat_id,
+                total=cat_total,
+                budget=cat_budget,
+                percentual=percentual,
+                percentual_budget=percentual_budget,
+            )
+        )
 
     return MetricsResponse(
         receitas_totais=receitas_totais,
@@ -416,14 +430,17 @@ def get_metrics(
         total_despesas=total_despesas,
         saldo_livre=saldo_livre,
         total_transacoes=total_transacoes,
-        categorias=categorias
+        categorias=categorias,
     )
 
-@router.get("/categories", response_model=List[CategoryResponse])
+
+@router.get("/categories", response_model=list[CategoryResponse])
 def get_categories(
-    mes: Optional[str] = Query(None, description="Mês no formato YYYY-MM para calcular gasto e percentual do orçamento"),
-    ativo: Optional[bool] = Query(None, description="Filtrar categorias ativas/inativas"),
-    db: Session = Depends(get_db)
+    mes: str | None = Query(
+        None, description="Mês no formato YYYY-MM para calcular gasto e percentual do orçamento"
+    ),
+    ativo: bool | None = Query(None, description="Filtrar categorias ativas/inativas"),
+    db: Session = Depends(get_db),
 ):
     """
     Retorna a lista de categorias cadastradas com informações de orçamento (budget),
@@ -445,13 +462,15 @@ def get_categories(
         # Materialização preguiçosa de recorrências ativas
         ensure_recurrences(db, mes)
 
-        spend_rows = db.query(
-            Transaction.category_id,
-            func.sum(Transaction.valor).label("gasto")
-        ).filter(
-            Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"]),
-            (Transaction.data >= inicio) & (Transaction.data < fim)
-        ).group_by(Transaction.category_id).all()
+        spend_rows = (
+            db.query(Transaction.category_id, func.sum(Transaction.valor).label("gasto"))
+            .filter(
+                Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"]),
+                (Transaction.data >= inicio) & (Transaction.data < fim),
+            )
+            .group_by(Transaction.category_id)
+            .all()
+        )
 
         for r in spend_rows:
             if r.category_id:
@@ -464,24 +483,23 @@ def get_categories(
         if cat.budget and to_decimal(cat.budget) > Decimal("0.00"):
             pct_budget = round((float(gasto) / float(cat.budget)) * 100, 1)
 
-        res.append(CategoryResponse(
-            id=cat.id,
-            name=cat.name,
-            nome=cat.name,
-            tipo=cat.tipo,
-            budget=to_decimal(cat.budget) if cat.budget is not None else None,
-            ativo=cat.ativo,
-            gasto_mes=gasto,
-            percentual_budget=pct_budget
-        ))
+        res.append(
+            CategoryResponse(
+                id=cat.id,
+                name=cat.name,
+                nome=cat.name,
+                tipo=cat.tipo,
+                budget=to_decimal(cat.budget) if cat.budget is not None else None,
+                ativo=cat.ativo,
+                gasto_mes=gasto,
+                percentual_budget=pct_budget,
+            )
+        )
     return res
 
+
 @router.put("/categories/{cat_id}", response_model=CategoryResponse)
-def update_category(
-    cat_id: int,
-    payload: CategoryUpdate,
-    db: Session = Depends(get_db)
-):
+def update_category(cat_id: int, payload: CategoryUpdate, db: Session = Depends(get_db)):
     """Atualiza dados da categoria: budget, ativo e/ou nome."""
     category = db.query(Category).filter(Category.id == cat_id).first()
     if not category:
@@ -491,14 +509,15 @@ def update_category(
         new_name = payload.name.strip()
         new_norm = normalize_category_name(new_name)
         # Verifica se já existe outra categoria com esse normalized_name
-        conflict = db.query(Category).filter(
-            Category.normalized_name == new_norm,
-            Category.id != cat_id
-        ).first()
+        conflict = (
+            db.query(Category)
+            .filter(Category.normalized_name == new_norm, Category.id != cat_id)
+            .first()
+        )
         if conflict:
             raise HTTPException(
                 status_code=400,
-                detail=f"Já existe uma categoria cadastrada com o nome '{conflict.name}'."
+                detail=f"Já existe uma categoria cadastrada com o nome '{conflict.name}'.",
             )
         category.name = new_name
         category.normalized_name = new_norm
@@ -528,25 +547,28 @@ def update_category(
         budget=to_decimal(category.budget) if category.budget is not None else None,
         ativo=category.ativo,
         gasto_mes=Decimal("0.00"),
-        percentual_budget=pct_budget
+        percentual_budget=pct_budget,
     )
 
+
 @router.post("/recurrences", response_model=RecurrenceResponse)
-def create_recurrence(
-    payload: RecurrenceCreate,
-    db: Session = Depends(get_db)
-):
+def create_recurrence(payload: RecurrenceCreate, db: Session = Depends(get_db)):
     """Cria uma nova regra de recorrência mensal (receita ou despesa fixa) e materializa o mês atual."""
     valid_types = ["receita", "despesa_fixa"]
     clean_tipo = payload.tipo.lower()
     if clean_tipo not in valid_types:
-        raise HTTPException(status_code=400, detail=f"Tipo inválido. Escolha: {', '.join(valid_types)}")
+        raise HTTPException(
+            status_code=400, detail=f"Tipo inválido. Escolha: {', '.join(valid_types)}"
+        )
 
     canonical_name = resolve_canonical_name(payload.categoria)
     if not canonical_name:
         raise HTTPException(
             status_code=422,
-            detail={"message": f"Categoria '{payload.categoria}' não é válida.", "valid_categories": get_valid_category_names()}
+            detail={
+                "message": f"Categoria '{payload.categoria}' não é válida.",
+                "valid_categories": get_valid_category_names(),
+            },
         )
     norm_name = normalize_category_name(canonical_name)
     cat_db = db.query(Category).filter(Category.normalized_name == norm_name).first()
@@ -555,7 +577,7 @@ def create_recurrence(
             name=canonical_name,
             normalized_name=norm_name,
             tipo="receita" if clean_tipo == "receita" else "despesa",
-            ativo=True
+            ativo=True,
         )
         db.add(cat_db)
         db.commit()
@@ -574,7 +596,7 @@ def create_recurrence(
         dia_do_mes=payload.dia_do_mes,
         inicio=inicio_mes,
         fim=fim_mes,
-        ativo=payload.ativo
+        ativo=payload.ativo,
     )
     db.add(rec)
     db.commit()
@@ -596,14 +618,13 @@ def create_recurrence(
         dia_do_mes=rec.dia_do_mes,
         inicio=rec.inicio,
         fim=rec.fim,
-        ativo=rec.ativo
+        ativo=rec.ativo,
     )
 
-@router.get("/recurrences", response_model=List[RecurrenceResponse])
+
+@router.get("/recurrences", response_model=list[RecurrenceResponse])
 def get_recurrences(
-    tipo: Optional[str] = None,
-    ativo: Optional[bool] = None,
-    db: Session = Depends(get_db)
+    tipo: str | None = None, ativo: bool | None = None, db: Session = Depends(get_db)
 ):
     """Lista as regras de recorrência cadastradas."""
     query = db.query(Recurrence)
@@ -616,27 +637,26 @@ def get_recurrences(
     res = []
     for r in recs:
         cat_name = r.category_rel.name if r.category_rel else "Outros"
-        res.append(RecurrenceResponse(
-            id=r.id,
-            tipo=r.tipo,
-            descricao=r.descricao,
-            valor=r.valor,
-            category_id=r.category_id,
-            categoria=cat_name,
-            author=r.author,
-            dia_do_mes=r.dia_do_mes,
-            inicio=r.inicio,
-            fim=r.fim,
-            ativo=r.ativo
-        ))
+        res.append(
+            RecurrenceResponse(
+                id=r.id,
+                tipo=r.tipo,
+                descricao=r.descricao,
+                valor=r.valor,
+                category_id=r.category_id,
+                categoria=cat_name,
+                author=r.author,
+                dia_do_mes=r.dia_do_mes,
+                inicio=r.inicio,
+                fim=r.fim,
+                ativo=r.ativo,
+            )
+        )
     return res
 
+
 @router.patch("/recurrences/{rec_id}", response_model=RecurrenceResponse)
-def update_recurrence(
-    rec_id: int,
-    payload: RecurrenceUpdate,
-    db: Session = Depends(get_db)
-):
+def update_recurrence(rec_id: int, payload: RecurrenceUpdate, db: Session = Depends(get_db)):
     """
     Atualiza uma regra de recorrência do mês atual em diante:
     - Atualiza a regra base (Recurrence).
@@ -667,23 +687,35 @@ def update_recurrence(
         if not canonical_name:
             raise HTTPException(
                 status_code=422,
-                detail={"message": f"Categoria '{payload.categoria}' não é válida.", "valid_categories": get_valid_category_names()}
+                detail={
+                    "message": f"Categoria '{payload.categoria}' não é válida.",
+                    "valid_categories": get_valid_category_names(),
+                },
             )
         norm_name = normalize_category_name(canonical_name)
         cat_db = db.query(Category).filter(Category.normalized_name == norm_name).first()
         if not cat_db:
-            cat_db = Category(name=canonical_name, normalized_name=norm_name, tipo="receita" if rec.tipo == "receita" else "despesa", ativo=True)
+            cat_db = Category(
+                name=canonical_name,
+                normalized_name=norm_name,
+                tipo="receita" if rec.tipo == "receita" else "despesa",
+                ativo=True,
+            )
             db.add(cat_db)
             db.commit()
             db.refresh(cat_db)
         rec.category_id = cat_db.id
 
     # Sincroniza instâncias do mês atual em diante que NÃO foram editadas manualmente
-    instancias_futuras = db.query(Transaction).filter(
-        Transaction.recurrence_id == rec.id,
-        Transaction.competencia >= primeiro_dia_mes_atual,
-        Transaction.editado_manual == False
-    ).all()
+    instancias_futuras = (
+        db.query(Transaction)
+        .filter(
+            Transaction.recurrence_id == rec.id,
+            Transaction.competencia >= primeiro_dia_mes_atual,
+            Transaction.editado_manual == False,
+        )
+        .all()
+    )
 
     cat_name = rec.category_rel.name if rec.category_rel else "Outros"
 
@@ -698,7 +730,9 @@ def update_recurrence(
             inst.categoria = cat_name
             inst.category_id = rec.category_id
         if payload.dia_do_mes is not None and inst.competencia:
-            inst.data = clamp_day_in_month(inst.competencia.year, inst.competencia.month, rec.dia_do_mes)
+            inst.data = clamp_day_in_month(
+                inst.competencia.year, inst.competencia.month, rec.dia_do_mes
+            )
             if inst.tipo == "despesa_fixa":
                 inst.vencimento = f"Dia {rec.dia_do_mes}"
 
@@ -716,14 +750,12 @@ def update_recurrence(
         dia_do_mes=rec.dia_do_mes,
         inicio=rec.inicio,
         fim=rec.fim,
-        ativo=rec.ativo
+        ativo=rec.ativo,
     )
 
+
 @router.delete("/recurrences/{rec_id}")
-def delete_recurrence(
-    rec_id: int,
-    db: Session = Depends(get_db)
-):
+def delete_recurrence(rec_id: int, db: Session = Depends(get_db)):
     """
     Encerra a regra de recorrência:
     - Define fim = mês anterior ao mês atual.
@@ -740,11 +772,15 @@ def delete_recurrence(
     rec.ativo = False
 
     # Remove instâncias futuras não editadas
-    futuras = db.query(Transaction).filter(
-        Transaction.recurrence_id == rec.id,
-        Transaction.competencia >= primeiro_dia_mes_atual,
-        Transaction.editado_manual == False
-    ).all()
+    futuras = (
+        db.query(Transaction)
+        .filter(
+            Transaction.recurrence_id == rec.id,
+            Transaction.competencia >= primeiro_dia_mes_atual,
+            Transaction.editado_manual == False,
+        )
+        .all()
+    )
 
     removed_count = len(futuras)
     for f in futuras:
@@ -753,8 +789,9 @@ def delete_recurrence(
     db.commit()
     return {
         "message": f"Recorrência {rec_id} encerrada com sucesso. {removed_count} instâncias futuras removidas.",
-        "removed_future_instances": removed_count
+        "removed_future_instances": removed_count,
     }
+
 
 @router.post("/parse-message", response_model=MessageParseResponse)
 def parse_message(payload: MessageParseRequest):
@@ -764,11 +801,10 @@ def parse_message(payload: MessageParseRequest):
     """
     if not payload.message or not payload.message.strip():
         raise HTTPException(status_code=400, detail="Mensagem não pode ser vazia")
-    
+
     parsed = parse_text_message(payload.message)
     if not parsed:
         raise HTTPException(
-            status_code=422,
-            detail="Nenhum valor financeiro ou transação identificada na mensagem."
+            status_code=422, detail="Nenhum valor financeiro ou transação identificada na mensagem."
         )
     return MessageParseResponse(**parsed)

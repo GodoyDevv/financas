@@ -5,22 +5,24 @@ Revises: face6b836ff4
 Create Date: 2026-10-24 21:55:55.000000
 
 """
-from typing import Sequence, Union
-from alembic import op
+
+from collections.abc import Sequence
+
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '503e1f202762'
-down_revision: Union[str, None] = 'face6b836ff4'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "503e1f202762"
+down_revision: str | None = "face6b836ff4"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     bind = op.get_bind()
     insp = sa.inspect(bind)
     dialect_name = bind.dialect.name
-    is_sqlite = (dialect_name == "sqlite")
+    is_sqlite = dialect_name == "sqlite"
 
     tables = insp.get_table_names()
 
@@ -32,7 +34,13 @@ def upgrade() -> None:
             sa.Column("tipo", sa.String(20), nullable=False),
             sa.Column("descricao", sa.String(200), nullable=False),
             sa.Column("valor", sa.Numeric(12, 2), nullable=False),
-            sa.Column("category_id", sa.Integer(), sa.ForeignKey("categories.id"), nullable=False, index=True),
+            sa.Column(
+                "category_id",
+                sa.Integer(),
+                sa.ForeignKey("categories.id"),
+                nullable=False,
+                index=True,
+            ),
             sa.Column("author", sa.String(40), nullable=True),
             sa.Column("dia_do_mes", sa.Integer(), nullable=False),
             sa.Column("inicio", sa.Date(), nullable=False),
@@ -48,33 +56,63 @@ def upgrade() -> None:
     if is_sqlite:
         with op.batch_alter_table("transactions") as batch_op:
             if "recurrence_id" not in tx_cols:
-                batch_op.add_column(sa.Column("recurrence_id", sa.Integer(), sa.ForeignKey("recurrences.id"), nullable=True))
+                batch_op.add_column(
+                    sa.Column(
+                        "recurrence_id",
+                        sa.Integer(),
+                        sa.ForeignKey("recurrences.id"),
+                        nullable=True,
+                    )
+                )
             if "competencia" not in tx_cols:
                 batch_op.add_column(sa.Column("competencia", sa.Date(), nullable=True))
             if "editado_manual" not in tx_cols:
-                batch_op.add_column(sa.Column("editado_manual", sa.Boolean(), nullable=False, server_default=sa.false()))
+                batch_op.add_column(
+                    sa.Column(
+                        "editado_manual", sa.Boolean(), nullable=False, server_default=sa.false()
+                    )
+                )
             if "ix_transactions_recurrence_id" not in tx_indexes:
                 batch_op.create_index("ix_transactions_recurrence_id", ["recurrence_id"])
             if "uq_transactions_recurrence_competencia" not in tx_indexes:
-                batch_op.create_index("uq_transactions_recurrence_competencia", ["recurrence_id", "competencia"], unique=True)
+                batch_op.create_index(
+                    "uq_transactions_recurrence_competencia",
+                    ["recurrence_id", "competencia"],
+                    unique=True,
+                )
     else:
         if "recurrence_id" not in tx_cols:
-            op.add_column("transactions", sa.Column("recurrence_id", sa.Integer(), sa.ForeignKey("recurrences.id"), nullable=True))
+            op.add_column(
+                "transactions",
+                sa.Column(
+                    "recurrence_id", sa.Integer(), sa.ForeignKey("recurrences.id"), nullable=True
+                ),
+            )
         if "competencia" not in tx_cols:
             op.add_column("transactions", sa.Column("competencia", sa.Date(), nullable=True))
         if "editado_manual" not in tx_cols:
-            op.add_column("transactions", sa.Column("editado_manual", sa.Boolean(), nullable=False, server_default=sa.false()))
+            op.add_column(
+                "transactions",
+                sa.Column(
+                    "editado_manual", sa.Boolean(), nullable=False, server_default=sa.false()
+                ),
+            )
         if "ix_transactions_recurrence_id" not in tx_indexes:
             op.create_index("ix_transactions_recurrence_id", "transactions", ["recurrence_id"])
         if "uq_transactions_recurrence_competencia" not in tx_indexes:
-            op.create_index("uq_transactions_recurrence_competencia", "transactions", ["recurrence_id", "competencia"], unique=True)
+            op.create_index(
+                "uq_transactions_recurrence_competencia",
+                "transactions",
+                ["recurrence_id", "competencia"],
+                unique=True,
+            )
 
 
 def downgrade() -> None:
     bind = op.get_bind()
     insp = sa.inspect(bind)
     dialect_name = bind.dialect.name
-    is_sqlite = (dialect_name == "sqlite")
+    is_sqlite = dialect_name == "sqlite"
 
     tx_indexes = [ix["name"] for ix in insp.get_indexes("transactions")]
     tx_cols = [c["name"] for c in insp.get_columns("transactions")]

@@ -10,19 +10,19 @@ Implementa autenticação robusta para uso pessoal de dois usuários:
 - Dependências FastAPI para proteção de rotas HTML e API JSON.
 """
 
-import os
 import hmac
-import time
 import logging
+import os
+import time
 from collections import defaultdict
-from typing import Optional
 
-from fastapi import Request, HTTPException, status, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 logger = logging.getLogger("atlas.auth")
+
 
 # ------------------------------------------------------------------------------
 # 1. CARREGAMENTO E VALIDAÇÃO DE VARIÁVEIS DE AMBIENTE (FALHA FECHADA)
@@ -38,6 +38,7 @@ def get_security_config():
         ttl = 12
     dev_insecure = os.getenv("DEV_INSECURE_COOKIES", "0") in ("1", "true", "True")
     return app_pwd, sess_sec, adm_tok, ttl, dev_insecure
+
 
 def validate_security_configuration():
     """
@@ -62,14 +63,17 @@ def validate_security_configuration():
             f"Configuração de segurança incompleta (FALHA FECHADA): defina as variáveis obrigatórias: {', '.join(missing)}"
         )
 
+
 # Executa validação de inicialização imediata
 validate_security_configuration()
 
 COOKIE_NAME = "atlas_session"
 
+
 def get_serializer() -> URLSafeTimedSerializer:
     _, sess_sec, _, _, _ = get_security_config()
     return URLSafeTimedSerializer(sess_sec, salt="atlas-financas-session-v1")
+
 
 # ------------------------------------------------------------------------------
 # 2. RATE LIMITER DE LOGIN EM MEMÓRIA
@@ -86,12 +90,14 @@ login_attempts: dict[str, list[float]] = defaultdict(list)
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_WINDOW_SECONDS = 60
 
+
 def get_client_ip(request: Request) -> str:
     """Extrai o IP do cliente respeitando cabeçalhos de proxy do Render."""
     forwarded_for = request.headers.get("x-forwarded-for")
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
     return request.client.host if request.client else "127.0.0.1"
+
 
 def check_login_rate_limit(client_ip: str):
     now = time.time()
@@ -101,11 +107,13 @@ def check_login_rate_limit(client_ip: str):
     if len(login_attempts[client_ip]) >= LOGIN_MAX_ATTEMPTS:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Muitas tentativas de login. Aguarde um minuto antes de tentar novamente."
+            detail="Muitas tentativas de login. Aguarde um minuto antes de tentar novamente.",
         )
+
 
 def record_login_attempt(client_ip: str):
     login_attempts[client_ip].append(time.time())
+
 
 # ------------------------------------------------------------------------------
 # 3. GERAÇÃO E VALIDAÇÃO DE SESSÃO
@@ -114,7 +122,8 @@ def create_session_token(user_identifier: str = "authenticated_user") -> str:
     s = get_serializer()
     return s.dumps({"user": user_identifier, "t": time.time()})
 
-def verify_session_token(token: str) -> Optional[dict]:
+
+def verify_session_token(token: str) -> dict | None:
     s = get_serializer()
     _, _, _, ttl_hours, _ = get_security_config()
     max_age_seconds = ttl_hours * 3600
@@ -124,11 +133,13 @@ def verify_session_token(token: str) -> Optional[dict]:
     except (BadSignature, SignatureExpired, Exception):
         return None
 
-def get_current_session(request: Request) -> Optional[dict]:
+
+def get_current_session(request: Request) -> dict | None:
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         return None
     return verify_session_token(token)
+
 
 # ------------------------------------------------------------------------------
 # 4. VALIDAÇÃO DE CSRF BASEADA NO HEADER ORIGIN
@@ -146,12 +157,17 @@ def verify_csrf_origin(request: Request):
             expected_origin_forwarded = f"{proto}://{host}"
             expected_origin_direct = f"{request.url.scheme}://{host}"
             origin_clean = origin.rstrip("/")
-            if origin_clean != expected_origin_forwarded.rstrip("/") and origin_clean != expected_origin_direct.rstrip("/"):
-                logger.warning(f"CSRF bloqueado: Origin={origin} esperado={expected_origin_forwarded}")
+            if origin_clean != expected_origin_forwarded.rstrip(
+                "/"
+            ) and origin_clean != expected_origin_direct.rstrip("/"):
+                logger.warning(
+                    f"CSRF bloqueado: Origin={origin} esperado={expected_origin_forwarded}"
+                )
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Acesso rejeitado por verificação de segurança de origem (CSRF)."
+                    detail="Acesso rejeitado por verificação de segurança de origem (CSRF).",
                 )
+
 
 # ------------------------------------------------------------------------------
 # 5. DEPENDÊNCIAS DE AUTENTICAÇÃO FASTAPI
@@ -165,9 +181,10 @@ def require_auth_api(request: Request, _csrf: None = Depends(verify_csrf_origin)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Autenticação necessária. Sessão inexistente ou expirada."
+            detail="Autenticação necessária. Sessão inexistente ou expirada.",
         )
     return session
+
 
 def require_auth_page(request: Request):
     """
@@ -175,6 +192,7 @@ def require_auth_page(request: Request):
     Se não autenticado, retorna None indicando necessidade de redirecionamento.
     """
     return get_current_session(request)
+
 
 def require_admin_token(request: Request):
     """
@@ -186,9 +204,10 @@ def require_admin_token(request: Request):
     if not token or not adm_tok or not hmac.compare_digest(token, adm_tok):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token administrativo inválido ou ausente."
+            detail="Token administrativo inválido ou ausente.",
         )
     return True
+
 
 # ------------------------------------------------------------------------------
 # 6. PÁGINA DE LOGIN HTML SELF-CONTAINED (DARK GLASS THEME)
@@ -437,11 +456,13 @@ LOGIN_HTML_PAGE = """<!DOCTYPE html>
 </html>
 """
 
+
 # ------------------------------------------------------------------------------
 # 7. ROTAS DE AUTENTICAÇÃO (LOGIN / LOGOUT)
 # ------------------------------------------------------------------------------
 class LoginRequest(BaseModel):
     password: str
+
 
 async def login_page(request: Request):
     """Exibe formulário de login ou redireciona se já autenticado."""
@@ -450,7 +471,10 @@ async def login_page(request: Request):
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     return HTMLResponse(content=LOGIN_HTML_PAGE)
 
-async def login_endpoint(payload: LoginRequest, request: Request, _csrf: None = Depends(verify_csrf_origin)):
+
+async def login_endpoint(
+    payload: LoginRequest, request: Request, _csrf: None = Depends(verify_csrf_origin)
+):
     """Valida a senha, aplica rate limit por IP e emite cookie assinado."""
     client_ip = get_client_ip(request)
     check_login_rate_limit(client_ip)
@@ -464,13 +488,14 @@ async def login_endpoint(payload: LoginRequest, request: Request, _csrf: None = 
     if not is_valid:
         record_login_attempt(client_ip)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Senha de acesso incorreta."
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Senha de acesso incorreta."
         )
 
     # Cria sessão válida
     token = create_session_token()
-    response = JSONResponse(content={"status": "authenticated", "message": "Login realizado com sucesso"})
+    response = JSONResponse(
+        content={"status": "authenticated", "message": "Login realizado com sucesso"}
+    )
 
     # Cookie assinado com flags de segurança estritas
     # Secure só pode ser falso se DEV_INSECURE_COOKIES for explicitamente ligado
@@ -483,17 +508,15 @@ async def login_endpoint(payload: LoginRequest, request: Request, _csrf: None = 
         httponly=True,
         secure=use_secure,
         samesite="strict",
-        path="/"
+        path="/",
     )
     return response
 
+
 async def logout_endpoint(_csrf: None = Depends(verify_csrf_origin)):
     """Invalida a sessão removendo o cookie."""
-    response = JSONResponse(content={"status": "logged_out", "message": "Sessão encerrada com sucesso"})
-    response.delete_cookie(
-        key=COOKIE_NAME,
-        httponly=True,
-        samesite="strict",
-        path="/"
+    response = JSONResponse(
+        content={"status": "logged_out", "message": "Sessão encerrada com sucesso"}
     )
+    response.delete_cookie(key=COOKIE_NAME, httponly=True, samesite="strict", path="/")
     return response

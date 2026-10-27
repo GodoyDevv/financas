@@ -1,8 +1,9 @@
+import json
 import os
 from decimal import Decimal
-import json
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 # Configurações de ambiente de teste antes de importar backend.main
 os.environ["APP_PASSWORD"] = "StrongMasterPassword123!"
@@ -17,13 +18,13 @@ os.environ["WEBHOOK_SECRET_HEADER"] = "X-Webhook-Secret"
 os.environ["WEBHOOK_ALLOW_PATH_TOKEN"] = "1"
 
 from fastapi.testclient import TestClient
+
 from backend.main import app
 from backend.nlp import (
-    interpretar_mensagem,
-    chamar_gemini_estruturado,
     ResultadoParse,
+    chamar_gemini_estruturado,
+    interpretar_mensagem,
 )
-from backend.parser import parse_text_message
 from backend.webhook import PROCESSED_MESSAGE_IDS
 
 
@@ -41,7 +42,7 @@ def test_resultado_parse_schema_validation():
         valor=150.5,
         categoria="Alimentação",
         descricao="Mercado semanal",
-        parcelas=60  # deve ser clampado para 48
+        parcelas=60,  # deve ser clampado para 48
     )
     assert res.valor == Decimal("150.50")
     assert res.parcelas == 48
@@ -51,7 +52,7 @@ def test_resultado_parse_schema_validation():
         valor="1200",
         categoria="Salário/Renda",
         descricao="Salário adiantamento",
-        parcelas=0  # deve ser clampado para 1
+        parcelas=0,  # deve ser clampado para 1
     )
     assert res2.valor == Decimal("1200.00")
     assert res2.parcelas == 1
@@ -65,7 +66,7 @@ def test_message_without_numbers_never_calls_gemini():
         "você viu onde deixei a chave?",
         "ok, combinado",
         "Atlas, me ajuda aí",
-        ""
+        "",
     ]
     with patch("backend.nlp.chamar_gemini_estruturado") as mock_gemini:
         for msg in mensagens_sem_numero:
@@ -81,7 +82,7 @@ def test_high_confidence_message_bypasses_gemini():
         "Gasolina 100",
         "Farmácia 45,50",
         "Salário 5000",
-        "Aluguel 2500"
+        "Aluguel 2500",
     ]
     with patch("backend.nlp.chamar_gemini_estruturado") as mock_gemini:
         for msg in mensagens_alta_confianca:
@@ -101,10 +102,12 @@ def test_low_confidence_calls_gemini_and_succeeds():
         "valor": 199.90,
         "categoria": "Outros",
         "descricao": "Tênis esportivo",
-        "parcelas": 1
+        "parcelas": 1,
     }
 
-    with patch("backend.nlp.chamar_gemini_estruturado", return_value=mock_gemini_response) as mock_gemini:
+    with patch(
+        "backend.nlp.chamar_gemini_estruturado", return_value=mock_gemini_response
+    ) as mock_gemini:
         res = interpretar_mensagem(texto)
         mock_gemini.assert_called_once()
         assert res is not None
@@ -124,7 +127,7 @@ def test_gemini_hallucinated_number_rejected():
         "valor": 400.0,
         "categoria": "Outros",
         "descricao": "Algo",
-        "parcelas": 1
+        "parcelas": 1,
     }
 
     with patch("backend.nlp.chamar_gemini_estruturado", return_value=mock_gemini_response):
@@ -143,7 +146,7 @@ def test_gemini_invalid_category_fallback_to_outros():
         "valor": 80.0,
         "categoria": "CategoriaInexistenteXPTO",
         "descricao": "Gasto estranho",
-        "parcelas": 1
+        "parcelas": 1,
     }
 
     with patch("backend.nlp.chamar_gemini_estruturado", return_value=mock_gemini_response):
@@ -188,13 +191,15 @@ def test_payload_structure_and_prompt_injection_resistance():
                 "content": {
                     "parts": [
                         {
-                            "text": json.dumps({
-                                "tipo": "despesa_variavel",
-                                "valor": 30.0,
-                                "categoria": "Transporte",
-                                "descricao": "Uber centro",
-                                "parcelas": 1
-                            })
+                            "text": json.dumps(
+                                {
+                                    "tipo": "despesa_variavel",
+                                    "valor": 30.0,
+                                    "categoria": "Transporte",
+                                    "descricao": "Uber centro",
+                                    "parcelas": 1,
+                                }
+                            )
                         }
                     ]
                 }
@@ -239,26 +244,27 @@ def test_webhook_clarification_message_when_number_present_but_invalid():
                 "remoteJid": "120363000000000000@g.us",
                 "fromMe": False,
                 "id": "MSG_HELP_TEST_001",
-                "participant": "5511999998888@s.whatsapp.net"
+                "participant": "5511999998888@s.whatsapp.net",
             },
             "message": {
                 "conversation": "Despesa 50"  # Tem número válido (50), mas o parse retorna inválido/None
-            }
-        }
+            },
+        },
     }
 
     headers = {"X-Webhook-Secret": "webhook_secret_key_with_at_least_32_characters_12345"}
 
     # Mockamos interpretar_mensagem para simular falha no pipeline (ex: parse inválido)
-    with patch("backend.webhook.interpretar_mensagem", return_value=None), \
-         patch("backend.atlas.send_whatsapp_message") as mock_send_msg:
+    with (
+        patch("backend.webhook.interpretar_mensagem", return_value=None),
+        patch("backend.atlas.send_whatsapp_message") as mock_send_msg,
+    ):
         response = client.post("/webhook/whatsapp", json=payload, headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ignored"
         mock_send_msg.assert_called_once_with(
-            "120363000000000000@g.us",
-            "Não consegui entender. Exemplo: 'Mercado 150,90'"
+            "120363000000000000@g.us", "Não consegui entender. Exemplo: 'Mercado 150,90'"
         )
 
 
@@ -273,12 +279,12 @@ def test_webhook_does_not_reply_for_conversation_without_numbers():
                 "remoteJid": "120363000000000000@g.us",
                 "fromMe": False,
                 "id": "MSG_CONV_TEST_002",
-                "participant": "5511999998888@s.whatsapp.net"
+                "participant": "5511999998888@s.whatsapp.net",
             },
             "message": {
                 "conversation": "bom dia pessoal, tudo certo?"  # SEM número
-            }
-        }
+            },
+        },
     }
 
     headers = {"X-Webhook-Secret": "webhook_secret_key_with_at_least_32_characters_12345"}

@@ -1,18 +1,18 @@
-import os
 import hmac
 import logging
-from typing import Optional, Tuple
-from fastapi import APIRouter, HTTPException, Depends, Request, Header
-from sqlalchemy.orm import Session
-from .database import get_db
-from .models import Transaction
+import os
 from datetime import date
-from .parser import parse_financial_payload, parse_text_message, extract_money_values
-from .nlp import interpretar_mensagem
-from .dates_and_money import to_decimal, today_br
-from .models import Transaction, Category, Recurrence
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+
 from .categories import normalize_category_name, resolve_canonical_name
-from .services import criar_parcelamento, calcular_valores_parcelamento, clamp_day_in_month
+from .database import get_db
+from .dates_and_money import to_decimal
+from .models import Category, Recurrence, Transaction
+from .nlp import interpretar_mensagem
+from .parser import extract_money_values, parse_financial_payload, parse_text_message
+from .services import calcular_valores_parcelamento, criar_parcelamento
 
 logger = logging.getLogger("fintrack.webhook")
 
@@ -20,13 +20,14 @@ webhook_router = APIRouter(prefix="/webhook", tags=["Webhook"])
 
 # Limites de segurança rigorosos
 MAX_BODY_BYTES = 1024 * 1024  # 1 MB
-MAX_RAW_TEXT_LEN = 500         # 500 caracteres
+MAX_RAW_TEXT_LEN = 500  # 500 caracteres
 MAX_AUDIO_BYTES = 2 * 1024 * 1024  # 2 MB
 
 # Deduplicação em memória pós-autorização (máximo 1000 registros para rotação de memória)
 PROCESSED_MESSAGE_IDS = set()
 
-def mask_phone(phone: Optional[str]) -> str:
+
+def mask_phone(phone: str | None) -> str:
     """Mascara telefone para logs (ex: 5511****9999). Nunca loga telefone em texto claro."""
     if not phone:
         return "[vazio]"
@@ -36,6 +37,7 @@ def mask_phone(phone: Optional[str]) -> str:
     if len(clean) <= 8:
         return f"{clean[:2]}****{clean[-2:]}"
     return f"{clean[:4]}****{clean[-4:]}"
+
 
 def get_allowed_phone_mapping():
     """
@@ -58,10 +60,8 @@ def get_allowed_phone_mapping():
                 mapping["55" + clean] = name
     return mapping
 
-def verify_webhook_secret(
-    request: Request,
-    token_in_path: Optional[str] = None
-):
+
+def verify_webhook_secret(request: Request, token_in_path: str | None = None):
     """
     Valida a autenticidade de quem chama o webhook via hmac.compare_digest.
     Falha fechada com 401 genérico sem detalhes.
@@ -86,15 +86,16 @@ def verify_webhook_secret(
     if not provided_secret and allow_path and token_in_path:
         provided_secret = token_in_path
 
-    if not provided_secret or not hmac.compare_digest(provided_secret.strip(), expected_secret.strip()):
+    if not provided_secret or not hmac.compare_digest(
+        provided_secret.strip(), expected_secret.strip()
+    ):
         logger.warning("Falha de autenticação no webhook: segredo ausente ou inválido.")
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 async def extract_and_authorize_evolution_message(
-    payload: dict,
-    request: Request
-) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+    payload: dict, request: Request
+) -> tuple[str | None, str | None, str | None, str | None, str | None]:
     """
     Extrai, valida e autoriza a mensagem do webhook com:
     - Limite de corpo HTTP <= 1MB
@@ -112,7 +113,9 @@ async def extract_and_authorize_evolution_message(
     if content_length:
         try:
             if int(content_length) > MAX_BODY_BYTES:
-                logger.warning(f"Webhook rejeitado: tamanho do corpo excede o limite de 1MB ({content_length} bytes).")
+                logger.warning(
+                    f"Webhook rejeitado: tamanho do corpo excede o limite de 1MB ({content_length} bytes)."
+                )
                 raise HTTPException(status_code=413, detail="Payload Too Large")
         except ValueError:
             pass
@@ -126,7 +129,9 @@ async def extract_and_authorize_evolution_message(
     # Sem GROUP_JID configurado, a rota responde 503 Service Unavailable
     expected_group_jid = os.getenv("WHATSAPP_GROUP_JID", "").strip()
     if not expected_group_jid:
-        logger.error("Configuração crítica ausente: WHATSAPP_GROUP_JID não foi definido no ambiente. Respondendo 503.")
+        logger.error(
+            "Configuração crítica ausente: WHATSAPP_GROUP_JID não foi definido no ambiente. Respondendo 503."
+        )
         raise HTTPException(status_code=503, detail="Service Unavailable: Group JID not configured")
 
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
@@ -159,7 +164,13 @@ async def extract_and_authorize_evolution_message(
     if isinstance(key, dict):
         sender_raw = key.get("participantAlt") or key.get("participant") or key.get("remoteJid")
     if not sender_raw:
-        sender_raw = data.get("participantAlt") or data.get("participant") or data.get("sender") or data.get("remoteJid") or payload.get("sender")
+        sender_raw = (
+            data.get("participantAlt")
+            or data.get("participant")
+            or data.get("sender")
+            or data.get("remoteJid")
+            or payload.get("sender")
+        )
 
     # Tratamento caso fromMe seja True
     if is_from_me:
@@ -178,14 +189,18 @@ async def extract_and_authorize_evolution_message(
     user_name = allowed_mapping.get(clean_sender)
 
     if not user_name:
-        logger.warning(f"Mensagem rejeitada de remetente não autorizado: {mask_phone(clean_sender)}")
+        logger.warning(
+            f"Mensagem rejeitada de remetente não autorizado: {mask_phone(clean_sender)}"
+        )
         return None, None, None, None, None, False
 
     # Mover registro de deduplicação para DEPOIS de autenticado e autorizado
     msg_id_to_record = msg_id
 
     instance_name = payload.get("instance") or data.get("instance")
-    logger.info(f"Webhook autorizado | Instância: {instance_name} | Remetente: {user_name} ({mask_phone(clean_sender)})")
+    logger.info(
+        f"Webhook autorizado | Instância: {instance_name} | Remetente: {user_name} ({mask_phone(clean_sender)})"
+    )
 
     # Extração de texto e mídia
     raw_text = None
@@ -202,6 +217,7 @@ async def extract_and_authorize_evolution_message(
 
             if b64_data and isinstance(b64_data, str):
                 import base64
+
                 try:
                     if "," in b64_data:
                         b64_data = b64_data.split(",", 1)[1]
@@ -211,23 +227,46 @@ async def extract_and_authorize_evolution_message(
 
             if not audio_bytes and msg_id:
                 from .atlas import fetch_decrypted_audio_from_evolution
-                decrypted = fetch_decrypted_audio_from_evolution(msg_id, instance_override=instance_name)
+
+                decrypted = fetch_decrypted_audio_from_evolution(
+                    msg_id, instance_override=instance_name
+                )
                 if decrypted:
                     audio_bytes, audio_mime = decrypted
 
-            if not audio_bytes and media_url and isinstance(media_url, str) and ".enc" not in media_url:
+            if (
+                not audio_bytes
+                and media_url
+                and isinstance(media_url, str)
+                and ".enc" not in media_url
+            ):
                 from .atlas import download_media_from_url
+
                 audio_bytes = download_media_from_url(media_url)
 
         raw_text = (
             msg_obj.get("conversation")
-            or (msg_obj.get("extendedTextMessage", {}).get("text") if isinstance(msg_obj.get("extendedTextMessage"), dict) else None)
-            or (msg_obj.get("imageMessage", {}).get("caption") if isinstance(msg_obj.get("imageMessage"), dict) else None)
-            or (msg_obj.get("videoMessage", {}).get("caption") if isinstance(msg_obj.get("videoMessage"), dict) else None)
+            or (
+                msg_obj.get("extendedTextMessage", {}).get("text")
+                if isinstance(msg_obj.get("extendedTextMessage"), dict)
+                else None
+            )
+            or (
+                msg_obj.get("imageMessage", {}).get("caption")
+                if isinstance(msg_obj.get("imageMessage"), dict)
+                else None
+            )
+            or (
+                msg_obj.get("videoMessage", {}).get("caption")
+                if isinstance(msg_obj.get("videoMessage"), dict)
+                else None
+            )
         )
 
     # Ignora mensagens automáticas do próprio Atlas
-    if raw_text and ("*Atlas:*" in raw_text or "🎙️" in raw_text or "Teste de conexão Atlas" in raw_text):
+    if raw_text and (
+        "*Atlas:*" in raw_text or "🎙️" in raw_text or "Teste de conexão Atlas" in raw_text
+    ):
         logger.info("Ignorando mensagem automática gerada pelo próprio Atlas.")
         return None, None, None, None, msg_id_to_record, False
 
@@ -235,17 +274,24 @@ async def extract_and_authorize_evolution_message(
     # Validação e limitação de tamanho do áudio (máximo 2 MB) ANTES de invocar transcrição/Gemini
     if audio_bytes and not raw_text:
         if len(audio_bytes) > MAX_AUDIO_BYTES:
-            logger.warning(f"Áudio de {user_name} rejeitado: {len(audio_bytes)} bytes excede o limite de {MAX_AUDIO_BYTES} bytes (2MB).")
+            logger.warning(
+                f"Áudio de {user_name} rejeitado: {len(audio_bytes)} bytes excede o limite de {MAX_AUDIO_BYTES} bytes (2MB)."
+            )
             return clean_sender, user_name, None, remote_jid, msg_id_to_record, False
 
         from .atlas import transcribe_audio_bytes
-        logger.info(f"Áudio descriptografado de {user_name} ({len(audio_bytes)} bytes). Enviando para o Atlas transcrever...")
+
+        logger.info(
+            f"Áudio descriptografado de {user_name} ({len(audio_bytes)} bytes). Enviando para o Atlas transcrever..."
+        )
         raw_text = transcribe_audio_bytes(audio_bytes, mime_type=audio_mime)
         if raw_text:
             is_audio = True
 
     if not raw_text:
-        raw_text = data.get("text") or data.get("body") or payload.get("text") or payload.get("message")
+        raw_text = (
+            data.get("text") or data.get("body") or payload.get("text") or payload.get("message")
+        )
         if isinstance(raw_text, dict):
             raw_text = raw_text.get("conversation") or raw_text.get("text")
 
@@ -261,17 +307,21 @@ async def extract_and_authorize_evolution_message(
 
 
 async def handle_webhook_event(
-    payload: dict,
-    request: Request,
-    db: Session,
-    token_in_path: Optional[str] = None
+    payload: dict, request: Request, db: Session, token_in_path: str | None = None
 ):
     """Lógica central compartilhada de ingestão do webhook."""
     # 1. Autenticação estrita fail-closed
     verify_webhook_secret(request, token_in_path)
 
     # 2. Extração, autorização e validação de limites
-    sender, user_name, raw_text, remote_jid, msg_id, is_audio = await extract_and_authorize_evolution_message(payload, request)
+    (
+        sender,
+        user_name,
+        raw_text,
+        remote_jid,
+        msg_id,
+        is_audio,
+    ) = await extract_and_authorize_evolution_message(payload, request)
 
     # 3. Registra dedupe pós-autenticação e autorização
     if msg_id:
@@ -280,10 +330,7 @@ async def handle_webhook_event(
             PROCESSED_MESSAGE_IDS.clear()
 
     if not user_name:
-        return {
-            "status": "ignored",
-            "detail": "Evento ignorado ou não autorizado"
-        }
+        return {"status": "ignored", "detail": "Evento ignorado ou não autorizado"}
 
     channel_type = "whatsapp_audio" if is_audio else "whatsapp_text"
 
@@ -297,6 +344,7 @@ async def handle_webhook_event(
 
         # Interpretação: respeita mock de parse_text_message em suítes de testes legados
         import unittest.mock as mock_lib
+
         if isinstance(parse_text_message, (mock_lib.Mock, mock_lib.MagicMock)):
             parsed_data = parse_text_message(raw_text)
         else:
@@ -323,7 +371,10 @@ async def handle_webhook_event(
         if has_candidate_value and remote_jid:
             try:
                 from .atlas import send_whatsapp_message
-                send_whatsapp_message(remote_jid, "Não consegui entender. Exemplo: 'Mercado 150,90'")
+
+                send_whatsapp_message(
+                    remote_jid, "Não consegui entender. Exemplo: 'Mercado 150,90'"
+                )
             except Exception as e:
                 logger.warning(f"Erro ao enviar mensagem de esclarecimento no WhatsApp: {e}")
 
@@ -331,7 +382,7 @@ async def handle_webhook_event(
             "status": "ignored",
             "detail": "Nenhuma despesa identificada na mensagem recebida ou evento irrelevante",
             "sender": mask_phone(sender),
-            "user": user_name
+            "user": user_name,
         }
 
     parcelas = max(1, int(parsed_data.get("parcelas", 1)))
@@ -348,7 +399,9 @@ async def handle_webhook_event(
         # Se por algum motivo 'Outros' ainda não estiver na tabela, busca primeiro ou cria
         cat_db = db.query(Category).filter(Category.normalized_name == "outros").first()
         if not cat_db:
-            cat_db = Category(name=canonical_nome, normalized_name=norm_cat, tipo="despesa", ativo=True)
+            cat_db = Category(
+                name=canonical_nome, normalized_name=norm_cat, tipo="despesa", ativo=True
+            )
             db.add(cat_db)
             db.commit()
             db.refresh(cat_db)
@@ -366,17 +419,16 @@ async def handle_webhook_event(
         "author": user_name,
         "channel": channel_type,
         "source": parsed_data.get("source", user_name),
-        "vencimento": parsed_data.get("vencimento")
+        "vencimento": parsed_data.get("vencimento"),
     }
 
     # Requisito 6:
     # - despesa_fixa cria uma recorrência (inicio = mês atual) mais a instância do mês
     # - receita só vira recorrente se a mensagem tiver "todo mês", "mensal" ou "fixo/fixa"
     raw_lower = (raw_text or "").lower()
-    is_despesa_fixa = (parsed_data["tipo"] == "despesa_fixa")
-    is_receita_recorrente = (
-        parsed_data["tipo"] == "receita" and 
-        any(k in raw_lower for k in ["todo mês", "todo mes", "mensal", "fixo", "fixa"])
+    is_despesa_fixa = parsed_data["tipo"] == "despesa_fixa"
+    is_receita_recorrente = parsed_data["tipo"] == "receita" and any(
+        k in raw_lower for k in ["todo mês", "todo mes", "mensal", "fixo", "fixa"]
     )
 
     is_recorrente = is_despesa_fixa or is_receita_recorrente
@@ -393,7 +445,7 @@ async def handle_webhook_event(
             dia_do_mes=base_data.day,
             inicio=primeiro_dia_mes,
             fim=None,
-            ativo=True
+            ativo=True,
         )
         db.add(rec)
         db.commit()
@@ -413,7 +465,7 @@ async def handle_webhook_event(
             vencimento=f"Dia {base_data.day}" if rec_tipo == "despesa_fixa" else None,
             recurrence_id=rec.id,
             competencia=primeiro_dia_mes,
-            editado_manual=False
+            editado_manual=False,
         )
         db.add(t_item)
         db.commit()
@@ -429,7 +481,9 @@ async def handle_webhook_event(
         created_ids = [t.id for t in created_transactions]
 
         # Calcula valores para feedback executivo no WhatsApp (mostrando valor da parcela e total)
-        valores_p, total_geral = calcular_valores_parcelamento(to_decimal(parsed_data["valor"]), parcelas)
+        valores_p, total_geral = calcular_valores_parcelamento(
+            to_decimal(parsed_data["valor"]), parcelas
+        )
         val_parcela_unit = valores_p[0]
 
     from .atlas import format_atlas_confirmation, send_whatsapp_message
@@ -446,7 +500,9 @@ async def handle_webhook_event(
     except Exception as e:
         logger.debug(f"Não foi possível calcular saldo para o Atlas: {e}")
 
-    desc_feedback = f"{parsed_data['descricao']} (recorrente)" if is_recorrente else parsed_data['descricao']
+    desc_feedback = (
+        f"{parsed_data['descricao']} (recorrente)" if is_recorrente else parsed_data["descricao"]
+    )
 
     atlas_reply = format_atlas_confirmation(
         user_name=user_name,
@@ -454,7 +510,7 @@ async def handle_webhook_event(
         valor=float(val_parcela_unit),
         parcelas=parcelas,
         saldo_livre=saldo_atualizado,
-        valor_total=float(total_geral) if parcelas > 1 else None
+        valor_total=float(total_geral) if parcelas > 1 else None,
     )
 
     if remote_jid:
@@ -468,7 +524,7 @@ async def handle_webhook_event(
         "sender": mask_phone(sender),
         "user": user_name,
         "atlas_response": atlas_reply,
-        "transaction": parsed_data
+        "transaction": parsed_data,
     }
 
 
@@ -480,7 +536,9 @@ async def receive_webhook(request: Request, payload: dict, db: Session = Depends
 
 
 @webhook_router.post("/whatsapp/{token}")
-async def receive_webhook_path_token(token: str, request: Request, payload: dict, db: Session = Depends(get_db)):
+async def receive_webhook_path_token(
+    token: str, request: Request, payload: dict, db: Session = Depends(get_db)
+):
     """
     Receptor alternativo com token no path para gateways que não suportam headers customizados.
     Ativado apenas se WEBHOOK_ALLOW_PATH_TOKEN=1.

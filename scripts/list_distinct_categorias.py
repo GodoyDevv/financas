@@ -1,8 +1,10 @@
 """Script de leitura para inspecionar categorias distintas e contagens em transactions."""
+
 import os
 import sys
-from collections import Counter
-from sqlalchemy import create_engine, select, text
+
+from sqlalchemy import create_engine, text
+
 
 def main():
     database_url = os.environ.get("DATABASE_URL")
@@ -19,14 +21,16 @@ def main():
     with engine.connect() as conn:
         print("\n--- DISTRIBUIÇÃO ATUAL DE Transaction.categoria ---")
         result = conn.execute(
-            text("SELECT categoria, COUNT(*) as qtd FROM transactions GROUP BY categoria ORDER BY qtd DESC")
+            text(
+                "SELECT categoria, COUNT(*) as qtd FROM transactions GROUP BY categoria ORDER BY qtd DESC"
+            )
         )
         rows = result.fetchall()
         if not rows:
             print("Nenhuma transação encontrada no banco.")
         else:
             for row in rows:
-                print(f"  {repr(row[0])}: {row[1]} transações")
+                print(f"  {row[0]!r}: {row[1]} transações")
 
         print("\n--- CATEGORIAS CADASTRADAS NA TABELA categories ---")
         try:
@@ -36,9 +40,10 @@ def main():
                 print("  Nenhuma categoria existente na tabela 'categories'.")
             else:
                 for crow in cat_rows:
-                    print(f"  ID {crow[0]}: {repr(crow[1])} (budget: {crow[2]})")
+                    print(f"  ID {crow[0]}: {crow[1]!r} (budget: {crow[2]})")
         except Exception as e:
             print(f"  Erro ao consultar categories: {e}")
+
 
 if __name__ == "__main__":
     main()

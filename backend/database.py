@@ -1,5 +1,6 @@
 import os
-from sqlalchemy import create_engine, MetaData
+
+from sqlalchemy import MetaData, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -10,11 +11,12 @@ convention = {
     "uq": "uq_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s"
+    "pk": "pk_%(table_name)s",
 }
 
 metadata = MetaData(naming_convention=convention)
 Base = declarative_base(metadata=metadata)
+
 
 def get_database_url() -> str:
     """Retorna e normaliza a DATABASE_URL para conexão com psycopg2 ou fallback SQLite."""
@@ -27,14 +29,17 @@ def get_database_url() -> str:
         return url
     return "sqlite:///./fintrack.db"
 
+
 def create_db_engine():
     url = get_database_url()
     if url.startswith("sqlite"):
         return create_engine(url, connect_args={"check_same_thread": False})
     return create_engine(url, pool_pre_ping=True)
 
+
 engine = create_db_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_db():
     db = SessionLocal()

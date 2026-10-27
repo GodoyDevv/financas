@@ -3,10 +3,11 @@ Teste unitário de segurança frontend e validação de escapeHtml contra XSS.
 Executa os casos de teste do escapeHtml e do backend schemas.
 """
 
-import re
 import pytest
 from pydantic import ValidationError
+
 from backend.schemas import TransactionCreate, sanitize_text
+
 
 def js_escape_html(value):
     """Implementação idêntica à função escapeHtml presente em index.html."""
@@ -21,6 +22,7 @@ def js_escape_html(value):
         .replace("'", "&#39;")
         .replace("`", "&#96;")
     )
+
 
 class TestEscapeHtml:
     def test_null_and_undefined_and_numbers(self):
@@ -73,7 +75,7 @@ class TestBackendSchemasValidation:
             categoria="Alimentação",
             data="2026-10-23",
             descricao="Lanche",
-            source="Bruno"
+            source="Bruno",
         )
         assert tx.tipo == "despesa_variavel"
         assert tx.valor == 50.0
@@ -81,37 +83,23 @@ class TestBackendSchemasValidation:
     def test_invalid_tipo_rejected(self):
         with pytest.raises(ValidationError):
             TransactionCreate(
-                tipo="tipo_invalido",
-                valor=50.0,
-                categoria="Teste",
-                data="2026-10-23"
+                tipo="tipo_invalido", valor=50.0, categoria="Teste", data="2026-10-23"
             )
 
     def test_invalid_valor_zero_or_negative(self):
         with pytest.raises(ValidationError):
-            TransactionCreate(
-                tipo="receita",
-                valor=0.0,
-                categoria="Salário",
-                data="2026-10-23"
-            )
+            TransactionCreate(tipo="receita", valor=0.0, categoria="Salário", data="2026-10-23")
 
     def test_invalid_valor_exceeds_million(self):
         with pytest.raises(ValidationError):
             TransactionCreate(
-                tipo="receita",
-                valor=1_000_000.01,
-                categoria="Salário",
-                data="2026-10-23"
+                tipo="receita", valor=1_000_000.01, categoria="Salário", data="2026-10-23"
             )
 
     def test_lengths_exceeded(self):
         with pytest.raises(ValidationError):
             TransactionCreate(
-                tipo="despesa_variavel",
-                valor=10.0,
-                categoria="C" * 61,
-                data="2026-10-23"
+                tipo="despesa_variavel", valor=10.0, categoria="C" * 61, data="2026-10-23"
             )
 
         with pytest.raises(ValidationError):
@@ -120,9 +108,9 @@ class TestBackendSchemasValidation:
                 valor=10.0,
                 categoria="Alimentação",
                 descricao="D" * 201,
-                data="2026-10-23"
+                data="2026-10-23",
             )
 
     def test_sanitize_control_chars(self):
-        cleaned = sanitize_text("Descricao\x00com\x1Fcontrole")
+        cleaned = sanitize_text("Descricao\x00com\x1fcontrole")
         assert cleaned == "Descricaocomcontrole"

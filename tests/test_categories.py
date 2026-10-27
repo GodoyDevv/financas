@@ -1,10 +1,9 @@
 import os
-import pytest
-from datetime import date
-from decimal import Decimal
-from unittest import mock
-import tempfile
 import sqlite3
+import tempfile
+from unittest import mock
+
+import pytest
 
 os.environ["APP_PASSWORD"] = "StrongMasterPassword123!"
 os.environ["SESSION_SECRET"] = "super_secret_session_key_with_at_least_32_chars_12345"
@@ -15,19 +14,18 @@ os.environ["WEBHOOK_SECRET"] = "webhook_secret_key_with_at_least_32_characters_1
 os.environ["WHATSAPP_USER_BRUNO"] = "5511999998888"
 os.environ["WHATSAPP_USER_LETICIA"] = "5511977776666"
 
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
-from backend.main import app
+
 from backend.auth import COOKIE_NAME, create_session_token
-from backend.database import SessionLocal
-from backend.models import Category, Transaction
 from backend.categories import (
     normalize_category_name,
     resolve_canonical_name,
-    get_valid_category_names,
-    CANONICAL_CATEGORIES
 )
-from alembic.config import Config
-from alembic import command
+from backend.database import SessionLocal
+from backend.main import app
+from backend.models import Category, Transaction
 
 
 @pytest.fixture
@@ -79,7 +77,7 @@ def test_dashboard_rejects_unknown_category_with_422(auth_client: TestClient):
         "valor": 50.00,
         "categoria": "CategoriaInvalidaXYZ",
         "data": "2026-10-24",
-        "descricao": "Teste de Categoria Inválida"
+        "descricao": "Teste de Categoria Inválida",
     }
     response = auth_client.post("/api/transactions", json=payload)
     assert response.status_code == 422
@@ -90,14 +88,16 @@ def test_dashboard_rejects_unknown_category_with_422(auth_client: TestClient):
     assert "Moradia" in data["detail"]["valid_categories"]
 
 
-def test_dashboard_creates_transaction_with_canonical_category_and_id(auth_client: TestClient, db_session):
+def test_dashboard_creates_transaction_with_canonical_category_and_id(
+    auth_client: TestClient, db_session
+):
     """Garante que o dashboard grava category_id e mantém categoria em dual-write."""
     payload = {
         "tipo": "despesa_variavel",
         "valor": 120.50,
         "categoria": "Alimentação",
         "data": "2026-10-24",
-        "descricao": "Almoço de Domingo"
+        "descricao": "Almoço de Domingo",
     }
     response = auth_client.post("/api/transactions", json=payload)
     assert response.status_code == 200
@@ -119,7 +119,7 @@ def test_dashboard_accepts_alias_and_maps_to_canonical(auth_client: TestClient, 
         "valor": 80.00,
         "categoria": "Mercado",  # alias para Alimentação
         "data": "2026-10-24",
-        "descricao": "Compras da semana"
+        "descricao": "Compras da semana",
     }
     response = auth_client.post("/api/transactions", json=payload)
     assert response.status_code == 200
@@ -127,23 +127,25 @@ def test_dashboard_accepts_alias_and_maps_to_canonical(auth_client: TestClient, 
     assert res_data["categoria"] == "Alimentação"
 
 
-def test_webhook_and_parser_fallback_to_outros_for_unknown_category(auth_client: TestClient, db_session):
+def test_webhook_and_parser_fallback_to_outros_for_unknown_category(
+    auth_client: TestClient, db_session
+):
     """Valida que entradas vindas de webhook/parser com categoria desconhecida caem seguramente em 'Outros'."""
     webhook_secret = "webhook_secret_key_with_at_least_32_characters_12345"
-    headers = {
-        "X-Webhook-Secret": webhook_secret,
-        "Content-Type": "application/json"
-    }
+    headers = {"X-Webhook-Secret": webhook_secret, "Content-Type": "application/json"}
 
     # Mock de mensagem com categoria desconhecida
-    with mock.patch("backend.webhook.parse_text_message", return_value={
-        "tipo": "despesa_variavel",
-        "valor": 45.0,
-        "categoria": "Categoria Desconhecida",
-        "descricao": "Compra aleatória de teste",
-        "data": "2026-10-24",
-        "parcelas": 1
-    }):
+    with mock.patch(
+        "backend.webhook.parse_text_message",
+        return_value={
+            "tipo": "despesa_variavel",
+            "valor": 45.0,
+            "categoria": "Categoria Desconhecida",
+            "descricao": "Compra aleatória de teste",
+            "data": "2026-10-24",
+            "parcelas": 1,
+        },
+    ):
         payload = {
             "event": "messages.upsert",
             "data": {
@@ -151,17 +153,21 @@ def test_webhook_and_parser_fallback_to_outros_for_unknown_category(auth_client:
                     "remoteJid": "120363000000000000@g.us",
                     "participant": "5511999998888@s.whatsapp.net",
                     "fromMe": False,
-                    "id": "msg-unknown-cat-1"
+                    "id": "msg-unknown-cat-1",
                 },
                 "pushName": "Bruno",
-                "message": {"conversation": "Comprei algo 45,00"}
-            }
+                "message": {"conversation": "Comprei algo 45,00"},
+            },
         }
         res = auth_client.post("/webhook/whatsapp", json=payload, headers=headers)
         assert res.status_code == 200
 
         # Verifica que a transação foi salva como 'Outros'
-        tx = db_session.query(Transaction).filter(Transaction.descricao == "Compra aleatória de teste").first()
+        tx = (
+            db_session.query(Transaction)
+            .filter(Transaction.descricao == "Compra aleatória de teste")
+            .first()
+        )
         assert tx is not None
         assert tx.categoria == "Outros"
         assert tx.category_rel.name == "Outros"
@@ -173,27 +179,31 @@ def test_categories_endpoint_with_budget_and_spend(auth_client: TestClient, db_s
     cat_alim = db_session.query(Category).filter(Category.name == "Alimentação").first()
     assert cat_alim is not None
 
-    put_res = auth_client.put(f"/api/categories/{cat_alim.id}", json={
-        "budget": 1000.00
-    })
+    put_res = auth_client.put(f"/api/categories/{cat_alim.id}", json={"budget": 1000.00})
     assert put_res.status_code == 200
     assert float(put_res.json()["budget"]) == 1000.00
 
     # 2. Cria despesas no mês 2026-10
-    auth_client.post("/api/transactions", json={
-        "tipo": "despesa_variavel",
-        "valor": 350.00,
-        "categoria": "Alimentação",
-        "data": "2026-10-15",
-        "descricao": "Supermercado A"
-    })
-    auth_client.post("/api/transactions", json={
-        "tipo": "despesa_variavel",
-        "valor": 150.00,
-        "categoria": "Alimentação",
-        "data": "2026-10-20",
-        "descricao": "Supermercado B"
-    })
+    auth_client.post(
+        "/api/transactions",
+        json={
+            "tipo": "despesa_variavel",
+            "valor": 350.00,
+            "categoria": "Alimentação",
+            "data": "2026-10-15",
+            "descricao": "Supermercado A",
+        },
+    )
+    auth_client.post(
+        "/api/transactions",
+        json={
+            "tipo": "despesa_variavel",
+            "valor": 150.00,
+            "categoria": "Alimentação",
+            "data": "2026-10-20",
+            "descricao": "Supermercado B",
+        },
+    )
 
     # 3. Consulta GET /api/categories?mes=2026-10
     get_res = auth_client.get("/api/categories?mes=2026-10")
@@ -250,7 +260,9 @@ def test_migration_reversibility_and_unknown_category_creation():
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
         # Verifica que a categoria inédita foi criada na tabela categories
-        cur.execute("SELECT id, name, normalized_name FROM categories WHERE normalized_name = 'categoria exotica inedita'")
+        cur.execute(
+            "SELECT id, name, normalized_name FROM categories WHERE normalized_name = 'categoria exotica inedita'"
+        )
         cat_row = cur.fetchone()
         assert cat_row is not None
         assert cat_row[1] == "Categoria Exotica Inedita"
