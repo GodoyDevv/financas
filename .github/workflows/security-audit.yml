@@ -1,0 +1,39 @@
+name: Security Audit
+
+on:
+  schedule:
+    # Executa toda segunda-feira às 06:00 UTC (03:00 BRT)
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Dependency Vulnerability Audit (pip-audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@a7e15805d229f8677c5ddf08590a8cb972658599 # v3.2.1
+        with:
+          version: "0.13.6"
+          enable-cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install pip-audit
+        run: uv pip install --system pip-audit
+
+      - name: Export production requirements
+        run: uv export --no-dev --no-hashes --output-file /tmp/prod-requirements.txt
+
+      - name: Run pip-audit on production dependencies
+        run: pip-audit -r /tmp/prod-requirements.txt

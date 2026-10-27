@@ -1,0 +1,201 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Credenciais FALSAS e explícitas para ambiente hermético de teste (NUNCA segredos reais)
+  APP_PASSWORD: "ci_fake_password_only_for_testing_purposes_12345"
+  SESSION_SECRET: "ci_fake_session_secret_with_more_than_32_characters_123456789"
+  ADMIN_TOKEN: "ci_fake_admin_token_for_tests_123456789"
+  WEBHOOK_SECRET: "ci_fake_webhook_secret_key_with_at_least_32_chars_12345"
+  WHATSAPP_GROUP_JID: "120363000000000000@g.us"
+  WHATSAPP_USER_BRUNO: "5511999998888"
+  WHATSAPP_USER_LETICIA: "5511977776666"
+  WEBHOOK_SECRET_HEADER: "X-Webhook-Secret"
+  WEBHOOK_ALLOW_PATH_TOKEN: "1"
+  DEV_INSECURE_COOKIES: "1"
+  ENV: "development"
+  UV_VERSION: "0.13.6"
+
+jobs:
+  deps-sync:
+    name: Dependencies Lock Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@a7e15805d229f8677c5ddf08590a8cb972658599 # v3.2.1
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version-file: ".python-version"
+
+      - name: Verify requirements.txt is in sync with uv.lock
+        run: |
+          uv export --no-dev --no-hashes --output-file /tmp/exported_requirements.txt
+          # Compara ignorando eventuais variações de quebra de linha do Windows
+          diff -u requirements.txt /tmp/exported_requirements.txt
+
+  lint:
+    name: Lint & Format Check (Ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@a7e15805d229f8677c5ddf08590a8cb972658599 # v3.2.1
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run Ruff Check
+        run: uv run ruff check .
+
+      - name: Run Ruff Format Check
+        run: uv run ruff format --check .
+
+  typecheck:
+    name: Static Type Check (Mypy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@a7e15805d229f8677c5ddf08590a8cb972658599 # v3.2.1
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run Mypy
+        run: uv run mypy
+
+  test:
+    name: Unit & Integration Tests (SQLite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@a7e15805d229f8677c5ddf08590a8cb972658599 # v3.2.1
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run Pytest with Coverage
+        run: uv run pytest
+
+  test-postgres:
+    name: PostgreSQL Migration & Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U test_user -d test_db
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@a7e15805d229f8677c5ddf08590a8cb972658599 # v3.2.1
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Verify PostgreSQL Connection and Version
+        run: |
+          uv run python -c "
+          import sqlalchemy as sa
+          engine = sa.create_engine('$DATABASE_URL')
+          with engine.connect() as conn:
+              ver = conn.execute(sa.text('SELECT version();')).scalar()
+              print('Connected successfully to:', ver)
+          "
+
+      - name: Run Alembic Upgrade Head
+        run: uv run alembic upgrade head
+
+      - name: Check for Schema Drift (Alembic Check)
+        run: uv run alembic check
+
+      - name: Test Migration Round-trip (Downgrade base -> Upgrade head)
+        run: |
+          echo "Testando rollback total de migrations..."
+          uv run alembic downgrade base
+          echo "Testando reaplicação total de migrations..."
+          uv run alembic upgrade head
+          echo "Confirmando ausência de schema drift após round-trip..."
+          uv run alembic check
+
+      - name: Run Pytest against PostgreSQL
+        run: uv run pytest
