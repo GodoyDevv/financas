@@ -22,13 +22,15 @@ class Base(DeclarativeBase):
 
 
 def get_database_url() -> str:
-    """Retorna e normaliza a DATABASE_URL para conexão com psycopg2 ou fallback SQLite."""
+    """Retorna e normaliza a DATABASE_URL para conexão com psycopg 3 ou fallback SQLite."""
     url = os.getenv("DATABASE_URL")
     if url:
         if url.startswith("postgres://"):
-            return url.replace("postgres://", "postgresql+psycopg2://", 1)
+            return url.replace("postgres://", "postgresql+psycopg://", 1)
         elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
-            return url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            return url.replace("postgresql://", "postgresql+psycopg://", 1)
+        elif url.startswith("postgresql+psycopg2://"):
+            return url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
         return url
     return "sqlite:///./fintrack.db"
 
@@ -37,7 +39,12 @@ def create_db_engine():
     url = get_database_url()
     if url.startswith("sqlite"):
         return create_engine(url, connect_args={"check_same_thread": False})
-    return create_engine(url, pool_pre_ping=True)
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        connect_args={"prepare_threshold": None},
+    )
 
 
 engine = create_db_engine()

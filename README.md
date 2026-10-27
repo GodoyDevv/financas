@@ -161,13 +161,47 @@ alembic current
 
 ### 🔒 Fluxo Seguro de Deploy em Produção
 
-Antes de qualquer deploy que envolva novas migrações estruturais:
+Antes de qualquer deploy que envolva novas migrações estruturais ou alterações de driver:
 1. **Executar backup obrigatório do banco de produção** (Snapshot no Supabase ou via `python scripts/backup_db.py`).
 2. **Validar ausência de drift acidental** executando:
    ```bash
-   DATABASE_URL="postgresql+psycopg2://..." python scripts/check_schema_drift.py
+   DATABASE_URL="postgresql+psycopg://..." python scripts/check_schema_drift.py
    ```
 3. O deploy no Render executa automaticamente `alembic upgrade head` antes de subir o servidor FastAPI, garantindo que a aplicação só inicie após a migração ser concluída com sucesso.
+
+### 🐘 Driver PostgreSQL (Psycopg 3) & Compatibilidade com Supabase Transaction Pooler
+
+O projeto utiliza o driver moderno **Psycopg 3** (`psycopg[binary]>=3.1.18`) via dialeto `postgresql+psycopg://`.
+
+#### Otimização para PgBouncer / Transaction Pooler (Supabase)
+O pool de conexões do SQLAlchemy em `backend/database.py` está configurado com:
+- `pool_pre_ping=True`: Descarta conexões mortas antes de utilizá-las.
+- `pool_recycle=300`: Recicla conexões a cada 5 minutos para evitar timeouts do servidor ou firewall.
+- `connect_args={"prepare_threshold": None}`: **Desativa prepared statements no servidor**. Essa configuração é estritamente necessária ao conectar via Transaction Pooler do Supabase (porta `6543`), pois o PgBouncer em modo de transação compartilha conexões de backend entre transações diferentes, o que causaria conflitos de declarações preparadas (`prepared statement already exists` ou `prepared statement does not exist`).
+
+#### Como Testar Conexão Direta vs Pooler Antes do Deploy
+Você pode validar a conectividade nos dois modos antes de enviar para produção:
+```bash
+# Teste via Session Pooler / Conexão Direta (porta 5432):
+DATABASE_URL="postgresql+psycopg://postgres.PROJECT_REF:PASSWORD@aws-0-sa-east-1.pooler.supabase.com:5432/postgres" python scripts/check_schema_drift.py
+
+# Teste via Transaction Pooler (porta 6543):
+DATABASE_URL="postgresql+psycopg://postgres.PROJECT_REF:PASSWORD@aws-0-sa-east-1.pooler.supabase.com:6543/postgres" python scripts/check_schema_drift.py
+```
+
+#### Procedimento de Rollback para Psycopg 2 (se necessário)
+Caso seja necessário reverter para o driver legiado `psycopg2-binary`:
+1. Reverter o commit específico de migração do driver:
+   ```bash
+   git revert <hash-do-commit-psycopg3>
+   ```
+2. Ou restaurar manualmente as dependências:
+   ```bash
+   uv remove psycopg psycopg-binary
+   uv add "psycopg2-binary==2.9.9"
+   uv export --no-dev --no-hashes --output-file requirements.txt
+   ```
+3. Em `backend/database.py`, ajustar a normalização de URL para `postgresql+psycopg2://` e remover `"prepare_threshold": None` dos `connect_args`.
 
 ---
 

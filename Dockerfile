@@ -28,7 +28,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 # ==============================================================================
 FROM python:3.12.10-slim AS runtime
 
-# Instala apenas dependências dinâmicas de runtime (libpq para psycopg2 e curl para healthcheck)
+# Instala apenas dependências dinâmicas de runtime (libpq para psycopg e curl para healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
