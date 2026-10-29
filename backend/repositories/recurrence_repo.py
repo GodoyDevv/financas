@@ -26,7 +26,7 @@ class RecurrenceRepository:
         stmt = select(Recurrence)
         if apenas_ativas:
             stmt = stmt.where(Recurrence.ativo.is_(True))
-        stmt = stmt.order_by(Recurrence.dia_do_mes.asc(), Recurrence.id.asc())
+        stmt = stmt.order_by(Recurrence.id.asc())
         return self.db.execute(stmt).scalars().all()
 
     def list_active_for_month(self, target_month_start: date) -> Sequence[Recurrence]:
