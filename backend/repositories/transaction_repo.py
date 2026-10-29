@@ -79,3 +79,22 @@ class TransactionRepository:
         )
         rows = self.db.execute(stmt).all()
         return {r[0]: Decimal(str(r[1])) for r in rows}
+
+    def get_expenses_by_category_in_range(
+        self, start_date: date, end_date: date
+    ) -> dict[int, Decimal]:
+        """Agrega o total de despesas por category_id no intervalo de datas."""
+        stmt = (
+            select(
+                Transaction.category_id,
+                func.coalesce(func.sum(Transaction.valor), Decimal("0.00")),
+            )
+            .where(
+                Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"]),
+                Transaction.data >= start_date,
+                Transaction.data < end_date,
+            )
+            .group_by(Transaction.category_id)
+        )
+        rows = self.db.execute(stmt).all()
+        return {r[0]: Decimal(str(r[1])) for r in rows if r[0] is not None}

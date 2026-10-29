@@ -1,10 +1,10 @@
 from datetime import timedelta
-from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from .api.categories import router as categories_router
+from .api.summary import get_metrics
 from .api.summary import router as summary_router
 from .api.transactions import router as transactions_router
 from .categories import (
@@ -13,12 +13,10 @@ from .categories import (
     resolve_canonical_name,
 )
 from .database import get_db
-from .dates_and_money import month_range, to_decimal, today_br
+from .dates_and_money import to_decimal, today_br
 from .models import Category, Recurrence, Transaction
 from .parser import parse_text_message
 from .schemas import (
-    CategoryResponse,
-    CategoryUpdate,
     MessageParseRequest,
     MessageParseResponse,
     RecurrenceCreate,
@@ -32,123 +30,7 @@ router = APIRouter(prefix="/api", tags=["Transactions & Metrics"])
 
 router.include_router(transactions_router)
 router.include_router(summary_router)
-
-
-@router.get("/categories", response_model=list[CategoryResponse])
-def get_categories(
-    mes: str | None = Query(
-        None, description="Mês no formato YYYY-MM para calcular gasto e percentual do orçamento"
-    ),
-    ativo: bool | None = Query(None, description="Filtrar categorias ativas/inativas"),
-    db: Session = Depends(get_db),
-):
-    """
-    Retorna a lista de categorias cadastradas com informações de orçamento (budget),
-    gasto acumulado no mês (se informado) e percentual do orçamento atingido.
-    """
-    query = db.query(Category)
-    if ativo is not None:
-        query = query.filter(Category.ativo == ativo)
-    categories = query.order_by(Category.id).all()
-
-    # Se mes foi passado, calcula o gasto de cada categoria no mês
-    spend_by_cat = {}
-    if mes:
-        try:
-            inicio, fim = month_range(mes)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
-
-        # Materialização preguiçosa de recorrências ativas
-        ensure_recurrences(db, mes)
-
-        spend_rows = (
-            db.query(Transaction.category_id, func.sum(Transaction.valor).label("gasto"))
-            .filter(
-                Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"]),
-                (Transaction.data >= inicio) & (Transaction.data < fim),
-            )
-            .group_by(Transaction.category_id)
-            .all()
-        )
-
-        for r in spend_rows:
-            if r.category_id:
-                spend_by_cat[r.category_id] = to_decimal(r.gasto)
-
-    res = []
-    for cat in categories:
-        gasto = spend_by_cat.get(cat.id, Decimal("0.00"))
-        pct_budget = None
-        if cat.budget and to_decimal(cat.budget) > Decimal("0.00"):
-            pct_budget = round((float(gasto) / float(cat.budget)) * 100, 1)
-
-        res.append(
-            CategoryResponse(
-                id=cat.id,
-                name=cat.name,
-                nome=cat.name,
-                tipo=cat.tipo,
-                budget=to_decimal(cat.budget) if cat.budget is not None else None,
-                ativo=cat.ativo,
-                gasto_mes=gasto,
-                percentual_budget=pct_budget,
-            )
-        )
-    return res
-
-
-@router.put("/categories/{cat_id}", response_model=CategoryResponse)
-def update_category(cat_id: int, payload: CategoryUpdate, db: Session = Depends(get_db)):
-    """Atualiza dados da categoria: budget, ativo e/ou nome."""
-    category = db.query(Category).filter(Category.id == cat_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Categoria não encontrada")
-
-    if payload.name is not None:
-        new_name = payload.name.strip()
-        new_norm = normalize_category_name(new_name)
-        # Verifica se já existe outra categoria com esse normalized_name
-        conflict = (
-            db.query(Category)
-            .filter(Category.normalized_name == new_norm, Category.id != cat_id)
-            .first()
-        )
-        if conflict:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Já existe uma categoria cadastrada com o nome '{conflict.name}'.",
-            )
-        category.name = new_name
-        category.normalized_name = new_norm
-        # Sincroniza também as transações associadas
-        db.query(Transaction).filter(Transaction.category_id == cat_id).update(
-            {"categoria": new_name}, synchronize_session=False
-        )
-
-    if payload.budget is not None:
-        category.budget = to_decimal(payload.budget) if payload.budget is not None else None
-
-    if payload.ativo is not None:
-        category.ativo = payload.ativo
-
-    db.commit()
-    db.refresh(category)
-
-    pct_budget = None
-    if category.budget and to_decimal(category.budget) > Decimal("0.00"):
-        pct_budget = 0.0
-
-    return CategoryResponse(
-        id=category.id,
-        name=category.name,
-        nome=category.name,
-        tipo=category.tipo,
-        budget=to_decimal(category.budget) if category.budget is not None else None,
-        ativo=category.ativo,
-        gasto_mes=Decimal("0.00"),
-        percentual_budget=pct_budget,
-    )
+router.include_router(categories_router)
 
 
 @router.post("/recurrences", response_model=RecurrenceResponse)
@@ -408,3 +290,6 @@ def parse_message(payload: MessageParseRequest):
             status_code=422, detail="Nenhum valor financeiro ou transação identificada na mensagem."
         )
     return MessageParseResponse(**parsed)
+
+
+__all__ = ["get_metrics", "router"]
