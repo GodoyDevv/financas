@@ -1,19 +1,14 @@
 import hmac
 import logging
-from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from backend.config import get_settings
 
-from .categories import normalize_category_name, resolve_canonical_name
 from .database import get_db
-from .dates_and_money import to_decimal
-from .models import Category, Recurrence, Transaction
 from .nlp import interpretar_mensagem
 from .parser import extract_money_values, parse_financial_payload, parse_text_message
-from .services import calcular_valores_parcelamento, criar_parcelamento
 
 logger = logging.getLogger("fintrack.webhook")
 
@@ -388,147 +383,17 @@ async def handle_webhook_event(
             "user": user_name,
         }
 
-    parcelas = max(1, int(parsed_data.get("parcelas", 1)))
-    base_data = date.fromisoformat(str(parsed_data["data"]))
-    created_ids = []
+    from backend.services.message_processor import MessageProcessingService
 
-    # Resolução de Categoria para o Webhook: resolve para canônico ou fallback seguro em 'Outros'
-    raw_categoria = parsed_data.get("categoria", "Outros")
-    canonical_nome = resolve_canonical_name(raw_categoria) or "Outros"
-    norm_cat = normalize_category_name(canonical_nome)
-
-    cat_db = db.query(Category).filter(Category.normalized_name == norm_cat).first()
-    if not cat_db:
-        # Se por algum motivo 'Outros' ainda não estiver na tabela, busca primeiro ou cria
-        cat_db = db.query(Category).filter(Category.normalized_name == "outros").first()
-        if not cat_db:
-            cat_db = Category(
-                name=canonical_nome, normalized_name=norm_cat, tipo="despesa", ativo=True
-            )
-            db.add(cat_db)
-            db.commit()
-            db.refresh(cat_db)
-
-    cat_id = cat_db.id
-    cat_nome = cat_db.name
-
-    base_tx_dict = {
-        "tipo": parsed_data["tipo"],
-        "valor": to_decimal(parsed_data["valor"]),
-        "categoria": cat_nome,
-        "category_id": cat_id,
-        "data": base_data,
-        "descricao": parsed_data["descricao"],
-        "author": user_name,
-        "channel": channel_type,
-        "source": parsed_data.get("source", user_name),
-        "vencimento": parsed_data.get("vencimento"),
-    }
-
-    # Requisito 6:
-    # - despesa_fixa cria uma recorrência (inicio = mês atual) mais a instância do mês
-    # - receita só vira recorrente se a mensagem tiver "todo mês", "mensal" ou "fixo/fixa"
-    raw_lower = (raw_text or "").lower()
-    is_despesa_fixa = parsed_data["tipo"] == "despesa_fixa"
-    is_receita_recorrente = parsed_data["tipo"] == "receita" and any(
-        k in raw_lower for k in ["todo mês", "todo mes", "mensal", "fixo", "fixa"]
-    )
-
-    is_recorrente = is_despesa_fixa or is_receita_recorrente
-    primeiro_dia_mes = base_data.replace(day=1)
-
-    if is_recorrente:
-        rec_tipo = "despesa_fixa" if is_despesa_fixa else "receita"
-        rec = Recurrence(
-            tipo=rec_tipo,
-            descricao=parsed_data["descricao"],
-            valor=to_decimal(parsed_data["valor"]),
-            category_id=cat_id,
-            author=user_name,
-            dia_do_mes=base_data.day,
-            inicio=primeiro_dia_mes,
-            fim=None,
-            ativo=True,
-        )
-        db.add(rec)
-        db.commit()
-        db.refresh(rec)
-
-        # Cria a instância deste mês vinculada à recorrência
-        t_item = Transaction(
-            tipo=rec_tipo,
-            valor=to_decimal(parsed_data["valor"]),
-            categoria=cat_nome,
-            category_id=cat_id,
-            data=base_data,
-            descricao=parsed_data["descricao"],
-            author=user_name,
-            channel=channel_type,
-            source=parsed_data.get("source", user_name),
-            vencimento=f"Dia {base_data.day}" if rec_tipo == "despesa_fixa" else None,
-            recurrence_id=rec.id,
-            competencia=primeiro_dia_mes,
-            editado_manual=False,
-        )
-        db.add(t_item)
-        db.commit()
-        db.refresh(t_item)
-        created_transactions = [t_item]
-        created_ids = [t_item.id]
-        valores_p = [to_decimal(parsed_data["valor"])]
-        total_geral = to_decimal(parsed_data["valor"])
-        val_parcela_unit = valores_p[0]
-    else:
-        # Invocação atômica do serviço de parcelamento com identidade UUID (ou lançamento avulso)
-        created_transactions = criar_parcelamento(db, base_tx_dict, parcelas=parcelas)
-        created_ids = [t.id for t in created_transactions]
-
-        # Calcula valores para feedback executivo no WhatsApp (mostrando valor da parcela e total)
-        valores_p, total_geral = calcular_valores_parcelamento(
-            to_decimal(parsed_data["valor"]), parcelas
-        )
-        val_parcela_unit = valores_p[0]
-
-    from .atlas import format_atlas_confirmation, send_whatsapp_message
-    from .routes import get_metrics
-
-    saldo_atualizado = None
-    try:
-        mes_iso = base_data.strftime("%Y-%m")
-        metrics = get_metrics(mes=mes_iso, db=db)
-        if isinstance(metrics, dict):
-            saldo_atualizado = metrics.get("saldo_livre")
-        elif hasattr(metrics, "saldo_livre"):
-            saldo_atualizado = metrics.saldo_livre
-    except Exception as e:
-        logger.debug(f"Não foi possível calcular saldo para o Atlas: {e}")
-
-    desc_feedback = (
-        f"{parsed_data['descricao']} (recorrente)" if is_recorrente else parsed_data["descricao"]
-    )
-
-    atlas_reply = format_atlas_confirmation(
+    service = MessageProcessingService(db)
+    return service.process_parsed_message(
+        parsed_data=parsed_data,
         user_name=user_name,
-        item_desc=desc_feedback,
-        valor=float(val_parcela_unit),
-        parcelas=parcelas,
-        saldo_livre=saldo_atualizado,
-        valor_total=float(total_geral) if parcelas > 1 else None,
+        channel_type=channel_type,
+        sender_phone=mask_phone(sender),
+        remote_jid=remote_jid,
+        raw_text=raw_text,
     )
-
-    if remote_jid:
-        send_whatsapp_message(remote_jid, atlas_reply)
-
-    return {
-        "status": "success",
-        "id": created_ids[0] if created_ids else None,
-        "ids": created_ids,
-        "parcelas": parcelas,
-        "sender": mask_phone(sender),
-        "user": user_name,
-        "atlas_response": atlas_reply,
-        "transaction": parsed_data,
-    }
 
 
 @webhook_router.post("/whatsapp")
