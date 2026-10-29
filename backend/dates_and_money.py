@@ -1,56 +1,17 @@
-import re
-import zoneinfo
-from datetime import date, datetime
-from decimal import ROUND_HALF_UP, Decimal
+"""
+backend/dates_and_money.py
 
-TIMEZONE_SP = zoneinfo.ZoneInfo("America/Sao_Paulo")
-CENTS = Decimal("0.01")
+Módulo retrocompatível. Re-exporta funções do domínio puro backend.domain.
+"""
 
+from backend.domain.dates import TIMEZONE_SP, month_range, now_br, today_br
+from backend.domain.money import CENTS, to_decimal
 
-def now_br() -> datetime:
-    """Retorna o datetime atual no fuso horário oficial de Brasília/São Paulo."""
-    return datetime.now(TIMEZONE_SP)
-
-
-def today_br() -> date:
-    """Retorna a data atual no fuso horário oficial de Brasília/São Paulo."""
-    return now_br().date()
-
-
-def to_decimal(val: str | int | float | Decimal | None) -> Decimal:
-    """
-    Converte qualquer valor numérico com segurança para Decimal(12, 2)
-    usando arredondamento bancário ROUND_HALF_UP.
-    NUNCA faz Decimal(float_direto), converte float via str(x).
-    """
-    if val is None:
-        return Decimal("0.00")
-    if isinstance(val, Decimal):
-        return val.quantize(CENTS, rounding=ROUND_HALF_UP)
-    d = Decimal(str(val)) if isinstance(val, float) else Decimal(str(val).strip())
-    return d.quantize(CENTS, rounding=ROUND_HALF_UP)
-
-
-def month_range(mes: str) -> tuple[date, date]:
-    """
-    Valida estritamente a string 'YYYY-MM' e retorna (inicio_inclusivo, fim_exclusivo).
-    Exemplo: '2026-10' -> (date(2026, 10, 1), date(2026, 11, 1))
-    Lança ValueError caso o formato ou os limites do mês sejam inválidos.
-    """
-    if not mes or not isinstance(mes, str):
-        raise ValueError("Mês não pode ser vazio")
-
-    match = re.match(r"^(\d{4})-(\d{2})$", mes.strip())
-    if not match:
-        raise ValueError(f"Formato de mês inválido: '{mes}'. Utilize estritamente 'YYYY-MM'.")
-
-    ano = int(match.group(1))
-    mes_num = int(match.group(2))
-
-    if mes_num < 1 or mes_num > 12:
-        raise ValueError(f"Mês inválido: '{mes_num}'. Deve estar entre 01 e 12.")
-
-    inicio = date(ano, mes_num, 1)
-    fim_exclusivo = date(ano + 1, 1, 1) if mes_num == 12 else date(ano, mes_num + 1, 1)
-
-    return inicio, fim_exclusivo
+__all__ = [
+    "CENTS",
+    "TIMEZONE_SP",
+    "month_range",
+    "now_br",
+    "to_decimal",
+    "today_br",
+]
