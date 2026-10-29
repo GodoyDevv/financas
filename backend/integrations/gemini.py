@@ -81,9 +81,11 @@ def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/ogg") -> 
                     else:
                         err_code = "desconhecido"
                         try:
-                            err_code = res.json().get("error", {}).get("status", res.status_code)
+                            err_code = str(
+                                res.json().get("error", {}).get("status", res.status_code)
+                            )
                         except Exception:
-                            err_code = res.status_code
+                            err_code = str(res.status_code)
                         logger.warning(
                             f"Falha na API Gemini ({model_name}) status={res.status_code} erro={err_code}"
                         )

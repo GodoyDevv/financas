@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from backend.db.models import Transaction
@@ -66,6 +66,17 @@ class TransactionRepository:
 
     def delete_by_group_id(self, group_id: str) -> int:
         stmt = delete(Transaction).where(Transaction.parcela_grupo_id == group_id)
+        result = self.db.execute(stmt)
+        self.db.flush()
+        return result.rowcount or 0
+
+    def update_category_name_for_transactions(self, category_id: int, new_name: str) -> int:
+        """Atualiza a string desnormalizada categoria para todas as transações com a FK category_id."""
+        stmt = (
+            update(Transaction)
+            .where(Transaction.category_id == category_id)
+            .values(categoria=new_name)
+        )
         result = self.db.execute(stmt)
         self.db.flush()
         return result.rowcount or 0

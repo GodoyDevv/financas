@@ -235,7 +235,7 @@ class RecurrenceService:
             .filter(
                 Transaction.recurrence_id == rec.id,
                 Transaction.competencia >= primeiro_dia_mes_atual,
-                not Transaction.editado_manual,
+                Transaction.editado_manual.is_(False),
             )
             .all()
         )
@@ -284,7 +284,7 @@ class RecurrenceService:
             .filter(
                 Transaction.recurrence_id == rec.id,
                 Transaction.competencia >= primeiro_dia_mes_atual,
-                not Transaction.editado_manual,
+                Transaction.editado_manual.is_(False),
             )
             .all()
         )

@@ -14,8 +14,6 @@ from backend.atlas import format_atlas_confirmation
 from backend.categories import normalize_category_name, resolve_canonical_name
 from backend.dates_and_money import to_decimal
 from backend.db.models import Category, Recurrence, Transaction
-from backend.repositories.category_repo import CategoryRepository
-from backend.repositories.transaction_repo import TransactionRepository
 from backend.services.installments import calcular_valores_parcelamento, criar_parcelamento
 from backend.services.summary import SummaryService
 
@@ -129,11 +127,8 @@ class MessageProcessingService:
         saldo_atualizado = None
         try:
             mes_iso = base_data.strftime("%Y-%m")
-            sum_svc = SummaryService(
-                transaction_repo=TransactionRepository(self.db),
-                category_repo=CategoryRepository(self.db),
-            )
-            summary_res = sum_svc.get_metrics(mes=mes_iso)
+            sum_svc = SummaryService(self.db)
+            summary_res = sum_svc.get_month_metrics(mes=mes_iso)
             saldo_atualizado = summary_res.get("saldo_livre")
         except Exception as e:
             logger.debug(f"Não foi possível calcular saldo para o Atlas: {e}")
