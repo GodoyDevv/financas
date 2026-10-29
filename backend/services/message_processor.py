@@ -10,12 +10,14 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from backend.api.summary import get_metrics
 from backend.atlas import format_atlas_confirmation
 from backend.categories import normalize_category_name, resolve_canonical_name
 from backend.dates_and_money import to_decimal
 from backend.db.models import Category, Recurrence, Transaction
+from backend.repositories.category_repo import CategoryRepository
+from backend.repositories.transaction_repo import TransactionRepository
 from backend.services.installments import calcular_valores_parcelamento, criar_parcelamento
+from backend.services.summary import SummaryService
 
 logger = logging.getLogger("fintrack.message_processor")
 
@@ -127,11 +129,12 @@ class MessageProcessingService:
         saldo_atualizado = None
         try:
             mes_iso = base_data.strftime("%Y-%m")
-            metrics = get_metrics(mes=mes_iso, db=self.db)
-            if isinstance(metrics, dict):
-                saldo_atualizado = metrics.get("saldo_livre")
-            elif hasattr(metrics, "saldo_livre"):
-                saldo_atualizado = metrics.saldo_livre
+            sum_svc = SummaryService(
+                transaction_repo=TransactionRepository(self.db),
+                category_repo=CategoryRepository(self.db),
+            )
+            summary_res = sum_svc.get_metrics(mes=mes_iso)
+            saldo_atualizado = summary_res.get("saldo_livre")
         except Exception as e:
             logger.debug(f"Não foi possível calcular saldo para o Atlas: {e}")
 
