@@ -90,7 +90,8 @@ class TransactionService:
             self.cat_repo.add(cat_db)
 
         author_val = str(tx_data.get("author", "")).strip() if tx_data.get("author") else None
-        channel_val = str(tx_data.get("channel", "dashboard")) or "dashboard"
+        channel_input = tx_data.get("channel")
+        channel_val = channel_input if channel_input and channel_input != "unknown" else "dashboard"
         source_val = (
             str(tx_data.get("source", "")).strip()
             if tx_data.get("source")

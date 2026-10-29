@@ -70,9 +70,7 @@ class TransactionRepository:
         self.db.flush()
         return result.rowcount or 0
 
-    def get_totals_by_type_in_range(
-        self, start_date: date, end_date: date
-    ) -> dict[str, Decimal]:
+    def get_totals_by_type_in_range(self, start_date: date, end_date: date) -> dict[str, Decimal]:
         """Agrega a soma de valores por tipo no intervalo de datas."""
         stmt = (
             select(Transaction.tipo, func.coalesce(func.sum(Transaction.valor), Decimal("0.00")))

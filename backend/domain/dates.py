@@ -39,12 +39,9 @@ def month_range(mes: str) -> tuple[date, date]:
     mes_num = int(match.group(2))
 
     if mes_num < 1 or mes_num > 12:
-        raise ValueError(f"Mês fora do intervalo 01-12: '{mes}'")
+        raise ValueError(f"Mês inválido: fora do intervalo 01-12: '{mes}'")
 
     inicio = date(ano, mes_num, 1)
-    if mes_num == 12:
-        fim = date(ano + 1, 1, 1)
-    else:
-        fim = date(ano, mes_num + 1, 1)
+    fim = date(ano + 1, 1, 1) if mes_num == 12 else date(ano, mes_num + 1, 1)
 
     return inicio, fim

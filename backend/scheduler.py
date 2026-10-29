@@ -198,7 +198,7 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
         linhas.append("\n📁 *Gastos por Categoria (Visão Macro):*")
 
         for cat, val in ranking_cat:
-            pct = float((val / total_semana * 100)) if total_semana > 0 else 0.0
+            pct = float(val / total_semana * 100) if total_semana > 0 else 0.0
             barra = gerar_barra_progresso(pct, 8)
             linhas.append(f"• *{cat}*: *{format_brl(val)}* ({pct:.0f}%)\n  `{barra}`")
 
@@ -209,10 +209,10 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
         tot_outros = mapa_source.get("Outros", Decimal("0.00"))
 
         if tot_bruno > 0:
-            pct_b = float((tot_bruno / total_semana * 100)) if total_semana > 0 else 0.0
+            pct_b = float(tot_bruno / total_semana * 100) if total_semana > 0 else 0.0
             linhas.append(f"• 👤 *Bruno:* {format_brl(tot_bruno)} ({pct_b:.0f}%)")
         if tot_leticia > 0:
-            pct_l = float((tot_leticia / total_semana * 100)) if total_semana > 0 else 0.0
+            pct_l = float(tot_leticia / total_semana * 100) if total_semana > 0 else 0.0
             linhas.append(f"• 🌸 *Letícia:* {format_brl(tot_leticia)} ({pct_l:.0f}%)")
         if tot_outros > 0:
             linhas.append(f"• 📝 *Outros/Manual:* {format_brl(tot_outros)}")
