@@ -1,0 +1,42 @@
+{
+  "categorias": [
+    {
+      "budget": 2500.0,
+      "categoria": "Moradia",
+      "category_id": 1,
+      "percentual": 72.4,
+      "percentual_budget": 88.0,
+      "total": 2200.0
+    },
+    {
+      "budget": 500.0,
+      "categoria": "Lazer",
+      "category_id": 4,
+      "percentual": 19.7,
+      "percentual_budget": 120.0,
+      "total": 600.0
+    },
+    {
+      "budget": 1500.0,
+      "categoria": "Alimentação",
+      "category_id": 2,
+      "percentual": 5.0,
+      "percentual_budget": 10.0,
+      "total": 150.5
+    },
+    {
+      "budget": 600.0,
+      "categoria": "Transporte",
+      "category_id": 3,
+      "percentual": 3.0,
+      "percentual_budget": 15.0,
+      "total": 89.9
+    }
+  ],
+  "contas_fixas": 2200.0,
+  "gastos_whatsapp": 840.4,
+  "receitas_totais": 9500.0,
+  "saldo_livre": 6459.6,
+  "total_despesas": 3040.4,
+  "total_transacoes": 7
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "ativo": true,
+    "budget": 2500.0,
+    "gasto_mes": 0.0,
+    "id": 1,
+    "name": "Moradia",
+    "nome": "Moradia",
+    "percentual_budget": 0.0,
+    "tipo": "despesa"
+  },
+  {
+    "ativo": true,
+    "budget": 1500.0,
+    "gasto_mes": 0.0,
+    "id": 2,
+    "name": "Alimentação",
+    "nome": "Alimentação",
+    "percentual_budget": 0.0,
+    "tipo": "despesa"
+  },
+  {
+    "ativo": true,
+    "budget": 600.0,
+    "gasto_mes": 0.0,
+    "id": 3,
+    "name": "Transporte",
+    "nome": "Transporte",
+    "percentual_budget": 0.0,
+    "tipo": "despesa"
+  },
+  {
+    "ativo": true,
+    "budget": 500.0,
+    "gasto_mes": 0.0,
+    "id": 4,
+    "name": "Lazer",
+    "nome": "Lazer",
+    "percentual_budget": 0.0,
+    "tipo": "despesa"
+  },
+  {
+    "ativo": true,
+    "budget": null,
+    "gasto_mes": 0.0,
+    "id": 5,
+    "name": "Salário",
+    "nome": "Salário",
+    "percentual_budget": null,
+    "tipo": "receita"
+  },
+  {
+    "ativo": true,
+    "budget": null,
+    "gasto_mes": 0.0,
+    "id": 6,
+    "name": "Outros",
+    "nome": "Outros",
+    "percentual_budget": null,
+    "tipo": "despesa"
+  }
+]

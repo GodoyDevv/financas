@@ -1,0 +1,9 @@
+{
+  "categoria": "Alimentação",
+  "confianca": "alta",
+  "descricao": "Almoço de domingo",
+  "motivos": [],
+  "parcelas": 1,
+  "tipo": "despesa_variavel",
+  "valor": 85.5
+}

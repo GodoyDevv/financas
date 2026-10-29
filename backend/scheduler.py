@@ -180,16 +180,16 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
         qtd = len(transacoes)
 
         # Agrupamento por Categoria
-        mapa_cat = {}
-        mapa_source = {}
+        mapa_cat: dict[str, Decimal] = {}
+        mapa_source: dict[str, Decimal] = {}
 
         for t in transacoes:
             cat = (t.categoria or "Outros").strip()
             val = to_decimal(t.valor)
-            mapa_cat[cat] = mapa_cat.get(cat, 0.0) + val
+            mapa_cat[cat] = mapa_cat.get(cat, Decimal("0.00")) + val
 
             nome = obter_autor_transacao(t)
-            mapa_source[nome] = mapa_source.get(nome, 0.0) + val
+            mapa_source[nome] = mapa_source.get(nome, Decimal("0.00")) + val
 
         # Ordenação por maior gasto
         ranking_cat = sorted(mapa_cat.items(), key=lambda x: x[1], reverse=True)
@@ -198,21 +198,21 @@ def gerar_texto_relatorio_semanal_macro(data_fim: date, db: Session) -> str:
         linhas.append("\n📁 *Gastos por Categoria (Visão Macro):*")
 
         for cat, val in ranking_cat:
-            pct = (val / total_semana * 100) if total_semana > 0 else 0
+            pct = float((val / total_semana * 100)) if total_semana > 0 else 0.0
             barra = gerar_barra_progresso(pct, 8)
             linhas.append(f"• *{cat}*: *{format_brl(val)}* ({pct:.0f}%)\n  `{barra}`")
 
         # Divisão Macro Casal na Semana
         linhas.append("\n👥 *Divisão do Casal na Semana:*")
-        tot_bruno = mapa_source.get("Bruno", 0.0)
-        tot_leticia = mapa_source.get("Letícia", 0.0)
-        tot_outros = mapa_source.get("Outros", 0.0)
+        tot_bruno = mapa_source.get("Bruno", Decimal("0.00"))
+        tot_leticia = mapa_source.get("Letícia", Decimal("0.00"))
+        tot_outros = mapa_source.get("Outros", Decimal("0.00"))
 
         if tot_bruno > 0:
-            pct_b = (tot_bruno / total_semana * 100) if total_semana > 0 else 0
+            pct_b = float((tot_bruno / total_semana * 100)) if total_semana > 0 else 0.0
             linhas.append(f"• 👤 *Bruno:* {format_brl(tot_bruno)} ({pct_b:.0f}%)")
         if tot_leticia > 0:
-            pct_l = (tot_leticia / total_semana * 100) if total_semana > 0 else 0
+            pct_l = float((tot_leticia / total_semana * 100)) if total_semana > 0 else 0.0
             linhas.append(f"• 🌸 *Letícia:* {format_brl(tot_leticia)} ({pct_l:.0f}%)")
         if tot_outros > 0:
             linhas.append(f"• 📝 *Outros/Manual:* {format_brl(tot_outros)}")

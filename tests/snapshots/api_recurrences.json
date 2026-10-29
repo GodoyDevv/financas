@@ -1,0 +1,28 @@
+[
+  {
+    "ativo": true,
+    "author": "Bruno",
+    "categoria": "Moradia",
+    "category_id": 1,
+    "descricao": "Aluguel do Apartamento",
+    "dia_do_mes": 10,
+    "fim": null,
+    "id": 1,
+    "inicio": "2026-01-01",
+    "tipo": "despesa_fixa",
+    "valor": 2200.0
+  },
+  {
+    "ativo": true,
+    "author": "Bruno",
+    "categoria": "Salário",
+    "category_id": 5,
+    "descricao": "Salário Mensal Bruno",
+    "dia_do_mes": 5,
+    "fim": null,
+    "id": 2,
+    "inicio": "2026-01-01",
+    "tipo": "receita",
+    "valor": 9500.0
+  }
+]
