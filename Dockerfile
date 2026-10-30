@@ -1,5 +1,18 @@
 # ==============================================================================
-# ESTÁGIO 1: BUILDER (Instalação e compilação hermética de dependências via uv)
+# ESTÁGIO 1: FRONTEND BUILDER (Node.js LTS para compilar e empacotar Vite + TS)
+# ==============================================================================
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /app/frontend
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# ==============================================================================
+# ESTÁGIO 2: PYTHON BUILDER (Instalação e compilação de dependências via uv)
 # ==============================================================================
 FROM python:3.12.10-slim AS builder
 
@@ -24,7 +37,7 @@ ENV UV_COMPILE_BYTECODE=1
 RUN uv sync --frozen --no-dev --no-install-project
 
 # ==============================================================================
-# ESTÁGIO 2: RUNTIME FINAL (Imagem enxuta e segura sem privilégios de root)
+# ESTÁGIO 3: RUNTIME FINAL (Imagem enxuta e segura sem privilégios de root)
 # ==============================================================================
 FROM python:3.12.10-slim AS runtime
 
@@ -46,15 +59,18 @@ RUN groupadd -g 1000 appgroup && \
 
 WORKDIR /app
 
-# Copia ambiente virtual construído pelo builder
+# Copia ambiente virtual construído pelo builder Python
 COPY --from=builder --chown=appuser:appgroup /app/.venv /app/.venv
 
 # Copia apenas o código e recursos necessários da aplicação
 COPY --chown=appuser:appgroup backend /app/backend
 COPY --chown=appuser:appgroup migrations /app/migrations
 COPY --chown=appuser:appgroup alembic.ini /app/alembic.ini
-COPY --chown=appuser:appgroup index.html /app/index.html
+COPY --chown=appuser:appgroup atlas_logo.jpg /app/atlas_logo.jpg
 COPY --chown=appuser:appgroup entrypoint.sh /app/entrypoint.sh
+
+# Copia o bundle gerado do frontend (dist) para servir via FastAPI
+COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/dist /app/frontend/dist
 
 # Garante permissões de execução no script de inicialização
 RUN chmod +x /app/entrypoint.sh

@@ -404,7 +404,7 @@ LOGIN_HTML_PAGE = """<!DOCTYPE html>
     </div>
   </div>
 
-  <script src="/static/js/login.js"></script>
+  <script src="/assets/login.js"></script>
 </body>
 </html>
 """

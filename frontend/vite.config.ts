@@ -11,9 +11,15 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
+        login: resolve(__dirname, "src/js/login.ts"),
       },
       output: {
-        entryFileNames: "assets/[name]-[hash].js",
+        entryFileNames: (chunkInfo) => {
+          if (chunkInfo.name === "login") {
+            return "assets/login.js";
+          }
+          return "assets/[name]-[hash].js";
+        },
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash].[ext]",
       },

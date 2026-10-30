@@ -154,7 +154,8 @@ def test_no_os_getenv_or_environ_in_backend_and_scripts():
     for target in targets:
         for py_file in target.rglob("*.py"):
             # backend/config.py pode usar os.getenv para checar o ENV antes do carregamento do .env
-            if py_file.name == "config.py":
+            # scripts/export_openapi.py injeta envs seguras de mock para extrair openapi estático
+            if py_file.name in ("config.py", "export_openapi.py"):
                 continue
 
             content = py_file.read_text(encoding="utf-8")

@@ -144,9 +144,13 @@ async def add_security_headers(request: Request, call_next):
     if is_https or is_prod:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
-    # Prevenção de cache em dados sensíveis do dashboard e API
+    # Cache headers:
+    # 1. Assets com hash (gerados pelo Vite em /assets): cache imutável de longo prazo
+    # 2. Documento HTML raiz (/) e endpoints de API (/api): no-store para evitar cache de dados sensíveis
     path = request.url.path
-    if path == "/" or path.startswith("/api"):
+    if path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif path == "/" or path.startswith("/api") or path.startswith("/auth") or path == "/login":
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
 
@@ -345,14 +349,18 @@ def serve_atlas_logo():
 
 
 # ------------------------------------------------------------------------------
-# ROTA RAIZ DO DASHBOARD (PROTEGIDA COM REDIRECIONAMENTO PARA /login)
+# ROTA RAIZ DO DASHBOARD E ARQUIVOS ESTÁTICOS / DIST DO VITE
 # ------------------------------------------------------------------------------
-# Servir arquivos estáticos (CSS, JS, Vendor)
-STATIC_DIR = PROJECT_ROOT / "frontend"
-if (STATIC_DIR / "src").exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR / "src")), name="static")
-if (STATIC_DIR / "vendor").exists():
-    app.mount("/vendor", StaticFiles(directory=str(STATIC_DIR / "vendor")), name="vendor")
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
+DIST_DIR = FRONTEND_DIR / "dist"
+
+# Servir assets hasheados de produção (se compilado via Vite em dist/assets)
+if (DIST_DIR / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="assets")
+
+# Fallback para desenvolvimento sem build: /static servindo frontend/src
+if (FRONTEND_DIR / "src").exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "src")), name="static")
 
 
 @app.get("/", tags=["Dashboard"])
@@ -360,6 +368,20 @@ def serve_frontend(request: Request):
     session = require_auth_page(request)
     if not session:
         return RedirectResponse(url="/login", status_code=302)
-    frontend_index = PROJECT_ROOT / "frontend" / "index.html"
+
+    # Prioriza o build de produção (dist/index.html), com fallback para frontend/index.html
+    dist_index = DIST_DIR / "index.html"
+    if dist_index.exists():
+        return FileResponse(
+            str(dist_index),
+            media_type="text/html",
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+        )
+
+    frontend_index = FRONTEND_DIR / "index.html"
     target_index = frontend_index if frontend_index.exists() else (PROJECT_ROOT / "index.html")
-    return FileResponse(str(target_index), media_type="text/html")
+    return FileResponse(
+        str(target_index),
+        media_type="text/html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+    )

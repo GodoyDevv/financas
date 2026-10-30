@@ -16,12 +16,15 @@ import {
   Tooltip,
   Legend,
   Filler,
+  DoughnutController,
+  BarController,
+  LineController,
 } from "chart.js";
 import { renderChartCategorias, renderChartBalanco } from "./charts_overview";
 import { renderChartCasal, renderChartOfensores, renderChartDias } from "./charts_trends";
 import type { MetricsResponse, TransactionResponse } from "./state";
 
-// Registra apenas os elementos, escalas e plugins utilizados
+// Registra apenas os elementos, escalas, controladores e plugins utilizados
 Chart.register(
   ArcElement,
   LineElement,
@@ -31,7 +34,10 @@ Chart.register(
   LinearScale,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  DoughnutController,
+  BarController,
+  LineController
 );
 
 export function atualizarGraficos(

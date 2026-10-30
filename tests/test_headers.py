@@ -58,6 +58,12 @@ def test_cache_control_no_store_on_sensitive_routes(client):
     assert "no-store" in res_api.headers.get("cache-control", "")
 
 
+def test_cache_control_immutable_on_assets(client):
+    """Assets hasheados sob /assets/ devem receber Cache-Control imutável de longo prazo."""
+    res = client.get("/assets/test-hash.js")
+    assert "public, max-age=31536000, immutable" in res.headers.get("cache-control", "")
+
+
 def test_health_check_does_not_disclose_database_type(client):
     """/health deve retornar apenas status: online sem vazar database."""
     res = client.get("/health")
