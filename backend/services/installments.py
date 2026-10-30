@@ -61,11 +61,16 @@ def calcular_valores_parcelamento(
 
 
 def criar_parcelamento(
-    db: Session, base_data: dict[str, Any], parcelas: int = 1, modo: str | None = None
+    db: Session,
+    base_data: dict[str, Any],
+    parcelas: int = 1,
+    modo: str | None = None,
+    commit: bool = True,
 ) -> list[Transaction]:
     """Cria uma transação única ou um conjunto de N parcelas vinculadas por UUID.
 
-    Executa tudo na mesma transação de banco (tudo ou nada). Em caso de erro, efetua rollback.
+    Executa tudo na mesma transação de banco (tudo ou nada). Se commit=True, efetua commit; se commit=False,
+    apenas dá flush() para permitir composição atômica com o status da mensagem.
     """
     parcelas_qtd = max(1, int(parcelas))
     raw_data = base_data.get("data")
@@ -82,6 +87,7 @@ def criar_parcelamento(
 
     grupo_id = str(uuid.uuid4()) if parcelas_qtd > 1 else None
     descricao_base = str(base_data.get("descricao") or "").strip()
+    source_msg_id = base_data.get("source_message_id")
 
     novas_transacoes: list[Transaction] = []
 
@@ -97,9 +103,11 @@ def criar_parcelamento(
                     if descricao_base
                     else f"Parcela ({p_num}/{parcelas_qtd})"
                 )
+                tx_source_msg_id = source_msg_id if i == 0 else None
             else:
                 p_num = None
                 desc_parcela = descricao_base
+                tx_source_msg_id = source_msg_id
 
             tx = Transaction(
                 tipo=base_data["tipo"],
@@ -115,15 +123,20 @@ def criar_parcelamento(
                 parcela_grupo_id=grupo_id,
                 parcela_num=p_num,
                 parcela_total=parcelas_qtd if parcelas_qtd > 1 else None,
+                source_message_id=tx_source_msg_id,
             )
             db.add(tx)
             novas_transacoes.append(tx)
 
-        db.commit()
-        for tx in novas_transacoes:
-            db.refresh(tx)
+        if commit:
+            db.commit()
+            for tx in novas_transacoes:
+                db.refresh(tx)
+        else:
+            db.flush()
         return novas_transacoes
 
     except Exception:
-        db.rollback()
+        if commit:
+            db.rollback()
         raise

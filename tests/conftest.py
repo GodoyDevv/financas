@@ -40,6 +40,16 @@ db_module.engine = db_module.create_db_engine()
 db_module.SessionLocal.configure(bind=db_module.engine)
 
 
+@pytest.fixture
+def db_session():
+    """Fixture que fornece uma sessão SQLAlchemy para testes."""
+    db = db_module.SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 @pytest.fixture(autouse=True)
 def reset_settings_cache():
     """Garante que o cache de get_settings seja limpo após cada teste."""

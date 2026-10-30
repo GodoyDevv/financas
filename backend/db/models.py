@@ -8,6 +8,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     Date,
@@ -134,15 +135,36 @@ class Transaction(Base):
         "Recurrence", back_populates="transactions"
     )
 
+    # Chave de idempotência única com o webhook de origem
+    source_message_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
     __table_args__ = (
         Index("ix_transactions_data_tipo", "data", "tipo"),
         Index("uq_transactions_grupo_num", "parcela_grupo_id", "parcela_num", unique=True),
         Index(
             "uq_transactions_recurrence_competencia", "recurrence_id", "competencia", unique=True
         ),
+        Index("uq_transactions_source_message_id", "source_message_id", unique=True),
         CheckConstraint(
             "(parcela_grupo_id IS NULL AND parcela_num IS NULL AND parcela_total IS NULL) OR "
             "(parcela_grupo_id IS NOT NULL AND parcela_num IS NOT NULL AND parcela_total IS NOT NULL AND parcela_num >= 1 AND parcela_num <= parcela_total)",
             name="ck_transactions_parcelas_valid",
         ),
     )
+
+
+class ProcessedMessage(Base):
+    __tablename__ = "processed_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    message_id: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="received", index=True
+    )  # received, processing, done, ignored, failed
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utc_now_naive)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    replied: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)

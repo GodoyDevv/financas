@@ -204,11 +204,10 @@ def test_webhook_records_author_and_channel_for_text_and_audio(auth_client):
             "/webhook/whatsapp", json=payload_text, headers={"X-Webhook-Secret": secret}
         )
         assert res_text.status_code == 200
-        tx_id_text = res_text.json()["id"]
 
     # Checa transação criada na API
     res_check_text = auth_client.get("/api/transactions")
-    tx_text = next(t for t in res_check_text.json() if t["id"] == tx_id_text)
+    tx_text = next(t for t in res_check_text.json() if t["channel"] == "whatsapp_text")
     assert tx_text["author"] == "Bruno"
     assert tx_text["channel"] == "whatsapp_text"
     assert tx_text["source"] == "Bruno"
@@ -240,10 +239,9 @@ def test_webhook_records_author_and_channel_for_text_and_audio(auth_client):
             "/webhook/whatsapp", json=payload_audio, headers={"X-Webhook-Secret": secret}
         )
         assert res_audio.status_code == 200
-        tx_id_audio = res_audio.json()["id"]
 
     res_check_audio = auth_client.get("/api/transactions")
-    tx_audio = next(t for t in res_check_audio.json() if t["id"] == tx_id_audio)
+    tx_audio = next(t for t in res_check_audio.json() if t["channel"] == "whatsapp_audio")
     assert tx_audio["author"] == "Letícia"
     assert tx_audio["channel"] == "whatsapp_audio"
     assert tx_audio["source"] == "Letícia"

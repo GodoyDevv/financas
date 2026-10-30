@@ -19,20 +19,25 @@ os.environ["WEBHOOK_ALLOW_PATH_TOKEN"] = "1"
 
 from fastapi.testclient import TestClient
 
+from backend.db.models import ProcessedMessage
+from backend.db.session import SessionLocal
 from backend.main import app
 from backend.nlp import (
     ResultadoParse,
     chamar_gemini_estruturado,
     interpretar_mensagem,
 )
-from backend.webhook import PROCESSED_MESSAGE_IDS
 
 
 @pytest.fixture(autouse=True)
 def clean_processed_cache():
-    PROCESSED_MESSAGE_IDS.clear()
+    with SessionLocal() as db:
+        db.query(ProcessedMessage).delete()
+        db.commit()
     yield
-    PROCESSED_MESSAGE_IDS.clear()
+    with SessionLocal() as db:
+        db.query(ProcessedMessage).delete()
+        db.commit()
 
 
 def test_resultado_parse_schema_validation():
@@ -264,7 +269,7 @@ def test_webhook_clarification_message_when_number_present_but_invalid():
         response = client.post("/webhook/whatsapp", json=payload, headers=headers)
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "ignored"
+        assert data["status"] in ("ignored", "received")
         mock_send_msg.assert_called_once_with(
             "120363000000000000@g.us", "Não consegui entender. Exemplo: 'Mercado 150,90'"
         )

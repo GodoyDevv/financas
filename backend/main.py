@@ -52,6 +52,18 @@ async def lifespan(app: FastAPI):
 
     # Inicia o agendador assíncrono para o relatório noturno
     task = asyncio.create_task(loop_agendador_relatorio_noturno())
+
+    # Recuperação oportunista de mensagens pendentes/travadas e expurgo de antigas
+    try:
+        from backend.services.message_processor import purge_old, reprocess_due
+
+        reprocess_due()
+        purge_old()
+    except Exception as e:
+        logging.getLogger("fintrack.startup").warning(
+            f"Erro ao executar reprocess_due/purge_old: {e}"
+        )
+
     yield
     task.cancel()
     with suppress(asyncio.CancelledError):
