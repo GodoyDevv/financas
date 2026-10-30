@@ -1,0 +1,2289 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Atlas Finanças Intelligence API",
+    "description": "Backend de alta precisão para controle financeiro e automação WhatsApp",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/login": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Route Login Page",
+        "operationId": "route_login_page_login_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Route Login Post",
+        "operationId": "route_login_post_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Route Logout Post",
+        "operationId": "route_logout_post_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/jobs/tick": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Jobs Tick",
+        "description": "Tick externo para orquestração de tarefas agendadas idempotentes.\nDecide pelo relógio de São Paulo quais jobs estão devidos.",
+        "operationId": "jobs_tick_internal_jobs_tick_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/jobs/{job_name}": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Disparar Job Manual",
+        "description": "Endpoint administrativo para disparar ou testar um job específico manualmente sob demanda.\nSuporta os nomes: relatorio_diario, relatorio_semanal, reprocess_due, purge_old, ensure_recurrences.\nMantém compatibilidade com /api/relatorio-diario/disparar e /api/relatorio-semanal/disparar.",
+        "operationId": "disparar_job_manual_internal_jobs__job_name__post",
+        "parameters": [
+          {
+            "name": "job_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Job Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/transactions": {
+      "get": {
+        "tags": [
+          "API",
+          "Transactions"
+        ],
+        "summary": "Get Transactions",
+        "operationId": "get_transactions_api_transactions_get",
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tipo"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por autor (ex: Bruno, Letícia)",
+              "title": "Author"
+            },
+            "description": "Filtra por autor (ex: Bruno, Letícia)"
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por canal (ex: whatsapp_text, whatsapp_audio, dashboard)",
+              "title": "Channel"
+            },
+            "description": "Filtra por canal (ex: whatsapp_text, whatsapp_audio, dashboard)"
+          },
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês no formato YYYY-MM (ex: 2026-10)",
+              "title": "Mes"
+            },
+            "description": "Mês no formato YYYY-MM (ex: 2026-10)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionResponse"
+                  },
+                  "title": "Response Get Transactions Api Transactions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "API",
+          "Transactions"
+        ],
+        "summary": "Create Transaction",
+        "operationId": "create_transaction_api_transactions_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/transactions/{trans_id}": {
+      "put": {
+        "tags": [
+          "API",
+          "Transactions"
+        ],
+        "summary": "Update Transaction",
+        "operationId": "update_transaction_api_transactions__trans_id__put",
+        "parameters": [
+          {
+            "name": "trans_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trans Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "API",
+          "Transactions"
+        ],
+        "summary": "Delete Transaction",
+        "operationId": "delete_transaction_api_transactions__trans_id__delete",
+        "parameters": [
+          {
+            "name": "trans_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trans Id"
+            }
+          },
+          {
+            "name": "escopo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Escopo de exclusão: 'uma', 'grupo' ou 'futuras'",
+              "default": "uma",
+              "title": "Escopo"
+            },
+            "description": "Escopo de exclusão: 'uma', 'grupo' ou 'futuras'"
+          },
+          {
+            "name": "todas_parcelas",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "[DEPRECATED] Compatibilidade reversa; mapeia para escopo='grupo'",
+              "default": false,
+              "title": "Todas Parcelas"
+            },
+            "description": "[DEPRECATED] Compatibilidade reversa; mapeia para escopo='grupo'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/summary": {
+      "get": {
+        "tags": [
+          "API",
+          "Summary & Metrics"
+        ],
+        "summary": "Get Summary",
+        "operationId": "get_summary_api_summary_get",
+        "parameters": [
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês no formato YYYY-MM (ex: 2026-10)",
+              "title": "Mes"
+            },
+            "description": "Mês no formato YYYY-MM (ex: 2026-10)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancialSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/metrics": {
+      "get": {
+        "tags": [
+          "API",
+          "Summary & Metrics"
+        ],
+        "summary": "Get Metrics",
+        "operationId": "get_metrics_api_metrics_get",
+        "parameters": [
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês no formato YYYY-MM (ex: 2026-10)",
+              "title": "Mes"
+            },
+            "description": "Mês no formato YYYY-MM (ex: 2026-10)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "tags": [
+          "API",
+          "Categories"
+        ],
+        "summary": "Get Categories",
+        "description": "Retorna a lista de categorias cadastradas com informações de orçamento (budget),\ngasto acumulado no mês (se informado) e percentual do orçamento atingido.",
+        "operationId": "get_categories_api_categories_get",
+        "parameters": [
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês no formato YYYY-MM para calcular gasto e percentual do orçamento",
+              "title": "Mes"
+            },
+            "description": "Mês no formato YYYY-MM para calcular gasto e percentual do orçamento"
+          },
+          {
+            "name": "ativo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar categorias ativas/inativas",
+              "title": "Ativo"
+            },
+            "description": "Filtrar categorias ativas/inativas"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryResponse"
+                  },
+                  "title": "Response Get Categories Api Categories Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categories/{cat_id}": {
+      "put": {
+        "tags": [
+          "API",
+          "Categories"
+        ],
+        "summary": "Update Category",
+        "description": "Atualiza dados da categoria: budget, ativo e/ou nome.",
+        "operationId": "update_category_api_categories__cat_id__put",
+        "parameters": [
+          {
+            "name": "cat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cat Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recurrences": {
+      "post": {
+        "tags": [
+          "API",
+          "Recurrences"
+        ],
+        "summary": "Create Recurrence",
+        "description": "Cria uma nova regra de recorrência mensal (receita ou despesa fixa) e materializa o mês atual.",
+        "operationId": "create_recurrence_api_recurrences_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurrenceCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurrenceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "API",
+          "Recurrences"
+        ],
+        "summary": "Get Recurrences",
+        "description": "Lista todas as regras de recorrência cadastradas.",
+        "operationId": "get_recurrences_api_recurrences_get",
+        "parameters": [
+          {
+            "name": "apenas_ativas",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Filtrar apenas recorrências ativas",
+              "default": true,
+              "title": "Apenas Ativas"
+            },
+            "description": "Filtrar apenas recorrências ativas"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecurrenceResponse"
+                  },
+                  "title": "Response Get Recurrences Api Recurrences Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recurrences/{rec_id}": {
+      "patch": {
+        "tags": [
+          "API",
+          "Recurrences"
+        ],
+        "summary": "Update Recurrence",
+        "description": "Atualiza uma regra de recorrência do mês atual em diante:\n- Atualiza a regra base (Recurrence).\n- Atualiza as instâncias futuras NÃO editadas manualmente.",
+        "operationId": "update_recurrence_api_recurrences__rec_id__patch",
+        "parameters": [
+          {
+            "name": "rec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rec Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurrenceUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurrenceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "API",
+          "Recurrences"
+        ],
+        "summary": "Delete Recurrence",
+        "description": "Encerra a regra de recorrência:\n- Define fim = mês anterior ao mês atual.\n- Remove apenas instâncias futuras NÃO editadas manualmente.",
+        "operationId": "delete_recurrence_api_recurrences__rec_id__delete",
+        "parameters": [
+          {
+            "name": "rec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rec Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/parse-message": {
+      "post": {
+        "tags": [
+          "API",
+          "Parser"
+        ],
+        "summary": "Parse Message",
+        "description": "Processa mensagens em linguagem natural (WhatsApp ou chat)\ne infere tipo (receita, despesa_fixa, despesa_variavel), valor, categoria e parcelas.",
+        "operationId": "parse_message_api_parse_message_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageParseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageParseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook": {
+      "post": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Receive Webhook",
+        "description": "Receptor oficial de webhook com autenticação por header.",
+        "operationId": "receive_webhook_webhook_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Receive Webhook Webhook Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook/whatsapp": {
+      "post": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Receive Webhook",
+        "description": "Receptor oficial de webhook com autenticação por header.",
+        "operationId": "receive_webhook_webhook_whatsapp_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Receive Webhook Webhook Whatsapp Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook/whatsapp/{token}": {
+      "post": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Receive Webhook Path Token",
+        "description": "Receptor alternativo com token no path para gateways que não suportam headers customizados.",
+        "operationId": "receive_webhook_path_token_webhook_whatsapp__token__post",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Receive Webhook Path Token Webhook Whatsapp  Token  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health Check",
+        "description": "Healthcheck simples e seguro sem divulgar detalhes de infraestrutura interna.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Ready Check",
+        "description": "Readiness probe:\nVerifica conectividade com banco via SELECT 1 com timeout curto\ne conformidade da migração Alembic atual com o head.\nResponde 200 (se pronto) ou 503 (se indisponível ou migrações pendentes).",
+        "operationId": "ready_check_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/atlas_logo.jpg": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Serve Atlas Logo",
+        "operationId": "serve_atlas_logo_atlas_logo_jpg_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Serve Frontend",
+        "operationId": "serve_frontend__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CategoryMetric": {
+        "properties": {
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          },
+          "percentual": {
+            "type": "number",
+            "title": "Percentual"
+          },
+          "percentual_budget": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentual Budget"
+          }
+        },
+        "type": "object",
+        "required": [
+          "categoria",
+          "total",
+          "percentual"
+        ],
+        "title": "CategoryMetric"
+      },
+      "CategoryResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          },
+          "ativo": {
+            "type": "boolean",
+            "title": "Ativo"
+          },
+          "gasto_mes": {
+            "type": "number",
+            "title": "Gasto Mes",
+            "default": 0.0
+          },
+          "percentual_budget": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentual Budget"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "nome",
+          "tipo",
+          "ativo"
+        ],
+        "title": "CategoryResponse"
+      },
+      "CategoryUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          },
+          "ativo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ativo"
+          }
+        },
+        "type": "object",
+        "title": "CategoryUpdate"
+      },
+      "FinancialSummary": {
+        "properties": {
+          "total_receitas": {
+            "type": "number",
+            "title": "Total Receitas"
+          },
+          "total_despesas_fixas": {
+            "type": "number",
+            "title": "Total Despesas Fixas"
+          },
+          "total_despesas_variaveis": {
+            "type": "number",
+            "title": "Total Despesas Variaveis"
+          },
+          "total_despesas": {
+            "type": "number",
+            "title": "Total Despesas"
+          },
+          "saldo_livre": {
+            "type": "number",
+            "title": "Saldo Livre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_receitas",
+          "total_despesas_fixas",
+          "total_despesas_variaveis",
+          "total_despesas",
+          "saldo_livre"
+        ],
+        "title": "FinancialSummary"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LoginRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "MessageParseRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "MessageParseRequest"
+      },
+      "MessageParseResponse": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "descricao": {
+            "type": "string",
+            "title": "Descricao"
+          },
+          "parcelas": {
+            "type": "integer",
+            "title": "Parcelas",
+            "default": 1
+          },
+          "confianca": {
+            "type": "string",
+            "title": "Confianca",
+            "default": "alta"
+          },
+          "motivos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Motivos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "valor",
+          "categoria",
+          "descricao"
+        ],
+        "title": "MessageParseResponse"
+      },
+      "MetricsResponse": {
+        "properties": {
+          "receitas_totais": {
+            "type": "number",
+            "title": "Receitas Totais"
+          },
+          "contas_fixas": {
+            "type": "number",
+            "title": "Contas Fixas"
+          },
+          "gastos_whatsapp": {
+            "type": "number",
+            "title": "Gastos Whatsapp"
+          },
+          "total_despesas": {
+            "type": "number",
+            "title": "Total Despesas"
+          },
+          "saldo_livre": {
+            "type": "number",
+            "title": "Saldo Livre"
+          },
+          "total_transacoes": {
+            "type": "integer",
+            "title": "Total Transacoes"
+          },
+          "categorias": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryMetric"
+            },
+            "type": "array",
+            "title": "Categorias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "receitas_totais",
+          "contas_fixas",
+          "gastos_whatsapp",
+          "total_despesas",
+          "saldo_livre",
+          "total_transacoes",
+          "categorias"
+        ],
+        "title": "MetricsResponse"
+      },
+      "RecurrenceCreate": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "receita",
+              "despesa_fixa"
+            ],
+            "title": "Tipo",
+            "description": "Tipo da recorrência: receita ou despesa_fixa"
+          },
+          "descricao": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Descricao",
+            "description": "Descrição da regra"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Valor",
+            "description": "Valor recorrente mensal"
+          },
+          "categoria": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Categoria",
+            "description": "Nome da categoria"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "dia_do_mes": {
+            "type": "integer",
+            "maximum": 31.0,
+            "minimum": 1.0,
+            "title": "Dia Do Mes",
+            "description": "Dia do mês para vencimento/lançamento"
+          },
+          "inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Inicio",
+            "description": "Data de início (mês inicial)"
+          },
+          "fim": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fim",
+            "description": "Data limite inclusive (ou null para tempo indeterminado)"
+          },
+          "ativo": {
+            "type": "boolean",
+            "title": "Ativo",
+            "description": "Se a recorrência está ativa",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "descricao",
+          "valor",
+          "categoria",
+          "dia_do_mes",
+          "inicio"
+        ],
+        "title": "RecurrenceCreate"
+      },
+      "RecurrenceResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "descricao": {
+            "type": "string",
+            "title": "Descricao"
+          },
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          },
+          "category_id": {
+            "type": "integer",
+            "title": "Category Id"
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "dia_do_mes": {
+            "type": "integer",
+            "title": "Dia Do Mes"
+          },
+          "inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Inicio"
+          },
+          "fim": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fim"
+          },
+          "ativo": {
+            "type": "boolean",
+            "title": "Ativo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "descricao",
+          "valor",
+          "category_id",
+          "categoria",
+          "dia_do_mes",
+          "inicio",
+          "ativo"
+        ],
+        "title": "RecurrenceResponse"
+      },
+      "RecurrenceUpdate": {
+        "properties": {
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor"
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "dia_do_mes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dia Do Mes"
+          },
+          "ativo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ativo"
+          },
+          "fim": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fim"
+          }
+        },
+        "type": "object",
+        "title": "RecurrenceUpdate"
+      },
+      "TransactionCreate": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "receita",
+              "despesa_fixa",
+              "despesa_variavel"
+            ],
+            "title": "Tipo",
+            "description": "Tipo do lançamento: receita, despesa_fixa ou despesa_variavel"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Valor",
+            "description": "Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00"
+          },
+          "categoria": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Categoria",
+            "description": "Categoria do lançamento (máx 60 caracteres)"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id",
+            "description": "ID da entidade Category associada"
+          },
+          "parcela_grupo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 36
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parcela Grupo Id",
+            "description": "UUID do grupo de parcelamento"
+          },
+          "parcela_num": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parcela Num",
+            "description": "Número da parcela atual"
+          },
+          "parcela_total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parcela Total",
+            "description": "Total de parcelas do grupo"
+          },
+          "recurrence_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence Id",
+            "description": "ID da regra de recorrência vinculada"
+          },
+          "competencia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Competencia",
+            "description": "Primeiro dia do mês da competência da recorrência"
+          },
+          "editado_manual": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editado Manual",
+            "description": "Indica se a instância foi editada manualmente",
+            "default": false
+          },
+          "data": {
+            "type": "string",
+            "format": "date",
+            "title": "Data"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao",
+            "description": "Descrição do lançamento (máx 200 caracteres)"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Autor do lançamento (ex: Bruno, Letícia)"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "whatsapp_text",
+                  "whatsapp_audio",
+                  "dashboard",
+                  "api",
+                  "system",
+                  "unknown"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel",
+            "description": "Canal de entrada do lançamento",
+            "default": "unknown"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "[DEPRECATED] Mantido para compatibilidade reversa"
+          },
+          "vencimento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vencimento",
+            "description": "Dia de vencimento (máx 20 caracteres)"
+          },
+          "parcelas": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 60.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parcelas",
+            "description": "Quantidade de parcelas (padrão 1)",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "valor",
+          "categoria",
+          "data"
+        ],
+        "title": "TransactionCreate"
+      },
+      "TransactionResponse": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "receita",
+              "despesa_fixa",
+              "despesa_variavel"
+            ],
+            "title": "Tipo",
+            "description": "Tipo do lançamento: receita, despesa_fixa ou despesa_variavel"
+          },
+          "valor": {
+            "type": "number",
+            "title": "Valor",
+            "description": "Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00"
+          },
+          "categoria": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Categoria",
+            "description": "Categoria do lançamento (máx 60 caracteres)"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id",
+            "description": "ID da entidade Category associada"
+          },
+          "parcela_grupo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 36
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parcela Grupo Id",
+            "description": "UUID do grupo de parcelamento"
+          },
+          "parcela_num": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parcela Num",
+            "description": "Número da parcela atual"
+          },
+          "parcela_total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parcela Total",
+            "description": "Total de parcelas do grupo"
+          },
+          "recurrence_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence Id",
+            "description": "ID da regra de recorrência vinculada"
+          },
+          "competencia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Competencia",
+            "description": "Primeiro dia do mês da competência da recorrência"
+          },
+          "editado_manual": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editado Manual",
+            "description": "Indica se a instância foi editada manualmente",
+            "default": false
+          },
+          "data": {
+            "type": "string",
+            "format": "date",
+            "title": "Data"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao",
+            "description": "Descrição do lançamento (máx 200 caracteres)"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Autor do lançamento (ex: Bruno, Letícia)"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "whatsapp_text",
+                  "whatsapp_audio",
+                  "dashboard",
+                  "api",
+                  "system",
+                  "unknown"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel",
+            "description": "Canal de entrada do lançamento",
+            "default": "unknown"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "[DEPRECATED] Mantido para compatibilidade reversa"
+          },
+          "vencimento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vencimento",
+            "description": "Dia de vencimento (máx 20 caracteres)"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "valor",
+          "categoria",
+          "data",
+          "id"
+        ],
+        "title": "TransactionResponse"
+      },
+      "TransactionUpdate": {
+        "properties": {
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "receita",
+                  "despesa_fixa",
+                  "despesa_variavel"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo",
+            "description": "Tipo do lançamento: receita, despesa_fixa ou despesa_variavel"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor",
+            "description": "Valor do lançamento entre R$ 0,01 e R$ 1.000.000,00"
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "whatsapp_text",
+                  "whatsapp_audio",
+                  "dashboard",
+                  "api",
+                  "system",
+                  "unknown"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "[DEPRECATED]"
+          },
+          "vencimento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vencimento"
+          }
+        },
+        "type": "object",
+        "title": "TransactionUpdate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

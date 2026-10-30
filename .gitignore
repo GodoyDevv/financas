@@ -47,6 +47,10 @@ __pycache__/
 *.so
 .Python
 build/
+dist/
+node_modules/
+frontend/dist/
+frontend/node_modules/
 develop-eggs/
 dist/
 downloads/
