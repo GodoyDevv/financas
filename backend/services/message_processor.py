@@ -153,6 +153,11 @@ class MessageProcessingService:
 
             atlas_module.send_whatsapp_message(remote_jid, atlas_reply)
 
+        logger.info(
+            "transaction_created",
+            extra={"count": len(created_ids), "parcelas": parcelas, "is_recorrente": is_recorrente},
+        )
+
         return {
             "status": "success",
             "id": created_ids[0] if created_ids else None,

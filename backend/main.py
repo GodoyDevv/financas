@@ -18,6 +18,13 @@ from backend.auth import (
     verify_csrf_origin,
 )
 from backend.config import get_settings
+from backend.db.session import engine
+from backend.observability import (
+    REQUEST_ID_CTX,
+    generate_request_id,
+    init_sentry,
+    setup_logging,
+)
 from backend.routes import router as api_router
 from backend.scheduler import (
     executar_envio_relatorio_diario,
@@ -32,6 +39,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Inicializa logging estruturado e Sentry (se DSN fornecido)
+    setup_logging()
+    init_sentry()
+
     # Verificação de segurança fail-closed no startup disparando get_settings()
     settings = get_settings()
     if not settings.WHATSAPP_GROUP_JID:
@@ -64,6 +75,51 @@ app = FastAPI(
 # Origens externas só são permitidas se explicitamente declaradas via ALLOWED_ORIGINS.
 allowed_origins_env = settings.ALLOWED_ORIGINS
 allowed_origins_list = [orig.strip() for orig in allowed_origins_env.split(",") if orig.strip()]
+
+
+# ------------------------------------------------------------------------------
+# MIDDLEWARE DE CORRELAÇÃO E REQUEST ID
+# ------------------------------------------------------------------------------
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    raw_req_id = request.headers.get("X-Request-ID", "").strip()
+    import re
+
+    if raw_req_id and re.match(r"^[a-zA-Z0-9_-]{8,64}$", raw_req_id):
+        req_id = raw_req_id
+    else:
+        req_id = generate_request_id()
+
+    token = REQUEST_ID_CTX.set(req_id)
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = req_id
+        return response
+    finally:
+        REQUEST_ID_CTX.reset(token)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    raw_req_id = request.headers.get("X-Request-ID", "").strip()
+    import re
+
+    if raw_req_id and re.match(r"^[a-zA-Z0-9_-]{8,64}$", raw_req_id):
+        req_id = raw_req_id
+    else:
+        req_id = REQUEST_ID_CTX.get() or generate_request_id()
+    logging.getLogger("fintrack.exceptions").error(
+        "Internal Server Error",
+        exc_info=exc,
+        extra={"request_id": req_id, "path": request.url.path},
+    )
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "request_id": req_id},
+        headers={"X-Request-ID": req_id},
+    )
 
 
 # ------------------------------------------------------------------------------
@@ -181,6 +237,51 @@ app.include_router(webhook_router)
 def health_check():
     """Healthcheck simples e seguro sem divulgar detalhes de infraestrutura interna."""
     return {"status": "online"}
+
+
+@app.get("/ready", tags=["System"])
+def ready_check():
+    """
+    Readiness probe:
+    Verifica conectividade com banco via SELECT 1 com timeout curto
+    e conformidade da migração Alembic atual com o head.
+    Responde 200 (se pronto) ou 503 (se indisponível ou migrações pendentes).
+    """
+    from alembic.config import Config
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+    from fastapi.responses import JSONResponse
+    from sqlalchemy import text
+
+    is_database_ok = False
+    is_migration_ok = False
+
+    try:
+        cfg = Config("alembic.ini")
+        script = ScriptDirectory.from_config(cfg)
+        head_rev = script.get_current_head()
+
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+            is_database_ok = True
+
+            context = MigrationContext.configure(conn)
+            current_rev = context.get_current_revision()
+            is_migration_ok = bool(head_rev and current_rev == head_rev)
+    except Exception as e:
+        logging.getLogger("fintrack.readiness").warning(f"Readiness probe failed: {e}")
+
+    is_ready = is_database_ok and is_migration_ok
+    status_code = 200 if is_ready else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "ready": is_ready,
+            "database": is_database_ok,
+            "migrations": is_migration_ok,
+        },
+    )
 
 
 @app.get("/atlas_logo.jpg", tags=["System"])

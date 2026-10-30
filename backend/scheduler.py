@@ -65,7 +65,7 @@ def executar_envio_relatorio_diario(data_custom: date | None = None, force: bool
         sucesso = send_whatsapp_message(group_jid, texto)
         if sucesso:
             ULTIMO_RELATORIO_ENVIADO = data_alvo
-            logger.info(f"Relatório diário de {data_alvo} enviado com sucesso para {group_jid}.")
+            logger.info("report_sent", extra={"tipo": "diario", "data": str(data_alvo)})
             return True
         else:
             logger.warning("Falha ao enviar relatório diário via WhatsApp (Evolution API).")
@@ -99,7 +99,7 @@ def executar_envio_relatorio_semanal(data_custom: date | None = None, force: boo
         sucesso = send_whatsapp_message(group_jid, texto)
         if sucesso:
             ULTIMO_RELATORIO_SEMANAL_ENVIADO = data_alvo
-            logger.info(f"Relatório semanal de {data_alvo} enviado com sucesso para {group_jid}.")
+            logger.info("report_sent", extra={"tipo": "semanal", "data": str(data_alvo)})
             return True
         else:
             logger.warning("Falha ao enviar relatório semanal via WhatsApp.")

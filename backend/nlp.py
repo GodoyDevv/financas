@@ -238,7 +238,7 @@ def interpretar_mensagem(
     gemini_raw = chamar_gemini_estruturado(texto, categorias_validas=categorias_validas)
 
     if not gemini_raw:
-        # Fallback seguro para o resultado do regex
+        logger.info("nlp_fallback_used", extra={"reason": "gemini_empty_or_failed"})
         return regex_res
 
     # Validação e saneamento dos dados retornados pelo Gemini

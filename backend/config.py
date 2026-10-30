@@ -74,6 +74,12 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: str = Field(default="")
 
+    # Observabilidade e Logs
+    LOG_LEVEL: str = Field(default="INFO")
+    SENTRY_DSN: SecretStr = Field(default=SecretStr(""))
+    SENTRY_TRACES_SAMPLE_RATE: float = Field(default=0.0, ge=0.0, le=1.0)
+    RENDER_GIT_COMMIT: str = Field(default="")
+
     @field_validator("DEV_INSECURE_COOKIES", "WEBHOOK_ALLOW_PATH_TOKEN", mode="before")
     @classmethod
     def parse_bool_from_str(cls, v: object) -> bool:

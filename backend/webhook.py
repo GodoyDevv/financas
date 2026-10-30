@@ -323,9 +323,16 @@ async def handle_webhook_event(
 
     # 3. Registra dedupe pós-autenticação e autorização
     if msg_id:
+        from backend.observability import MESSAGE_ID_CTX
+
+        masked_msg_id = msg_id[:4] + "***" + msg_id[-4:] if len(msg_id) > 8 else "***"
+        MESSAGE_ID_CTX.set(masked_msg_id)
+
         PROCESSED_MESSAGE_IDS.add(msg_id)
         if len(PROCESSED_MESSAGE_IDS) > 1000:
             PROCESSED_MESSAGE_IDS.clear()
+
+    logger.info("webhook_received", extra={"has_user": bool(user_name), "is_audio": is_audio})
 
     if not user_name:
         return {"status": "ignored", "detail": "Evento ignorado ou não autorizado"}

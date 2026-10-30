@@ -348,5 +348,34 @@ docker compose down -v
 
 ---
 
+## 🔭 Observabilidade & Monitoramento
+
+A plataforma implementa observabilidade de nível de produção com foco estrito em privacidade e proteção de dados financeiros (LGPD):
+
+### 1. Logs Estruturados & Correlação de Requisições
+- **Formato:** Em produção (`ENV=production`), os logs são emitidos em **JSON estruturado** (uma linha por evento) com timestamp UTC ISO 8601, nível, logger e campos contextuais. Em desenvolvimento (`ENV=development`), adota console legível e colorido.
+- **Rastreabilidade (`X-Request-ID`):** Um middleware intercepta ou gera um UUID para cada requisição HTTP, retornando o cabeçalho `X-Request-ID` ao cliente e propagando o ID automaticamente para todas as entradas de log daquele ciclo de vida via `contextvars`.
+- **Contexto de Webhooks:** Requisições de webhook do WhatsApp vinculam um identificador mascarado da mensagem (`message_id`) aos logs do processamento.
+- **Higiene de Logs & Proteção de PII:** Valores financeiros, descrições de transações, corpos de requisição brutos, cookies e segredos nunca são registrados em log. Números de telefone são sempre mascarados (ex.: `551199999****`).
+
+### 2. Monitoramento de Erros com Sentry (Opcional & Seguro)
+O Sentry (`sentry-sdk[fastapi]`) é opcional e só é inicializado se a variável de ambiente `SENTRY_DSN` estiver configurada:
+- **Scrubbing Agressivo de Dados Sensíveis:** Executa `before_send` customizado que expurga corpos de requisição (`request.data`), cookies, cabeçalhos confidenciais (`Authorization`, `Cookie`, `X-Admin-Token`, `X-Webhook-Secret`) e mascara números de telefone presentes em mensagens ou traces de exceção.
+- **Configuração:**
+  - `SENTRY_DSN`: DSN do projeto no Sentry (se vazio, o SDK permanece totalmente desativado).
+  - `SENTRY_TRACES_SAMPLE_RATE`: Taxa de amostragem de performance/tracing (padrão `0.0`, sem overhead em produção).
+  - `RENDER_GIT_COMMIT`: Preenchido automaticamente pelo Render no deploy para associar erros à release e commit exatos.
+
+### 3. Probes de Saúde: `/health` (Liveness) e `/ready` (Readiness)
+- **`GET /health` (Liveness Probe):** Verificação instantânea e ultraleve (`{"status": "ok"}`), ideal para healthchecks rápidos e monitores externos de uptime.
+- **`GET /ready` (Readiness Probe):** Testa ativamente a conectividade com o banco de dados (`SELECT 1` com timeout) e verifica se a versão do schema no banco confere exatamente com o cabeçalho mais recente do Alembic (`script.get_current_head()`). Retorna `200 OK` (`{"ready": true, "database": true, "migrations": true}`) ou `503 Service Unavailable` em caso de falha ou migração pendente.
+
+### 4. Monitoramento Externo & Hibernação no Render (Plano Free)
+Aplicações gratuitas no Render entram em hibernação após 15 minutos de inatividade, o que causa um *cold start* de 30-50s na primeira mensagem recebida no WhatsApp.
+- **Recomendação:** Configure um monitor de uptime externo (como [UptimeRobot](https://uptimerobot.com) ou [Better Uptime](https://betteruptime.com)) configurado para disparar requisições HTTP `GET` periódicas (a cada 5 a 10 minutos) para o endpoint `https://sua-app.onrender.com/health`.
+- Isso mantém o container ativo e pronto para responder instantaneamente aos webhooks sem custo adicional.
+
+---
+
 ## 👨‍💻 Autor & Manutenção
 Projeto desenvolvido e mantido por **Bruno Godoy**, demonstrando excelência em Engenharia de Software, Arquitetura de Microsserviços com FastAPI, Agentes Autônomos com Google Gemini, Integração de Mensageria em Tempo Real e Foco Contínuo em Experiência do Usuário (UX/UI).
