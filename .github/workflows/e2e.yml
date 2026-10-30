@@ -1,0 +1,48 @@
+name: E2E Tests (Playwright)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'backend/main.py'
+      - 'backend/auth.py'
+      - 'tests/test_e2e_dashboard.py'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('uv.lock') }}
+
+      - name: Install Dependencies
+        run: uv sync --frozen
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: uv run playwright install --with-deps chromium
+
+      - name: Run E2E Test Suite
+        env:
+          ENV: test
+          APP_PASSWORD: test_app_password_123
+          SESSION_SECRET: test_session_secret_with_32_characters_12345
+          ADMIN_TOKEN: test_admin_token_123
+          WHATSAPP_GROUP_JID: 120363000000000000@g.us
+        run: uv run pytest -m e2e --no-cov tests/test_e2e_dashboard.py

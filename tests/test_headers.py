@@ -26,15 +26,16 @@ def client():
 
 
 def test_security_headers_present_on_response(client):
-    """Verifica nosniff, DENY, Referrer-Policy, Permissions-Policy e CSP-Report-Only."""
+    """Verifica nosniff, DENY, Referrer-Policy, Permissions-Policy e CSP estrita aplicada."""
     res = client.get("/health")
     assert res.status_code == 200
     assert res.headers.get("x-content-type-options") == "nosniff"
     assert res.headers.get("x-frame-options") == "DENY"
     assert res.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
     assert "camera=()" in res.headers.get("permissions-policy", "")
-    assert "Content-Security-Policy-Report-Only" in res.headers
-    assert "default-src 'self'" in res.headers["Content-Security-Policy-Report-Only"]
+    assert "Content-Security-Policy" in res.headers
+    assert "default-src 'self'" in res.headers["Content-Security-Policy"]
+    assert "script-src 'self'" in res.headers["Content-Security-Policy"]
 
 
 def test_hsts_on_https_or_production(client):

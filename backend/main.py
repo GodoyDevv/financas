@@ -150,18 +150,19 @@ async def add_security_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
 
-    # Content-Security-Policy em modo Report-Only
-    # TODO: Migrar 'unsafe-inline' de script-src e style-src para nonce/hash na próxima fase
-    csp_report_only = (
+    # Content-Security-Policy estrita e aplicada (enforced)
+    # script-src 'self' sem 'unsafe-inline' (eliminação completa de scripts inline)
+    # Chart.js e dependências servidas localmente em /vendor e /static
+    csp_enforced = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "script-src 'self'; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' data: https:; "
         "connect-src 'self'; "
         "frame-ancestors 'none';"
     )
-    response.headers["Content-Security-Policy-Report-Only"] = csp_report_only
+    response.headers["Content-Security-Policy"] = csp_enforced
 
     return response
 

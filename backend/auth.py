@@ -382,7 +382,7 @@ LOGIN_HTML_PAGE = """<!DOCTYPE html>
 <body>
   <div class="login-card">
     <div class="brand-avatar">
-      <img src="/atlas_logo.jpg" alt="Atlas AI" onerror="this.style.display='none';">
+      <img src="/atlas_logo.jpg" alt="Atlas AI">
     </div>
     <h1 class="title">Atlas Finanças</h1>
     <p class="subtitle">Acesso restrito ao ecossistema doméstico</p>
@@ -404,45 +404,7 @@ LOGIN_HTML_PAGE = """<!DOCTYPE html>
     </div>
   </div>
 
-  <script>
-    const form = document.getElementById('login-form');
-    const btn = document.getElementById('btn-login');
-    const errorBox = document.getElementById('error-box');
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      errorBox.style.display = 'none';
-      btn.disabled = true;
-      btn.innerText = 'Autenticando...';
-
-      const password = document.getElementById('password').value;
-
-      try {
-        const res = await fetch('/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          body: JSON.stringify({ password })
-        });
-
-        if (res.ok) {
-          window.location.href = '/';
-        } else {
-          const data = await res.json().catch(() => ({}));
-          errorBox.innerText = data.detail || 'Senha incorreta. Tente novamente.';
-          errorBox.style.display = 'block';
-          btn.disabled = false;
-          btn.innerText = 'Entrar no Dashboard';
-          document.getElementById('password').focus();
-        }
-      } catch (err) {
-        errorBox.innerText = 'Falha ao conectar ao servidor.';
-        errorBox.style.display = 'block';
-        btn.disabled = false;
-        btn.innerText = 'Entrar no Dashboard';
-      }
-    });
-  </script>
+  <script src="/static/js/login.js"></script>
 </body>
 </html>
 """

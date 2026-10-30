@@ -17,8 +17,8 @@ import os
 import socket
 import threading
 import time
+from collections.abc import Generator
 from datetime import date
-from typing import Generator
 
 import pytest
 import uvicorn
