@@ -13,79 +13,84 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="/static/styles/main.css">
-  <script src="/vendor/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/src/styles/main.css">
 </head>
 <body>
-  <div class="container">
+<div class="container">
     <!-- HEADER -->
-    <header class="header">
+    <header>
       <div class="brand">
-        <div class="brand-icon">
-          <img src="/atlas_logo.jpg" alt="Atlas AI">
+        <div class="brand-icon" title="Atlas AI Agent">
+          <img src="/atlas_logo.jpg" alt="Atlas AI" >
         </div>
-        <div class="brand-title-wrap">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <h1>Atlas Finanças</h1>
-            <span class="atlas-badge">AI Assistant</span>
+        <div>
+          <div class="brand-title-wrap">
+            <h1>Atlas Finan├ºas</h1>
+            <span class="atlas-badge">AI Copilot</span>
           </div>
-          <p id="dashboard-subtitle">Planejamento e acompanhamento das despesas</p>
+          <p>M├│dulo de Intelig├¬ncia Financeira &middot; WhatsApp &middot; Automa├º├úo Dom├®stica</p>
         </div>
       </div>
-      
-      <!-- CONTROLES DO CABEÇALHO (NAVEGAÇÃO MENSAL INTEGRADA) -->
+
       <div class="header-actions">
+        <!-- Navegador Mensal Elegante Integrado -->
         <div class="month-pill-group">
-          <button class="btn-month-chevron" data-action="prev-month" title="Mês anterior">
-            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path d="M15 19l-7-7 7-7"></path>
+          <button class="btn-month-chevron" data-action="prev-month" title="M├¬s anterior">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
           </button>
-          
-          <div class="month-pill-center" id="month-pill-trigger" data-action="toggle-month-dropdown" title="Clique para abrir seletor rápido de mês">
-            <svg width="14" height="14" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24">
+
+          <div class="month-pill-center" id="month-pill-trigger" data-action="toggle-month-dropdown" title="Clique para abrir seletor r├ípido de m├¬s">
+            <svg width="14" height="14" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
               <line x1="16" y1="2" x2="16" y2="6"></line>
               <line x1="8" y1="2" x2="8" y2="6"></line>
               <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
-            <span class="month-pill-text" id="mes-display">Carregando...</span>
-            <svg class="month-pill-caret" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M6 9l6 6 6-6"></path>
+            <span class="month-pill-text" id="mes-display">Outubro de 2026</span>
+            <svg class="month-pill-caret" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </div>
 
-          <button class="btn-month-chevron" data-action="next-month" title="Próximo mês">
-            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path d="M9 5l7 7-7 7"></path>
+          <button class="btn-month-chevron" data-action="next-month" title="Pr├│ximo m├¬s">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </button>
 
-          <!-- DROPDOWN POPOVER DE SELEÇÃO RÁPIDA -->
+          <!-- DROPDOWN SELETOR DE M├èS / ANO R├üPIDO (Pop-over) -->
           <div class="month-dropdown-menu" id="month-dropdown-menu">
             <div class="month-dropdown-header">
-              <button class="year-nav-btn" data-action="prev-year-dropdown" title="Ano anterior">&lt;</button>
-              <span class="month-dropdown-year" id="month-dropdown-year">2026</span>
-              <button class="year-nav-btn" data-action="next-year-dropdown" title="Próximo ano">&gt;</button>
+              <button class="year-nav-btn" data-action="prev-year-dropdown" title="Ano anterior">ÔÇ╣</button>
+              <div class="month-dropdown-year" id="dropdown-year-title">
+                <span>2026</span>
+              </div>
+              <button class="year-nav-btn" data-action="next-year-dropdown" title="Pr├│ximo ano">ÔÇ║</button>
             </div>
-            <div class="months-grid" id="months-grid"></div>
+
+            <div class="months-grid" id="dropdown-months-grid">
+              <!-- Renderizado dinamicamente via JS -->
+            </div>
+
             <div class="month-dropdown-footer">
-              <button class="dropdown-btn-text" data-action="current-month-dropdown">Ir para Mês Atual</button>
+              <button class="dropdown-btn-text" data-action="current-month-dropdown">Ir para M├¬s Atual</button>
               <button class="dropdown-btn-close" data-action="close-month-dropdown">Fechar</button>
             </div>
           </div>
         </div>
 
-        <button class="btn-view-mode active" id="btn-mes-atual" data-action="month-current" title="Ir para o mês corrente">Mês Atual</button>
+        <button class="btn-view-mode active" id="btn-mes-atual" data-action="month-current" title="Ir para o m├¬s corrente">M├¬s Atual</button>
         <button class="btn-view-mode" id="btn-todos-meses" data-action="month-general" title="Ver acumulado de todos os meses">Geral</button>
 
-        <div class="status-badge">
-          <div class="status-dot"></div>
-          Sincronizado
+        <div class="status-badge" id="api-status">
+          <span class="status-dot"></span>
+          <span id="status-text">Base Zerada / Pronta</span>
         </div>
 
-        <button class="btn-logout" id="btn-logout" data-action="logout" title="Encerrar sessão protegida">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <button class="btn-logout" id="btn-logout" data-action="logout" title="Encerrar sess├úo protegida">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -95,368 +100,388 @@
       </div>
     </header>
 
-    <!-- METRICS GRID -->
-    <div class="metrics-grid">
-      <div class="metric-card card-blue">
-        <div class="metric-header">
+    <!-- CARDS DE M├ëTRICAS DOM├ëSTICAS -->
+    <div class="cards-grid">
+      <div class="stat-card receita">
+        <div class="stat-header">
           <span>Receitas Totais</span>
-          <div class="metric-icon">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-            </svg>
-          </div>
         </div>
-        <div class="metric-value" id="card-receitas">R$ 0,00</div>
-        <div class="metric-subtitle">Entradas confirmadas no mês</div>
+        <div class="stat-value" id="card-receitas">R$ 0,00</div>
+        <div class="stat-sub">Entradas fixas, sal├írios e rendas</div>
       </div>
 
-      <div class="metric-card card-purple">
-        <div class="metric-header">
-          <span>Contas Fixas</span>
-          <div class="metric-icon">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-              <polyline points="9 22 9 12 15 12 15 22"></polyline>
-            </svg>
-          </div>
+      <div class="stat-card fixa">
+        <div class="stat-header">
+          <span>Contas Fixas a Pagar</span>
         </div>
-        <div class="metric-value" id="card-fixas">R$ 0,00</div>
-        <div class="metric-subtitle">Aluguel, contas recorrentes</div>
+        <div class="stat-value" id="card-fixas">R$ 0,00</div>
+        <div class="stat-sub">Aluguel, condom├¡nio, luz, ├ígua, etc</div>
       </div>
 
-      <div class="metric-card card-amber">
-        <div class="metric-header">
-          <span>Gastos Variáveis</span>
-          <div class="metric-icon">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </div>
+      <div class="stat-card variavel">
+        <div class="stat-header">
+          <span>Gastos do WhatsApp</span>
         </div>
-        <div class="metric-value" id="card-whatsapp">R$ 0,00</div>
-        <div class="metric-subtitle">Lançamentos via WhatsApp / Dia a dia</div>
+        <div class="stat-value" id="card-whatsapp">R$ 0,00</div>
+        <div class="stat-sub">Despesas do dia a dia capturadas</div>
       </div>
 
-      <div class="metric-card card-green">
-        <div class="metric-header">
+      <div class="stat-card saldo">
+        <div class="stat-header">
           <span>Saldo Livre</span>
-          <div class="metric-icon">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
         </div>
-        <div class="metric-value" id="card-saldo-livre">R$ 0,00</div>
-        <div class="metric-subtitle">Receitas &minus; (Fixas + Variáveis)</div>
+        <div class="stat-value" id="card-saldo-livre">R$ 0,00</div>
+        <div class="stat-sub">Receitas - (Fixas + Vari├íveis)</div>
       </div>
     </div>
 
-    <!-- MAIN TWO COLUMN SECTION -->
-    <div class="main-content-grid">
-      <!-- GRÁFICOS ANALÍTICOS MODERNOS -->
-      <div class="charts-section">
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">Distribuição por Categoria</div>
-              <div class="chart-subtitle">Gasto acumulado no período</div>
+    <!-- SE├ç├âO DE GR├üFICOS VISUAIS E INTELIG├èNCIA ANAL├ìTICA -->
+    <div class="charts-grid">
+      <!-- Chart A: Distribui├º├úo de Despesas por Categoria -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">
+              <svg width="20" height="20" fill="none" stroke="#EC4899" stroke-width="2.2" viewBox="0 0 24 24">
+                <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"></path>
+              </svg>
+              Distribui├º├úo por Categoria
             </div>
-            <span class="chart-pill-badge" id="badge-top-cat">Top: -</span>
+            <div class="chart-subtitle">Propor├º├úo das despesas registradas</div>
           </div>
-          <div class="chart-container" id="container-chart-categorias">
-            <canvas id="chart-categorias"></canvas>
-          </div>
+          <span class="chart-pill-badge" id="badge-top-cat">Top: -</span>
         </div>
-
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">Receitas vs Despesas</div>
-              <div class="chart-subtitle">Proporção e taxa de economia</div>
-            </div>
-            <span class="chart-pill-badge" id="badge-taxa-poupanca">Poupança: 0%</span>
-          </div>
-          <div class="chart-container" id="container-chart-balanco">
-            <canvas id="chart-balanco"></canvas>
-          </div>
-        </div>
-
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">Divisão do Casal</div>
-              <div class="chart-subtitle">Despesas registradas por pessoa</div>
-            </div>
-            <span class="chart-pill-badge" id="badge-casal">Líder: -</span>
-          </div>
-          <div class="chart-container" id="container-chart-casal">
-            <canvas id="chart-casal"></canvas>
-          </div>
-        </div>
-
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">Maiores Ofensores</div>
-              <div class="chart-subtitle">Top descrições que mais pesaram</div>
-            </div>
-            <span class="chart-pill-badge" id="badge-top-gasto">Maior: -</span>
-          </div>
-          <div class="chart-container" id="container-chart-ofensores">
-            <canvas id="chart-ofensores"></canvas>
-          </div>
-        </div>
-
-        <div class="chart-card chart-card-full">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">Evolução Diária de Gastos</div>
-              <div class="chart-subtitle">Ritmo acumulado e picos de saída ao longo dos dias</div>
-            </div>
-            <span class="chart-pill-badge" id="badge-pico-dia">Pico: -</span>
-          </div>
-          <div class="chart-container chart-container-dias" id="container-chart-dias">
-            <canvas id="chart-dias"></canvas>
-          </div>
+        <div class="chart-container" id="container-chart-categorias">
+          <canvas id="chart-categorias"></canvas>
         </div>
       </div>
 
-      <!-- FORMULÁRIO DE CADASTRO / EDIÇÃO -->
-      <div class="glass-panel" id="panel-form">
-        <div class="panel-title" id="form-title">
-          <svg id="form-icon" width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2.2" viewBox="0 0 24 24">
-            <path d="M12 5v14M5 12h14"></path>
-          </svg>
-          <span id="form-title-text">Cadastrar Lançamento Doméstico</span>
+      <!-- Chart B: Balan├ºo Financeiro Geral -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">
+              <svg width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2.2" viewBox="0 0 24 24">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+              Balan├ºo Financeiro
+            </div>
+            <div class="chart-subtitle">Receitas vs Contas Fixas vs Gastos WhatsApp</div>
+          </div>
         </div>
+        <div class="chart-container" id="container-chart-balanco">
+          <canvas id="chart-balanco"></canvas>
+        </div>
+      </div>
 
-        <form id="form-transacao" class="tx-form">
-          <div class="form-group">
-            <label for="tipo">Tipo de Movimentação</label>
-            <select id="tipo" class="form-control" required>
-              <option value="despesa_variavel">Gasto Variável (Dia a dia)</option>
-              <option value="despesa_fixa">Despesa Fixa (Recorrente/Contas)</option>
-              <option value="receita">Receita (Entrada)</option>
-            </select>
+      <!-- Chart C: Comparativo Casal (Bruno vs Let├¡cia no WhatsApp) -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">
+              <svg width="20" height="20" fill="none" stroke="#8B5CF6" stroke-width="2.2" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              Quem Gastou Mais (WhatsApp)
+            </div>
+            <div class="chart-subtitle">Comparativo Bruno vs Let├¡cia em despesas do dia a dia</div>
           </div>
+          <span class="chart-pill-badge" id="badge-comparativo-lider">L├¡der: -</span>
+        </div>
+        <div class="chart-container" id="container-chart-casal">
+          <canvas id="chart-casal"></canvas>
+        </div>
+      </div>
 
-          <div class="form-group">
-            <label for="valor">Valor (R$)</label>
-            <input type="number" step="0.01" min="0.01" id="valor" class="form-control" placeholder="0,00" required>
+      <!-- Chart D: Maiores Gastos do M├¬s (Top Ofensores) -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">
+              <svg width="20" height="20" fill="none" stroke="#F59E0B" stroke-width="2.2" viewBox="0 0 24 24">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+              </svg>
+              Top Despesas Vari├íveis (Ofensores)
+            </div>
+            <div class="chart-subtitle">Itens de maior impacto no or├ºamento</div>
           </div>
+          <span class="chart-pill-badge" id="badge-top-gasto">Maior: -</span>
+        </div>
+        <div class="chart-container" id="container-chart-ofensores">
+          <canvas id="chart-ofensores"></canvas>
+        </div>
+      </div>
 
-          <div class="form-group">
-            <label for="categoria">Categoria Orçamentária</label>
-            <input type="text" id="categoria" class="form-control" placeholder="Ex: Moradia, Alimentação" required list="sugestoes-categorias">
-            <datalist id="sugestoes-categorias">
-              <option value="Moradia">
-              <option value="Supermercado">
-              <option value="Alimentação">
-              <option value="Transporte">
-              <option value="Assinaturas">
-              <option value="Saúde">
-              <option value="Educação">
-              <option value="Lazer">
-              <option value="Salário">
-              <option value="Outros">
-            </datalist>
+      <!-- Chart E: Dias que Mais Gastou (Picos Di├írios de Consumo) -->
+      <div class="chart-card" style="grid-column: 1 / -1;">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">
+              <svg width="20" height="20" fill="none" stroke="#06B6D4" stroke-width="2.2" viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              Dias que Mais Gastou (Picos Financeiros)
+            </div>
+            <div class="chart-subtitle">Dias do m├¬s com maior volume de despesas registradas</div>
           </div>
-
-          <div class="form-group">
-            <label for="data">Data do Lançamento</label>
-            <input type="date" id="data" class="form-control" required>
-          </div>
-
-          <div class="form-group" id="vencimento-group" style="display: none;">
-            <label for="vencimento">Dia do Vencimento (Opcional)</label>
-            <input type="text" id="vencimento" class="form-control" placeholder="Ex: Dia 10">
-          </div>
-
-          <div class="form-group">
-            <label for="author">Responsável / Autor</label>
-            <select id="author" class="form-control">
-              <option value="Bruno">Bruno</option>
-              <option value="Letícia">Letícia</option>
-              <option value="Casal">Casal (Geral)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="descricao">Descrição / Detalhes</label>
-            <input type="text" id="descricao" class="form-control" placeholder="Ex: Conta Enel / Supermercado">
-          </div>
-
-          <div class="form-actions-wrap">
-            <button type="submit" id="btn-submit" class="btn-primary">Salvar</button>
-            <button type="button" id="btn-cancelar" class="btn-cancel" data-action="cancel-edit" style="display: none;">Cancelar</button>
-          </div>
-        </form>
-
-        <!-- ORÇAMENTOS POR CATEGORIA (BARRAS DE PROGRESSO) -->
-        <div style="margin-top: 32px;">
-          <div class="panel-title">
-            <svg width="18" height="18" fill="none" stroke="#10B981" stroke-width="2.2" viewBox="0 0 24 24">
-              <path d="M12 20V10M18 20V4M6 20v-4"></path>
-            </svg>
-            Teto por Categorias
-          </div>
-          <div class="categories-list" id="category-progress-list">
-            <div class="empty-state">Carregando orçamentos...</div>
-          </div>
+          <span class="chart-pill-badge" id="badge-pico-dia">Dia mais caro: -</span>
+        </div>
+        <div class="chart-container" id="container-chart-dias" style="min-height: 250px;">
+          <canvas id="chart-dias"></canvas>
         </div>
       </div>
     </div>
 
-    <!-- TABELA COMPLETA DE TRANSAÇÕES COM FILTROS AVANÇADOS -->
-    <div class="glass-panel" style="margin-top: 24px;">
-      <div class="panel-title panel-title-responsive">
+    <!-- FORMUL├üRIO DE CADASTRO / EDI├ç├âO -->
+    <div class="glass-panel" id="panel-form">
+      <div class="panel-title" id="form-title">
+        <svg id="form-icon" width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2.2" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        <span id="form-title-text">Cadastrar Lan├ºamento Dom├®stico</span>
+      </div>
+
+      <form id="form-transacao" class="tx-form">
+        <input type="hidden" id="edit-id" value="">
+
+        <div class="form-group">
+          <label for="tipo">Tipo de Registro</label>
+          <select id="tipo" class="form-control"  required>
+            <option value="receita">Receita (Sal├írio/Entrada)</option>
+            <option value="despesa_fixa">Despesa Fixa (Conta do M├¬s)</option>
+            <option value="despesa_variavel" selected>Despesa Vari├ível (WhatsApp)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="valor">Valor (R$)</label>
+          <input type="number" step="0.01" min="0.01" id="valor" class="form-control" placeholder="0,00" required>
+        </div>
+
+        <div class="form-group">
+          <label for="categoria">Categoria</label>
+          <input type="text" id="categoria" class="form-control" placeholder="Ex: Moradia, Alimenta├º├úo" required list="sugestoes-categorias">
+          <datalist id="sugestoes-categorias">
+            <option value="Sal├írio/Renda"></option>
+            <option value="Moradia"></option>
+            <option value="Contas de Consumo"></option>
+            <option value="Alimenta├º├úo"></option>
+            <option value="Transporte"></option>
+            <option value="Sa├║de"></option>
+            <option value="Educa├º├úo"></option>
+            <option value="Lazer"></option>
+            <option value="Servi├ºos"></option>
+            <option value="Outros"></option>
+          </datalist>
+        </div>
+
+        <div class="form-group">
+          <label for="data">Data</label>
+          <input type="date" id="data" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="vencimento">Vencimento</label>
+          <input type="text" id="vencimento" class="form-control" placeholder="Ex: Dia 10">
+        </div>
+
+        <div class="form-group">
+          <label for="author">Respons├ível / Autor</label>
+          <select id="author" class="form-control">
+            <option value="">N├úo atribu├¡do (Geral)</option>
+            <option value="Bruno">Bruno</option>
+            <option value="Let├¡cia">Let├¡cia</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="descricao">Descri├º├úo</label>
+          <input type="text" id="descricao" class="form-control" placeholder="Ex: Conta Enel / Supermercado">
+        </div>
+
+        <div class="form-actions-wrap">
+          <button type="submit" id="btn-submit" class="btn-primary">
+            Salvar
+          </button>
+          <button type="button" id="btn-cancelar" class="btn-cancel" data-action="cancel-edit">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- DISTRIBUI├ç├âO POR CATEGORIA -->
+    <div class="glass-panel" id="panel-categorias">
+      <div class="panel-title">
+        <svg width="20" height="20" fill="none" stroke="#60A5FA" stroke-width="2.2" viewBox="0 0 24 24">
+          <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"></path>
+        </svg>
+        Distribui├º├úo de Despesas por Categoria (Fixas + Vari├íveis)
+      </div>
+      <div id="categorias-container">
+        <div class="empty-state" style="padding: 20px 0;">
+          <p>Nenhuma despesa registrada at├® o momento (0 despesas).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- HIST├ôRICO COM FILTROS DE ABAS -->
+    <div class="glass-panel">
+      <div class="panel-title" style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <svg width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
+          <svg width="20" height="20" fill="none" stroke="#10B981" stroke-width="2.2" viewBox="0 0 24 24">
+            <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
           </svg>
-          Histórico de Movimentações
+          Hist├│rico Financeiro
         </div>
 
-        <div class="tabs-filter">
+        <div class="filter-tabs">
           <button class="tab-btn active" data-action="filter-tab" data-tipo="">Todos</button>
           <button class="tab-btn" data-action="filter-tab" data-tipo="receita">Receitas</button>
           <button class="tab-btn" data-action="filter-tab" data-tipo="despesa_fixa">Despesas Fixas</button>
-          <button class="tab-btn" data-action="filter-tab" data-tipo="despesa_variavel">Gastos Variáveis</button>
+          <button class="tab-btn" data-action="filter-tab" data-tipo="despesa_variavel">Gastos Vari├íveis</button>
         </div>
       </div>
 
-      <!-- BARRA DE CHIPS DE FILTROS ATIVOS E SUMÁRIO INSTANTÂNEO -->
+      <!-- BARRA DE FILTROS ATIVOS E CONSOLIDA├ç├âO R├üPIDA -->
       <div class="active-filters-bar" id="active-filters-bar">
         <div class="active-chips-group" id="active-chips-group"></div>
         <div class="filtered-summary-pills" id="filtered-summary-pills"></div>
       </div>
 
-      <div class="table-responsive">
-        <table class="tx-table">
+      <div class="table-container">
+        <table>
           <thead>
             <tr>
               <th>
-                <div class="th-filter-wrapper">
+                <button type="button" class="th-filter-btn" id="th-btn-data" data-action="open-col-filter" data-col="data" id="th-btn-data" title="Filtrar por Data">
                   <span>Data</span>
-                  <button type="button" class="th-filter-btn" id="th-btn-data" data-action="open-col-filter" data-col="data" title="Filtrar por Data">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
-                    <span class="th-filter-badge" id="th-badge-data" style="display:none">0</span>
-                  </button>
-                </div>
+                  <span class="th-filter-badge" id="th-badge-data" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
               </th>
               <th>
-                <div class="th-filter-wrapper">
+                <button type="button" class="th-filter-btn" id="th-btn-tipo" data-action="open-col-filter" data-col="tipo" id="th-btn-tipo" title="Filtrar por Tipo">
                   <span>Tipo</span>
-                  <button type="button" class="th-filter-btn" id="th-btn-tipo" data-action="open-col-filter" data-col="tipo" title="Filtrar por Tipo">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
-                    <span class="th-filter-badge" id="th-badge-tipo" style="display:none">0</span>
-                  </button>
-                </div>
+                  <span class="th-filter-badge" id="th-badge-tipo" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
               </th>
               <th>
-                <div class="th-filter-wrapper">
+                <button type="button" class="th-filter-btn" id="th-btn-categoria" data-action="open-col-filter" data-col="categoria" id="th-btn-categoria" title="Filtrar por Categoria">
                   <span>Categoria</span>
-                  <button type="button" class="th-filter-btn" id="th-btn-categoria" data-action="open-col-filter" data-col="categoria" title="Filtrar por Categoria">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
-                    <span class="th-filter-badge" id="th-badge-categoria" style="display:none">0</span>
-                  </button>
-                </div>
+                  <span class="th-filter-badge" id="th-badge-categoria" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
               </th>
               <th>
-                <div class="th-filter-wrapper">
-                  <span>Descrição</span>
-                  <button type="button" class="th-filter-btn" id="th-btn-descricao" data-action="open-col-filter" data-col="descricao" title="Filtrar por Descrição">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
-                    <span class="th-filter-badge" id="th-badge-descricao" style="display:none">0</span>
-                  </button>
-                </div>
+                <button type="button" class="th-filter-btn" id="th-btn-descricao" data-action="open-col-filter" data-col="descricao" id="th-btn-descricao" title="Filtrar por Descri├º├úo (ex: Gasolina, Uber, Almo├ºo)">
+                  <span>Descri├º├úo</span>
+                  <span class="th-filter-badge" id="th-badge-descricao" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
               </th>
               <th>
-                <div class="th-filter-wrapper">
-                  <span>Venc.</span>
-                  <button type="button" class="th-filter-btn" id="th-btn-vencimento" data-action="open-col-filter" data-col="vencimento" title="Filtrar por Vencimento">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
-                    <span class="th-filter-badge" id="th-badge-vencimento" style="display:none">0</span>
-                  </button>
-                </div>
+                <button type="button" class="th-filter-btn" id="th-btn-vencimento" data-action="open-col-filter" data-col="vencimento" id="th-btn-vencimento" title="Filtrar por Vencimento">
+                  <span>Vencimento</span>
+                  <span class="th-filter-badge" id="th-badge-vencimento" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
               </th>
               <th>
-                <div class="th-filter-wrapper">
+                <button type="button" class="th-filter-btn" id="th-btn-author" data-action="open-col-filter" data-col="author" id="th-btn-author" title="Filtrar por Autor (ex: Bruno, Let├¡cia)">
                   <span>Autor</span>
-                  <button type="button" class="th-filter-btn" id="th-btn-author" data-action="open-col-filter" data-col="author" title="Filtrar por Autor">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
-                    <span class="th-filter-badge" id="th-badge-author" style="display:none">0</span>
-                  </button>
-                </div>
+                  <span class="th-filter-badge" id="th-badge-author" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
               </th>
               <th>
-                <div class="th-filter-wrapper">
+                <button type="button" class="th-filter-btn" id="th-btn-channel" data-action="open-col-filter" data-col="channel" id="th-btn-channel" title="Filtrar por Canal (ex: WhatsApp, Dashboard)">
                   <span>Canal</span>
-                  <button type="button" class="th-filter-btn" id="th-btn-channel" data-action="open-col-filter" data-col="channel" title="Filtrar por Canal">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
-                    <span class="th-filter-badge" id="th-badge-channel" style="display:none">0</span>
-                  </button>
-                </div>
+                  <span class="th-filter-badge" id="th-badge-channel" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
               </th>
               <th>
-                <div class="th-filter-wrapper">
+                <button type="button" class="th-filter-btn" id="th-btn-valor" data-action="open-col-filter" data-col="valor" id="th-btn-valor" title="Filtrar ou Ordenar por Valor">
                   <span>Valor</span>
-                  <button type="button" class="th-filter-btn" id="th-btn-valor" data-action="open-col-filter" data-col="valor" title="Filtrar ou Ordenar por Valor">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
-                    <span class="th-filter-badge" id="th-badge-valor" style="display:none">0</span>
-                  </button>
-                </div>
+                  <span class="th-filter-badge" id="th-badge-valor" style="display:none">0</span>
+                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                </button>
               </th>
-              <th style="text-align: right;">Ação</th>
+              <th style="text-align: right;">A├º├úo</th>
             </tr>
           </thead>
-          <tbody id="tabela-corpo"></tbody>
+          <tbody id="tabela-corpo">
+            <tr>
+              <td colspan="9">
+                <div class="empty-state">
+                  <svg class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                  </svg>
+                  <h4>Base de dados vazia</h4>
+                  <p>Cadastre sua primeira receita, conta fixa ou despesa vari├ível acima.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
         </table>
-
-        <!-- LISTA RESPONSIVA DE CARDS PARA CELULARES -->
-        <div class="mobile-tx-list" id="mobile-tx-list"></div>
-
-        <div id="tabela-empty" class="empty-state" style="display: none;">
-          <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-            <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
-            <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
-            <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path>
-          </svg>
-          <div style="font-weight: 600; margin-bottom: 4px;">Nenhuma movimentação encontrada</div>
-          <div style="font-size: 13px; color: var(--text-dim);">Tente limpar os filtros selecionados ou selecione outro mês</div>
-        </div>
       </div>
+
+      <!-- Container Vertical de Transa├º├Áes para Mobile (Visual em Lista / Cards sem scroll horizontal) -->
+      <div class="mobile-tx-list" id="mobile-tx-list"></div>
     </div>
   </div>
 
-  <!-- MODAL DE EXCLUSÃO INTELIGENTE (PARCELAS OU ITEM ÚNICO) -->
-  <div class="modal-overlay" id="delete-modal-overlay">
+  <!-- MODAL DE EXCLUS├âO INTELIGENTE (PARCELAS OU ITEM ├ÜNICO) -->
+  <div class="modal-overlay" id="delete-modal-overlay" data-action="modal-cancel">
     <div class="modal-glass-box">
       <div class="modal-header-title">
         <svg width="22" height="22" fill="none" stroke="#EF4444" stroke-width="2.2" viewBox="0 0 24 24">
           <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
         </svg>
-        <span id="delete-modal-title">Excluir Lançamento Parcelado</span>
+        <span id="delete-modal-title">Excluir Lan├ºamento Parcelado</span>
       </div>
       <p class="modal-desc" id="delete-modal-desc">
-        Este lançamento faz parte de uma compra parcelada. Como você prefere realizar a exclusão?
+        Este lan├ºamento faz parte de uma compra parcelada. Como voc├¬ prefere realizar a exclus├úo?
       </p>
       <div class="modal-actions-stack">
         <button type="button" class="btn-modal-option btn-modal-single" id="btn-confirm-delete-single" data-action="modal-delete-single">
-          <span id="label-delete-single">Só esta parcela</span>
+          <span id="label-delete-single">S├│ esta parcela</span>
           <span>1x</span>
         </button>
         <button type="button" class="btn-modal-option" style="background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.45); color: #93C5FD;" id="btn-confirm-delete-future" data-action="modal-delete-future">
-          <span id="label-delete-future">Esta e as próximas</span>
-          <span>⏭️</span>
+          <span id="label-delete-future">Esta e as pr├│ximas</span>
+          <span>ÔÅ¡´©Å</span>
         </button>
         <button type="button" class="btn-modal-option btn-modal-all" id="btn-confirm-delete-all" data-action="modal-delete-all">
           <span id="label-delete-all">Todas as parcelas</span>
-          <span>🔥</span>
+          <span>­ƒöÑ</span>
         </button>
         <button type="button" class="btn-modal-option btn-modal-cancel" data-action="modal-cancel">
           Cancelar
@@ -465,16 +490,15 @@
     </div>
   </div>
 
-  <!-- POPOVER FLUTUANTE DE FILTRO POR COLUNA -->
+  <!-- POPOVER FLUTUANTE DE FILTRO POR COLUNA (ESTILO LINEAR / NOTION) -->
   <div class="col-filter-popover" id="col-filter-popover">
-    <input type="text" class="col-filter-search" id="col-filter-search" placeholder="Buscar opção...">
-    <div class="col-filter-options" id="col-filter-options"></div>
-    <div class="col-filter-actions">
+    <input type="text" class="col-filter-search" id="col-filter-search" placeholder="Buscar op├º├úo...">
+    <div class="col-filter-list" id="col-filter-list"></div>
+    <div class="col-filter-footer">
       <button type="button" class="btn-col-clear" data-action="clear-col-filter">Limpar coluna</button>
-      <button type="button" class="btn-col-done" data-action="close-col-filter">Concluído</button>
+      <button type="button" class="btn-col-done" data-action="close-col-filter">Conclu├¡do</button>
     </div>
   </div>
-
-  <script type="module" src="/static/js/main.js"></script>
+  <script type="module" src="/src/js/main.ts"></script>
 </body>
 </html>

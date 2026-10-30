@@ -69,8 +69,18 @@ export function abrirFiltroColuna(coluna: string, triggerBtn: HTMLElement): void
   state.colunaPopoverAtual = coluna;
 
   const rect = triggerBtn.getBoundingClientRect();
-  popover.style.top = `${rect.bottom + 8}px`;
-  popover.style.left = `${Math.min(rect.left, window.innerWidth - 270)}px`;
+  const popWidth = 265;
+  let left = rect.left;
+  if (left + popWidth > window.innerWidth - 16) {
+    left = Math.max(16, window.innerWidth - popWidth - 16);
+  }
+  let top = rect.bottom + 8;
+  if (top + 320 > window.innerHeight) {
+    top = Math.max(16, rect.top - 320);
+  }
+
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
 
   const searchInput = document.getElementById("col-filter-search") as HTMLInputElement | null;
   if (searchInput) searchInput.value = "";
@@ -90,7 +100,9 @@ export function fecharFiltroColuna(): void {
 }
 
 export function renderOpcoesFiltroColuna(coluna: string, termoBusca: string = ""): void {
-  const container = document.getElementById("col-filter-options");
+  const container =
+    document.getElementById("col-filter-list") ||
+    document.getElementById("col-filter-options");
   if (!container) return;
 
   const trans = state.transacoesAtuais || [];
@@ -119,7 +131,7 @@ export function renderOpcoesFiltroColuna(coluna: string, termoBusca: string = ""
       const isChecked = filtroAtivoSet.has(val);
       const safeVal = escapeHtml(val);
       return `
-      <label class="col-filter-option">
+      <label class="col-filter-item">
         <input type="checkbox" data-col="${coluna}" data-val="${safeVal}" ${isChecked ? "checked" : ""}>
         <span class="truncate">${safeVal}</span>
       </label>
