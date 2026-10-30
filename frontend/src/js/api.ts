@@ -23,7 +23,6 @@ const authMiddleware: Middleware = {
 };
 
 export const apiClient = createClient<paths>({
-  baseUrl: "",
   credentials: "same-origin",
   headers: {
     Accept: "application/json",
