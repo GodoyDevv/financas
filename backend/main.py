@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.auth import (
     LoginRequest,
@@ -345,9 +346,19 @@ def serve_atlas_logo():
 # ------------------------------------------------------------------------------
 # ROTA RAIZ DO DASHBOARD (PROTEGIDA COM REDIRECIONAMENTO PARA /login)
 # ------------------------------------------------------------------------------
+# Servir arquivos estáticos (CSS, JS, Vendor)
+STATIC_DIR = PROJECT_ROOT / "frontend"
+if (STATIC_DIR / "src").exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR / "src")), name="static")
+if (STATIC_DIR / "vendor").exists():
+    app.mount("/vendor", StaticFiles(directory=str(STATIC_DIR / "vendor")), name="vendor")
+
+
 @app.get("/", tags=["Dashboard"])
 def serve_frontend(request: Request):
     session = require_auth_page(request)
     if not session:
         return RedirectResponse(url="/login", status_code=302)
-    return FileResponse(str(PROJECT_ROOT / "index.html"), media_type="text/html")
+    frontend_index = PROJECT_ROOT / "frontend" / "index.html"
+    target_index = frontend_index if frontend_index.exists() else (PROJECT_ROOT / "index.html")
+    return FileResponse(str(target_index), media_type="text/html")
