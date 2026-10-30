@@ -18,6 +18,7 @@ from alembic.config import Config
 os.environ.setdefault("APP_PASSWORD", "test_app_password_123")
 os.environ.setdefault("SESSION_SECRET", "test_session_secret_with_32_characters_12345")
 os.environ.setdefault("ADMIN_TOKEN", "test_admin_token_123")
+os.environ.setdefault("WHATSAPP_GROUP_JID", "120363000000000000@g.us")
 os.environ.setdefault("ENV", "test")
 
 # Garante que DATABASE_URL esteja definida ANTES de qualquer import do backend

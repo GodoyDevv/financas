@@ -28,6 +28,10 @@ os.environ["ADMIN_TOKEN"] = TEST_ADMIN_TOKEN
 os.environ["DEV_INSECURE_COOKIES"] = "0"
 os.environ["SESSION_TTL_HOURS"] = "12"
 
+from backend.config import get_settings
+
+get_settings.cache_clear()
+
 from backend.auth import (
     COOKIE_NAME,
     create_session_token,

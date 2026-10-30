@@ -1,9 +1,8 @@
-import asyncio
 import logging
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 
@@ -29,7 +28,7 @@ from backend.routes import router as api_router
 from backend.scheduler import (
     executar_envio_relatorio_diario,
     executar_envio_relatorio_semanal,
-    loop_agendador_relatorio_noturno,
+    processar_tick_jobs,
 )
 from backend.webhook import webhook_router
 
@@ -50,24 +49,7 @@ async def lifespan(app: FastAPI):
             "ERRO CRÍTICO DE SEGURANÇA: WHATSAPP_GROUP_JID não está definido no ambiente!"
         )
 
-    # Inicia o agendador assíncrono para o relatório noturno
-    task = asyncio.create_task(loop_agendador_relatorio_noturno())
-
-    # Recuperação oportunista de mensagens pendentes/travadas e expurgo de antigas
-    try:
-        from backend.services.message_processor import purge_old, reprocess_due
-
-        reprocess_due()
-        purge_old()
-    except Exception as e:
-        logging.getLogger("fintrack.startup").warning(
-            f"Erro ao executar reprocess_due/purge_old: {e}"
-        )
-
     yield
-    task.cancel()
-    with suppress(asyncio.CancelledError):
-        await task
 
 
 settings = get_settings()
@@ -212,24 +194,80 @@ async def route_logout_post():
 
 
 # ------------------------------------------------------------------------------
-# ENDPOINTS ADMINISTRATIVOS (PROTEGIDOS POR X-ADMIN-TOKEN)
+# ENDPOINTS ADMINISTRATIVOS E JOBS INTERNOS (PROTEGIDOS POR X-ADMIN-TOKEN)
 # ------------------------------------------------------------------------------
 @app.post(
-    "/api/relatorio-diario/disparar", dependencies=[Depends(require_admin_token)], tags=["Admin"]
+    "/internal/jobs/tick",
+    dependencies=[Depends(require_admin_token)],
+    tags=["Jobs"],
 )
-def disparar_relatorio_diario_manual():
-    """Endpoint administrativo para disparar ou testar o relatório diário sob demanda."""
-    sucesso = executar_envio_relatorio_diario(force=True)
-    return {"status": "success" if sucesso else "error", "enviado": sucesso}
+def jobs_tick():
+    """
+    Tick externo para orquestração de tarefas agendadas idempotentes.
+    Decide pelo relógio de São Paulo quais jobs estão devidos.
+    """
+    resumo = processar_tick_jobs()
+    return {"status": "ok", "summary": resumo}
 
 
 @app.post(
-    "/api/relatorio-semanal/disparar", dependencies=[Depends(require_admin_token)], tags=["Admin"]
+    "/internal/jobs/{job_name}",
+    dependencies=[Depends(require_admin_token)],
+    tags=["Jobs"],
 )
-def disparar_relatorio_semanal_manual():
-    """Endpoint administrativo para disparar ou testar o relatório semanal sob demanda."""
-    sucesso = executar_envio_relatorio_semanal(force=True)
-    return {"status": "success" if sucesso else "error", "enviado": sucesso}
+@app.post(
+    "/api/relatorio-diario/disparar",
+    dependencies=[Depends(require_admin_token)],
+    tags=["Jobs"],
+    include_in_schema=False,
+)
+@app.post(
+    "/api/relatorio-semanal/disparar",
+    dependencies=[Depends(require_admin_token)],
+    tags=["Jobs"],
+    include_in_schema=False,
+)
+def disparar_job_manual(request: Request, job_name: str | None = None):
+    """
+    Endpoint administrativo para disparar ou testar um job específico manualmente sob demanda.
+    Suporta os nomes: relatorio_diario, relatorio_semanal, reprocess_due, purge_old, ensure_recurrences.
+    Mantém compatibilidade com /api/relatorio-diario/disparar e /api/relatorio-semanal/disparar.
+    """
+    path = request.url.path
+    target_job = job_name
+    if "relatorio-diario" in path or target_job in ("relatorio-diario", "relatorio_diario"):
+        sucesso = executar_envio_relatorio_diario(force=True)
+        res = {"status": "success" if sucesso else "error", "enviado": sucesso}
+        if job_name:
+            res["job"] = "relatorio_diario"
+        return res
+    elif "relatorio-semanal" in path or target_job in ("relatorio-semanal", "relatorio_semanal"):
+        sucesso = executar_envio_relatorio_semanal(force=True)
+        res = {"status": "success" if sucesso else "error", "enviado": sucesso}
+        if job_name:
+            res["job"] = "relatorio_semanal"
+        return res
+    elif target_job == "reprocess_due":
+        from backend.services.message_processor import reprocess_due
+
+        reprocessed = reprocess_due()
+        return {"status": "success", "job": "reprocess_due", "count": len(reprocessed)}
+    elif target_job == "purge_old":
+        from backend.services.message_processor import purge_old
+
+        purged = purge_old()
+        return {"status": "success", "job": "purge_old", "count": purged}
+    elif target_job == "ensure_recurrences":
+        from backend.database import SessionLocal
+        from backend.dates_and_money import today_br
+        from backend.services.recurrences import ensure_recurrences
+
+        with SessionLocal() as s:
+            mes_str = today_br().strftime("%Y-%m")
+            ensure_recurrences(s, mes_str)
+            return {"status": "success", "job": "ensure_recurrences"}
+    else:
+        raise HTTPException(status_code=404, detail=f"Job desconhecido: {target_job}")
 
 
 # ------------------------------------------------------------------------------

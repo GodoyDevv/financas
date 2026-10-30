@@ -168,3 +168,20 @@ class ProcessedMessage(Base):
     error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     replied: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+class JobRun(Base):
+    __tablename__ = "job_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    job_name: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    run_key: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="running", index=True
+    )  # running, done, failed, skipped
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utc_now_naive)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    __table_args__ = (Index("uq_job_runs_name_key", "job_name", "run_key", unique=True),)
