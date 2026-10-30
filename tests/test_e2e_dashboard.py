@@ -144,12 +144,18 @@ def test_dashboard_e2e_complete_flow(test_server: str, seed_test_data, browser: 
     csp_violations = []
 
     def handle_console(msg):
+        print(f"BROWSER CONSOLE [{msg.type}]: {msg.text}")
         if msg.type == "error":
             console_errors.append(msg.text)
         if "Content Security Policy" in msg.text or "violates" in msg.text:
             csp_violations.append(msg.text)
 
+    def handle_pageerror(err):
+        print(f"PAGE ERROR: {err}")
+        console_errors.append(str(err))
+
     page.on("console", handle_console)
+    page.on("pageerror", handle_pageerror)
 
     # 1. Acesso à home não autenticado deve redirecionar para /login
     page.goto(f"{test_server}/")

@@ -3,98 +3,89 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atlas Finanças - Inteligência e Gestão Financeira</title>
-
-  <!-- FAVICON & BRANDING (Ícone da Guia do Navegador) -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%233B82F6'/%3E%3Cstop offset='100%25' stop-color='%231D4ED8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23grad)'/%3E%3Cpath d='M16 6v20M21 9h-6.5a4.5 4.5 0 0 0 0 9h5a4.5 4.5 0 0 1 0 9H10' stroke='%23FFFFFF' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+  <title>Atlas Finanças &middot; Painel Inteligente</title>
+  
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%233B82F6'/%3E%3Cstop offset='100%25' stop-color='%231D4ED8'/%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23grad)'/%3E%3Cpath d='M16 6v20M21 9h-6.5a4.5 4.5 0 0 0 0 9h5a4.5 4.5 0 0 1 0 9H10' stroke='%23FFFFFF' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#0B0F19">
   <meta name="description" content="Atlas Finanças - Módulo de Inteligência Financeira e Gestão Orçamentária Doméstica">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
-
+  
   <link rel="stylesheet" href="/static/styles/main.css">
+  <script src="/vendor/chart.umd.min.js"></script>
 </head>
-
 <body>
   <div class="container">
     <!-- HEADER -->
-    <header>
+    <header class="header">
       <div class="brand">
-        <div class="brand-icon" title="Atlas AI Agent">
-          <img src="/atlas_logo.jpg" alt="Atlas AI" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=80';">
+        <div class="brand-icon">
+          <img src="/atlas_logo.jpg" alt="Atlas AI">
         </div>
-        <div>
-          <div class="brand-title-wrap">
+        <div class="brand-title-wrap">
+          <div style="display: flex; align-items: center; gap: 8px;">
             <h1>Atlas Finanças</h1>
-            <span class="atlas-badge">AI Copilot</span>
+            <span class="atlas-badge">AI Assistant</span>
           </div>
-          <p>Módulo de Inteligência Financeira &middot; WhatsApp &middot; Automação Doméstica</p>
+          <p id="dashboard-subtitle">Planejamento e acompanhamento das despesas</p>
         </div>
       </div>
-
+      
+      <!-- CONTROLES DO CABEÇALHO (NAVEGAÇÃO MENSAL INTEGRADA) -->
       <div class="header-actions">
-        <!-- Navegador Mensal Elegante Integrado -->
         <div class="month-pill-group">
-          <button class="btn-month-chevron" onclick="navegarMes(-1)" title="Mês anterior">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <polyline points="15 18 9 12 15 6"></polyline>
+          <button class="btn-month-chevron" data-action="prev-month" title="Mês anterior">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path d="M15 19l-7-7 7-7"></path>
             </svg>
           </button>
-
-          <div class="month-pill-center" id="month-pill-trigger" onclick="toggleMonthDropdown(event)" title="Clique para abrir seletor rápido de mês">
-            <svg width="14" height="14" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;">
+          
+          <div class="month-pill-center" id="month-pill-trigger" data-action="toggle-month-dropdown" title="Clique para abrir seletor rápido de mês">
+            <svg width="14" height="14" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
               <line x1="16" y1="2" x2="16" y2="6"></line>
               <line x1="8" y1="2" x2="8" y2="6"></line>
               <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
-            <span class="month-pill-text" id="month-display-text">Outubro de 2026</span>
-            <svg class="month-pill-caret" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <polyline points="6 9 12 15 18 9"></polyline>
+            <span class="month-pill-text" id="mes-display">Carregando...</span>
+            <svg class="month-pill-caret" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M6 9l6 6 6-6"></path>
             </svg>
           </div>
 
-          <button class="btn-month-chevron" onclick="navegarMes(1)" title="Próximo mês">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <polyline points="9 18 15 12 9 6"></polyline>
+          <button class="btn-month-chevron" data-action="next-month" title="Próximo mês">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path d="M9 5l7 7-7 7"></path>
             </svg>
           </button>
 
-          <!-- DROPDOWN SELETOR DE MÊS / ANO RÁPIDO (Pop-over) -->
-          <div class="month-dropdown-menu" id="month-dropdown-menu" onclick="event.stopPropagation()">
+          <!-- DROPDOWN POPOVER DE SELEÇÃO RÁPIDA -->
+          <div class="month-dropdown-menu" id="month-dropdown-menu">
             <div class="month-dropdown-header">
-              <button class="year-nav-btn" onclick="mudarAnoDropdown(-1)" title="Ano anterior">‹</button>
-              <div class="month-dropdown-year" id="dropdown-year-title">
-                <span>2026</span>
-              </div>
-              <button class="year-nav-btn" onclick="mudarAnoDropdown(1)" title="Próximo ano">›</button>
+              <button class="year-nav-btn" data-action="prev-year-dropdown" title="Ano anterior">&lt;</button>
+              <span class="month-dropdown-year" id="month-dropdown-year">2026</span>
+              <button class="year-nav-btn" data-action="next-year-dropdown" title="Próximo ano">&gt;</button>
             </div>
-
-            <div class="months-grid" id="months-grid">
-              <!-- Renderizado dinamicamente via JS -->
-            </div>
-
+            <div class="months-grid" id="months-grid"></div>
             <div class="month-dropdown-footer">
-              <button class="dropdown-btn-text" onclick="irParaMesCorrenteDropdown()">Ir para Mês Atual</button>
-              <button class="dropdown-btn-close" onclick="fecharMonthDropdown()">Fechar</button>
+              <button class="dropdown-btn-text" data-action="current-month-dropdown">Ir para Mês Atual</button>
+              <button class="dropdown-btn-close" data-action="close-month-dropdown">Fechar</button>
             </div>
           </div>
         </div>
 
-        <button class="btn-view-mode active" id="btn-mes-atual" onclick="voltarMesAtual()" title="Ir para o mês corrente">Mês Atual</button>
-        <button class="btn-view-mode" id="btn-todos-meses" onclick="alternarModoGeral()" title="Ver acumulado de todos os meses">Geral</button>
+        <button class="btn-view-mode active" id="btn-mes-atual" data-action="month-current" title="Ir para o mês corrente">Mês Atual</button>
+        <button class="btn-view-mode" id="btn-todos-meses" data-action="month-general" title="Ver acumulado de todos os meses">Geral</button>
 
-        <div class="status-badge" id="api-status">
-          <span class="status-dot"></span>
-          <span id="status-text">Base Zerada / Pronta</span>
+        <div class="status-badge">
+          <div class="status-dot"></div>
+          Sincronizado
         </div>
 
-        <button class="btn-logout" id="btn-logout" onclick="fazerLogout()" title="Encerrar sessão protegida">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <button class="btn-logout" id="btn-logout" data-action="logout" title="Encerrar sessão protegida">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -104,367 +95,347 @@
       </div>
     </header>
 
-    <!-- CARDS DE MÉTRICAS DOMÉSTICAS -->
-    <div class="cards-grid">
-      <div class="stat-card receita">
-        <div class="stat-header">
+    <!-- METRICS GRID -->
+    <div class="metrics-grid">
+      <div class="metric-card card-blue">
+        <div class="metric-header">
           <span>Receitas Totais</span>
+          <div class="metric-icon">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
         </div>
-        <div class="stat-value" id="card-receitas">R$ 0,00</div>
-        <div class="stat-sub">Entradas fixas, salários e rendas</div>
+        <div class="metric-value" id="card-receitas">R$ 0,00</div>
+        <div class="metric-subtitle">Entradas confirmadas no mês</div>
       </div>
 
-      <div class="stat-card fixa">
-        <div class="stat-header">
-          <span>Contas Fixas a Pagar</span>
+      <div class="metric-card card-purple">
+        <div class="metric-header">
+          <span>Contas Fixas</span>
+          <div class="metric-icon">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </div>
         </div>
-        <div class="stat-value" id="card-fixas">R$ 0,00</div>
-        <div class="stat-sub">Aluguel, condomínio, luz, água, etc</div>
+        <div class="metric-value" id="card-fixas">R$ 0,00</div>
+        <div class="metric-subtitle">Aluguel, contas recorrentes</div>
       </div>
 
-      <div class="stat-card variavel">
-        <div class="stat-header">
-          <span>Gastos do WhatsApp</span>
+      <div class="metric-card card-amber">
+        <div class="metric-header">
+          <span>Gastos Variáveis</span>
+          <div class="metric-icon">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
         </div>
-        <div class="stat-value" id="card-whatsapp">R$ 0,00</div>
-        <div class="stat-sub">Despesas do dia a dia capturadas</div>
+        <div class="metric-value" id="card-whatsapp">R$ 0,00</div>
+        <div class="metric-subtitle">Lançamentos via WhatsApp / Dia a dia</div>
       </div>
 
-      <div class="stat-card saldo">
-        <div class="stat-header">
+      <div class="metric-card card-green">
+        <div class="metric-header">
           <span>Saldo Livre</span>
+          <div class="metric-icon">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
         </div>
-        <div class="stat-value" id="card-saldo-livre">R$ 0,00</div>
-        <div class="stat-sub">Receitas - (Fixas + Variáveis)</div>
+        <div class="metric-value" id="card-saldo-livre">R$ 0,00</div>
+        <div class="metric-subtitle">Receitas &minus; (Fixas + Variáveis)</div>
       </div>
     </div>
 
-    <!-- SEÇÃO DE GRÁFICOS VISUAIS E INTELIGÊNCIA ANALÍTICA -->
-    <div class="charts-grid">
-      <!-- Chart A: Distribuição de Despesas por Categoria -->
-      <div class="chart-card">
-        <div class="chart-header">
-          <div>
-            <div class="chart-title">
-              <svg width="20" height="20" fill="none" stroke="#EC4899" stroke-width="2.2" viewBox="0 0 24 24">
-                <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"></path>
-              </svg>
-              Distribuição por Categoria
+    <!-- MAIN TWO COLUMN SECTION -->
+    <div class="main-content-grid">
+      <!-- GRÁFICOS ANALÍTICOS MODERNOS -->
+      <div class="charts-section">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Distribuição por Categoria</div>
+              <div class="chart-subtitle">Gasto acumulado no período</div>
             </div>
-            <div class="chart-subtitle">Proporção das despesas registradas</div>
+            <span class="chart-pill-badge" id="badge-top-cat">Top: -</span>
           </div>
-          <span class="chart-pill-badge" id="badge-top-cat">Top: -</span>
-        </div>
-        <div class="chart-container" id="container-chart-categorias">
-          <canvas id="chart-categorias"></canvas>
-        </div>
-      </div>
-
-      <!-- Chart B: Balanço Financeiro Geral -->
-      <div class="chart-card">
-        <div class="chart-header">
-          <div>
-            <div class="chart-title">
-              <svg width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2.2" viewBox="0 0 24 24">
-                <line x1="18" y1="20" x2="18" y2="10"></line>
-                <line x1="12" y1="20" x2="12" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="14"></line>
-              </svg>
-              Balanço Financeiro
-            </div>
-            <div class="chart-subtitle">Receitas vs Contas Fixas vs Gastos WhatsApp</div>
+          <div class="chart-container" id="container-chart-categorias">
+            <canvas id="chart-categorias"></canvas>
           </div>
         </div>
-        <div class="chart-container" id="container-chart-balanco">
-          <canvas id="chart-balanco"></canvas>
-        </div>
-      </div>
 
-      <!-- Chart C: Comparativo Casal (Bruno vs Letícia no WhatsApp) -->
-      <div class="chart-card">
-        <div class="chart-header">
-          <div>
-            <div class="chart-title">
-              <svg width="20" height="20" fill="none" stroke="#8B5CF6" stroke-width="2.2" viewBox="0 0 24 24">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-              Quem Gastou Mais (WhatsApp)
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Receitas vs Despesas</div>
+              <div class="chart-subtitle">Proporção e taxa de economia</div>
             </div>
-            <div class="chart-subtitle">Comparativo Bruno vs Letícia em despesas do dia a dia</div>
+            <span class="chart-pill-badge" id="badge-taxa-poupanca">Poupança: 0%</span>
           </div>
-          <span class="chart-pill-badge" id="badge-comparativo-lider">Líder: -</span>
+          <div class="chart-container" id="container-chart-balanco">
+            <canvas id="chart-balanco"></canvas>
+          </div>
         </div>
-        <div class="chart-container" id="container-chart-casal">
-          <canvas id="chart-casal"></canvas>
-        </div>
-      </div>
 
-      <!-- Chart D: Maiores Gastos do Mês (Top Ofensores) -->
-      <div class="chart-card">
-        <div class="chart-header">
-          <div>
-            <div class="chart-title">
-              <svg width="20" height="20" fill="none" stroke="#F59E0B" stroke-width="2.2" viewBox="0 0 24 24">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-              </svg>
-              Top Despesas Variáveis (Ofensores)
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Divisão do Casal</div>
+              <div class="chart-subtitle">Despesas registradas por pessoa</div>
             </div>
-            <div class="chart-subtitle">Itens de maior impacto no orçamento</div>
+            <span class="chart-pill-badge" id="badge-casal">Líder: -</span>
           </div>
-          <span class="chart-pill-badge" id="badge-top-gasto">Maior: -</span>
+          <div class="chart-container" id="container-chart-casal">
+            <canvas id="chart-casal"></canvas>
+          </div>
         </div>
-        <div class="chart-container" id="container-chart-ofensores">
-          <canvas id="chart-ofensores"></canvas>
-        </div>
-      </div>
 
-      <!-- Chart E: Dias que Mais Gastou (Picos Diários de Consumo) -->
-      <div class="chart-card" style="grid-column: 1 / -1;">
-        <div class="chart-header">
-          <div>
-            <div class="chart-title">
-              <svg width="20" height="20" fill="none" stroke="#06B6D4" stroke-width="2.2" viewBox="0 0 24 24">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              Dias que Mais Gastou (Picos Financeiros)
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Maiores Ofensores</div>
+              <div class="chart-subtitle">Top descrições que mais pesaram</div>
             </div>
-            <div class="chart-subtitle">Dias do mês com maior volume de despesas registradas</div>
+            <span class="chart-pill-badge" id="badge-top-gasto">Maior: -</span>
           </div>
-          <span class="chart-pill-badge" id="badge-pico-dia">Dia mais caro: -</span>
-        </div>
-        <div class="chart-container" id="container-chart-dias" style="min-height: 250px;">
-          <canvas id="chart-dias"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- FORMULÁRIO DE CADASTRO / EDIÇÃO -->
-    <div class="glass-panel" id="panel-form">
-      <div class="panel-title" id="form-title">
-        <svg id="form-icon" width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2.2" viewBox="0 0 24 24">
-          <path d="M12 5v14M5 12h14"></path>
-        </svg>
-        <span id="form-title-text">Cadastrar Lançamento Doméstico</span>
-      </div>
-
-      <form id="form-transacao" class="tx-form">
-        <input type="hidden" id="edit-id" value="">
-
-        <div class="form-group">
-          <label for="tipo">Tipo de Registro</label>
-          <select id="tipo" class="form-control" onchange="aoMudarTipo()" required>
-            <option value="receita">Receita (Salário/Entrada)</option>
-            <option value="despesa_fixa">Despesa Fixa (Conta do Mês)</option>
-            <option value="despesa_variavel" selected>Despesa Variável (WhatsApp)</option>
-          </select>
+          <div class="chart-container" id="container-chart-ofensores">
+            <canvas id="chart-ofensores"></canvas>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="valor">Valor (R$)</label>
-          <input type="number" step="0.01" min="0.01" id="valor" class="form-control" placeholder="0,00" required>
-        </div>
-
-        <div class="form-group">
-          <label for="categoria">Categoria</label>
-          <input type="text" id="categoria" class="form-control" placeholder="Ex: Moradia, Alimentação" required list="sugestoes-categorias">
-          <datalist id="sugestoes-categorias">
-            <option value="Salário/Renda"></option>
-            <option value="Moradia"></option>
-            <option value="Contas de Consumo"></option>
-            <option value="Alimentação"></option>
-            <option value="Transporte"></option>
-            <option value="Saúde"></option>
-            <option value="Educação"></option>
-            <option value="Lazer"></option>
-            <option value="Serviços"></option>
-            <option value="Outros"></option>
-          </datalist>
-        </div>
-
-        <div class="form-group">
-          <label for="data">Data</label>
-          <input type="date" id="data" class="form-control" required>
-        </div>
-
-        <div class="form-group">
-          <label for="vencimento">Vencimento</label>
-          <input type="text" id="vencimento" class="form-control" placeholder="Ex: Dia 10">
-        </div>
-
-        <div class="form-group">
-          <label for="author">Responsável / Autor</label>
-          <select id="author" class="form-control">
-            <option value="">Não atribuído (Geral)</option>
-            <option value="Bruno">Bruno</option>
-            <option value="Letícia">Letícia</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="descricao">Descrição</label>
-          <input type="text" id="descricao" class="form-control" placeholder="Ex: Conta Enel / Supermercado">
-        </div>
-
-        <div class="form-actions-wrap">
-          <button type="submit" id="btn-submit" class="btn-primary">
-            Salvar
-          </button>
-          <button type="button" id="btn-cancelar" class="btn-cancel" onclick="cancelarEdicao()">
-            Cancelar
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- DISTRIBUIÇÃO POR CATEGORIA -->
-    <div class="glass-panel" id="panel-categorias">
-      <div class="panel-title">
-        <svg width="20" height="20" fill="none" stroke="#60A5FA" stroke-width="2.2" viewBox="0 0 24 24">
-          <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"></path>
-        </svg>
-        Distribuição de Despesas por Categoria (Fixas + Variáveis)
-      </div>
-      <div id="categorias-container">
-        <div class="empty-state" style="padding: 20px 0;">
-          <p>Nenhuma despesa registrada até o momento (0 despesas).</p>
+        <div class="chart-card chart-card-full">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Evolução Diária de Gastos</div>
+              <div class="chart-subtitle">Ritmo acumulado e picos de saída ao longo dos dias</div>
+            </div>
+            <span class="chart-pill-badge" id="badge-pico-dia">Pico: -</span>
+          </div>
+          <div class="chart-container chart-container-dias" id="container-chart-dias">
+            <canvas id="chart-dias"></canvas>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- HISTÓRICO COM FILTROS DE ABAS -->
-    <div class="glass-panel">
-      <div class="panel-title" style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <svg width="20" height="20" fill="none" stroke="#10B981" stroke-width="2.2" viewBox="0 0 24 24">
-            <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+      <!-- FORMULÁRIO DE CADASTRO / EDIÇÃO -->
+      <div class="glass-panel" id="panel-form">
+        <div class="panel-title" id="form-title">
+          <svg id="form-icon" width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2.2" viewBox="0 0 24 24">
+            <path d="M12 5v14M5 12h14"></path>
           </svg>
-          Histórico Financeiro
+          <span id="form-title-text">Cadastrar Lançamento Doméstico</span>
         </div>
 
-        <div class="filter-tabs">
-          <button class="tab-btn active" onclick="filtrarTabela('')">Todos</button>
-          <button class="tab-btn" onclick="filtrarTabela('receita')">Receitas</button>
-          <button class="tab-btn" onclick="filtrarTabela('despesa_fixa')">Despesas Fixas</button>
-          <button class="tab-btn" onclick="filtrarTabela('despesa_variavel')">Gastos Variáveis</button>
+        <form id="form-transacao" class="tx-form">
+          <div class="form-group">
+            <label for="tipo">Tipo de Movimentação</label>
+            <select id="tipo" class="form-control" required>
+              <option value="despesa_variavel">Gasto Variável (Dia a dia)</option>
+              <option value="despesa_fixa">Despesa Fixa (Recorrente/Contas)</option>
+              <option value="receita">Receita (Entrada)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="valor">Valor (R$)</label>
+            <input type="number" step="0.01" min="0.01" id="valor" class="form-control" placeholder="0,00" required>
+          </div>
+
+          <div class="form-group">
+            <label for="categoria">Categoria Orçamentária</label>
+            <input type="text" id="categoria" class="form-control" placeholder="Ex: Moradia, Alimentação" required list="sugestoes-categorias">
+            <datalist id="sugestoes-categorias">
+              <option value="Moradia">
+              <option value="Supermercado">
+              <option value="Alimentação">
+              <option value="Transporte">
+              <option value="Assinaturas">
+              <option value="Saúde">
+              <option value="Educação">
+              <option value="Lazer">
+              <option value="Salário">
+              <option value="Outros">
+            </datalist>
+          </div>
+
+          <div class="form-group">
+            <label for="data">Data do Lançamento</label>
+            <input type="date" id="data" class="form-control" required>
+          </div>
+
+          <div class="form-group" id="vencimento-group" style="display: none;">
+            <label for="vencimento">Dia do Vencimento (Opcional)</label>
+            <input type="text" id="vencimento" class="form-control" placeholder="Ex: Dia 10">
+          </div>
+
+          <div class="form-group">
+            <label for="author">Responsável / Autor</label>
+            <select id="author" class="form-control">
+              <option value="Bruno">Bruno</option>
+              <option value="Letícia">Letícia</option>
+              <option value="Casal">Casal (Geral)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="descricao">Descrição / Detalhes</label>
+            <input type="text" id="descricao" class="form-control" placeholder="Ex: Conta Enel / Supermercado">
+          </div>
+
+          <div class="form-actions-wrap">
+            <button type="submit" id="btn-submit" class="btn-primary">Salvar</button>
+            <button type="button" id="btn-cancelar" class="btn-cancel" data-action="cancel-edit" style="display: none;">Cancelar</button>
+          </div>
+        </form>
+
+        <!-- ORÇAMENTOS POR CATEGORIA (BARRAS DE PROGRESSO) -->
+        <div style="margin-top: 32px;">
+          <div class="panel-title">
+            <svg width="18" height="18" fill="none" stroke="#10B981" stroke-width="2.2" viewBox="0 0 24 24">
+              <path d="M12 20V10M18 20V4M6 20v-4"></path>
+            </svg>
+            Teto por Categorias
+          </div>
+          <div class="categories-list" id="category-progress-list">
+            <div class="empty-state">Carregando orçamentos...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABELA COMPLETA DE TRANSAÇÕES COM FILTROS AVANÇADOS -->
+    <div class="glass-panel" style="margin-top: 24px;">
+      <div class="panel-title panel-title-responsive">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <svg width="20" height="20" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          Histórico de Movimentações
+        </div>
+
+        <div class="tabs-filter">
+          <button class="tab-btn active" data-action="filter-tab" data-tipo="">Todos</button>
+          <button class="tab-btn" data-action="filter-tab" data-tipo="receita">Receitas</button>
+          <button class="tab-btn" data-action="filter-tab" data-tipo="despesa_fixa">Despesas Fixas</button>
+          <button class="tab-btn" data-action="filter-tab" data-tipo="despesa_variavel">Gastos Variáveis</button>
         </div>
       </div>
 
-      <!-- BARRA DE FILTROS ATIVOS E CONSOLIDAÇÃO RÁPIDA -->
+      <!-- BARRA DE CHIPS DE FILTROS ATIVOS E SUMÁRIO INSTANTÂNEO -->
       <div class="active-filters-bar" id="active-filters-bar">
         <div class="active-chips-group" id="active-chips-group"></div>
         <div class="filtered-summary-pills" id="filtered-summary-pills"></div>
       </div>
 
-      <div class="table-container">
-        <table>
+      <div class="table-responsive">
+        <table class="tx-table">
           <thead>
             <tr>
               <th>
-                <button type="button" class="th-filter-btn" id="th-btn-data" onclick="abrirFiltroColuna('data', this, event)" title="Filtrar por Data">
+                <div class="th-filter-wrapper">
                   <span>Data</span>
-                  <span class="th-filter-badge" id="th-badge-data" style="display:none">0</span>
-                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                </button>
+                  <button type="button" class="th-filter-btn" id="th-btn-data" data-action="open-col-filter" data-col="data" title="Filtrar por Data">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
+                    <span class="th-filter-badge" id="th-badge-data" style="display:none">0</span>
+                  </button>
+                </div>
               </th>
               <th>
-                <button type="button" class="th-filter-btn" id="th-btn-tipo" onclick="abrirFiltroColuna('tipo', this, event)" title="Filtrar por Tipo">
+                <div class="th-filter-wrapper">
                   <span>Tipo</span>
-                  <span class="th-filter-badge" id="th-badge-tipo" style="display:none">0</span>
-                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                </button>
+                  <button type="button" class="th-filter-btn" id="th-btn-tipo" data-action="open-col-filter" data-col="tipo" title="Filtrar por Tipo">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
+                    <span class="th-filter-badge" id="th-badge-tipo" style="display:none">0</span>
+                  </button>
+                </div>
               </th>
               <th>
-                <button type="button" class="th-filter-btn" id="th-btn-categoria" onclick="abrirFiltroColuna('categoria', this, event)" title="Filtrar por Categoria">
+                <div class="th-filter-wrapper">
                   <span>Categoria</span>
-                  <span class="th-filter-badge" id="th-badge-categoria" style="display:none">0</span>
-                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                </button>
+                  <button type="button" class="th-filter-btn" id="th-btn-categoria" data-action="open-col-filter" data-col="categoria" title="Filtrar por Categoria">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
+                    <span class="th-filter-badge" id="th-badge-categoria" style="display:none">0</span>
+                  </button>
+                </div>
               </th>
               <th>
-                <button type="button" class="th-filter-btn" id="th-btn-descricao" onclick="abrirFiltroColuna('descricao', this, event)" title="Filtrar por Descrição (ex: Gasolina, Uber, Almoço)">
+                <div class="th-filter-wrapper">
                   <span>Descrição</span>
-                  <span class="th-filter-badge" id="th-badge-descricao" style="display:none">0</span>
-                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                </button>
+                  <button type="button" class="th-filter-btn" id="th-btn-descricao" data-action="open-col-filter" data-col="descricao" title="Filtrar por Descrição">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
+                    <span class="th-filter-badge" id="th-badge-descricao" style="display:none">0</span>
+                  </button>
+                </div>
               </th>
               <th>
-                <button type="button" class="th-filter-btn" id="th-btn-vencimento" onclick="abrirFiltroColuna('vencimento', this, event)" title="Filtrar por Vencimento">
-                  <span>Vencimento</span>
-                  <span class="th-filter-badge" id="th-badge-vencimento" style="display:none">0</span>
-                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                </button>
+                <div class="th-filter-wrapper">
+                  <span>Venc.</span>
+                  <button type="button" class="th-filter-btn" id="th-btn-vencimento" data-action="open-col-filter" data-col="vencimento" title="Filtrar por Vencimento">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
+                    <span class="th-filter-badge" id="th-badge-vencimento" style="display:none">0</span>
+                  </button>
+                </div>
               </th>
               <th>
-                <button type="button" class="th-filter-btn" id="th-btn-author" onclick="abrirFiltroColuna('author', this, event)" title="Filtrar por Autor (ex: Bruno, Letícia)">
+                <div class="th-filter-wrapper">
                   <span>Autor</span>
-                  <span class="th-filter-badge" id="th-badge-author" style="display:none">0</span>
-                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                </button>
+                  <button type="button" class="th-filter-btn" id="th-btn-author" data-action="open-col-filter" data-col="author" title="Filtrar por Autor">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
+                    <span class="th-filter-badge" id="th-badge-author" style="display:none">0</span>
+                  </button>
+                </div>
               </th>
               <th>
-                <button type="button" class="th-filter-btn" id="th-btn-channel" onclick="abrirFiltroColuna('channel', this, event)" title="Filtrar por Canal (ex: WhatsApp, Dashboard)">
+                <div class="th-filter-wrapper">
                   <span>Canal</span>
-                  <span class="th-filter-badge" id="th-badge-channel" style="display:none">0</span>
-                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                </button>
+                  <button type="button" class="th-filter-btn" id="th-btn-channel" data-action="open-col-filter" data-col="channel" title="Filtrar por Canal">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
+                    <span class="th-filter-badge" id="th-badge-channel" style="display:none">0</span>
+                  </button>
+                </div>
               </th>
               <th>
-                <button type="button" class="th-filter-btn" id="th-btn-valor" onclick="abrirFiltroColuna('valor', this, event)" title="Filtrar ou Ordenar por Valor">
+                <div class="th-filter-wrapper">
                   <span>Valor</span>
-                  <span class="th-filter-badge" id="th-badge-valor" style="display:none">0</span>
-                  <svg class="th-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                </button>
+                  <button type="button" class="th-filter-btn" id="th-btn-valor" data-action="open-col-filter" data-col="valor" title="Filtrar ou Ordenar por Valor">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
+                    <span class="th-filter-badge" id="th-badge-valor" style="display:none">0</span>
+                  </button>
+                </div>
               </th>
               <th style="text-align: right;">Ação</th>
             </tr>
           </thead>
-          <tbody id="tabela-corpo">
-            <tr>
-              <td colspan="9">
-                <div class="empty-state">
-                  <svg class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
-                  </svg>
-                  <h4>Base de dados vazia</h4>
-                  <p>Cadastre sua primeira receita, conta fixa ou despesa variável acima.</p>
-                </div>
-              </td>
-            </tr>
-          </tbody>
+          <tbody id="tabela-corpo"></tbody>
         </table>
-      </div>
 
-      <!-- Container Vertical de Transações para Mobile (Visual em Lista / Cards sem scroll horizontal) -->
-      <div class="mobile-tx-list" id="mobile-tx-list"></div>
+        <!-- LISTA RESPONSIVA DE CARDS PARA CELULARES -->
+        <div class="mobile-tx-list" id="mobile-tx-list"></div>
+
+        <div id="tabela-empty" class="empty-state" style="display: none;">
+          <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
+            <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
+            <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path>
+          </svg>
+          <div style="font-weight: 600; margin-bottom: 4px;">Nenhuma movimentação encontrada</div>
+          <div style="font-size: 13px; color: var(--text-dim);">Tente limpar os filtros selecionados ou selecione outro mês</div>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- MODAL DE EXCLUSÃO INTELIGENTE (PARCELAS OU ITEM ÚNICO) -->
-  <div class="modal-overlay" id="delete-modal-overlay" onclick="fecharModalExclusao()">
-    <div class="modal-glass-box" onclick="event.stopPropagation()">
+  <div class="modal-overlay" id="delete-modal-overlay">
+    <div class="modal-glass-box">
       <div class="modal-header-title">
         <svg width="22" height="22" fill="none" stroke="#EF4444" stroke-width="2.2" viewBox="0 0 24 24">
           <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -475,1725 +446,35 @@
         Este lançamento faz parte de uma compra parcelada. Como você prefere realizar a exclusão?
       </p>
       <div class="modal-actions-stack">
-        <button type="button" class="btn-modal-option btn-modal-single" id="btn-confirm-delete-single" onclick="executarExclusao('uma')">
+        <button type="button" class="btn-modal-option btn-modal-single" id="btn-confirm-delete-single" data-action="modal-delete-single">
           <span id="label-delete-single">Só esta parcela</span>
           <span>1x</span>
         </button>
-        <button type="button" class="btn-modal-option" style="background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.45); color: #93C5FD;" id="btn-confirm-delete-future" onclick="executarExclusao('futuras')">
+        <button type="button" class="btn-modal-option" style="background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.45); color: #93C5FD;" id="btn-confirm-delete-future" data-action="modal-delete-future">
           <span id="label-delete-future">Esta e as próximas</span>
           <span>⏭️</span>
         </button>
-        <button type="button" class="btn-modal-option btn-modal-all" id="btn-confirm-delete-all" onclick="executarExclusao('grupo')">
+        <button type="button" class="btn-modal-option btn-modal-all" id="btn-confirm-delete-all" data-action="modal-delete-all">
           <span id="label-delete-all">Todas as parcelas</span>
           <span>🔥</span>
         </button>
-        <button type="button" class="btn-modal-option btn-modal-cancel" onclick="fecharModalExclusao()">
+        <button type="button" class="btn-modal-option btn-modal-cancel" data-action="modal-cancel">
           Cancelar
         </button>
       </div>
     </div>
   </div>
 
-  <!-- POPOVER FLUTUANTE DE FILTRO POR COLUNA (ESTILO LINEAR / NOTION) -->
-  <div class="col-filter-popover" id="col-filter-popover" onclick="event.stopPropagation()">
-    <input type="text" class="col-filter-search" id="col-filter-search" placeholder="Buscar opção..." oninput="filtrarOpcoesColuna(this.value)">
-    <div class="col-filter-list" id="col-filter-list"></div>
-    <div class="col-filter-footer">
-      <button type="button" class="btn-col-clear" onclick="limparFiltroColunaAberta()">Limpar coluna</button>
-      <button type="button" class="btn-col-done" onclick="fecharPopoverColuna()">Concluído</button>
+  <!-- POPOVER FLUTUANTE DE FILTRO POR COLUNA -->
+  <div class="col-filter-popover" id="col-filter-popover">
+    <input type="text" class="col-filter-search" id="col-filter-search" placeholder="Buscar opção...">
+    <div class="col-filter-options" id="col-filter-options"></div>
+    <div class="col-filter-actions">
+      <button type="button" class="btn-col-clear" data-action="clear-col-filter">Limpar coluna</button>
+      <button type="button" class="btn-col-done" data-action="close-col-filter">Concluído</button>
     </div>
   </div>
 
-  <script>
-    const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
-      ? `${window.location.origin}/api`
-      : 'http://localhost:8000/api';
-
-    // Wrapper seguro de fetch: injeta credentials same-origin e intercepta 401 para redirecionar ao login
-    async function apiFetch(url, options = {}) {
-      const opts = {
-        credentials: 'same-origin',
-        ...options,
-        headers: {
-          ...(options.headers || {})
-        }
-      };
-
-      const res = await fetch(url, opts);
-      if (res.status === 401) {
-        window.location.href = '/login';
-        throw new Error('Sessão expirada ou não autenticada');
-      }
-      return res;
-    }
-
-    async function fazerLogout() {
-      try {
-        await apiFetch('/auth/logout', { method: 'POST' });
-      } catch (e) {
-        // Ignora erro
-      } finally {
-        window.location.href = '/login';
-      }
-    }
-
-    // Utilitário de escape de HTML contra XSS armazenado / refletido
-    function escapeHtml(value) {
-      if (value === null || value === undefined) return '';
-      return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
-        .replace(/`/g, '&#96;');
-    }
-
-    // Tagged template para HTML seguro automático (escapa qualquer interpolação não sanitizada)
-    function html(strings, ...values) {
-      return strings.reduce((acc, str, i) => {
-        const val = i < values.length ? values[i] : '';
-        const safeVal = (val && val.__htmlSafe) ? val.value : escapeHtml(val);
-        return acc + str + safeVal;
-      }, '');
-    }
-
-    function safeRaw(str) {
-      return { __htmlSafe: true, value: String(str) };
-    }
-
-    let filtroAtual = '';
-
-    // Controle da Perspectiva Mensal (YYYY-MM)
-    const hoje = new Date();
-    let anoAtual = hoje.getFullYear();
-    let mesAtual = hoje.getMonth() + 1; // 1 a 12
-    let modoGeral = false; // Se true, exibe a soma de todos os meses
-
-    function formatarMesAno(ano, mes) {
-      const mStr = String(mes).padStart(2, '0');
-      return `${ano}-${mStr}`;
-    }
-
-    let mesSelecionado = formatarMesAno(anoAtual, mesAtual);
-
-    const NOMES_MESES = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ];
-
-    let dropdownAnoFoco = anoAtual;
-
-    const SIGLAS_MESES = [
-      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
-    ];
-
-    function toggleMonthDropdown(event) {
-      if (event) event.stopPropagation();
-      const menu = document.getElementById('month-dropdown-menu');
-      const trigger = document.getElementById('month-pill-trigger');
-
-      const isOpen = menu.classList.contains('active');
-      if (isOpen) {
-        fecharMonthDropdown();
-      } else {
-        // Inicializa ano de foco com base no mês atualmente selecionado
-        if (mesSelecionado) {
-          const [ano] = mesSelecionado.split('-').map(Number);
-          dropdownAnoFoco = ano;
-        } else {
-          dropdownAnoFoco = anoAtual;
-        }
-        renderMonthsGrid();
-        menu.classList.add('active');
-        trigger.classList.add('open');
-      }
-    }
-
-    function fecharMonthDropdown() {
-      const menu = document.getElementById('month-dropdown-menu');
-      const trigger = document.getElementById('month-pill-trigger');
-      if (menu) menu.classList.remove('active');
-      if (trigger) trigger.classList.remove('open');
-    }
-
-    function mudarAnoDropdown(delta) {
-      dropdownAnoFoco += delta;
-      renderMonthsGrid();
-    }
-
-    function renderMonthsGrid() {
-      const yearTitle = document.getElementById('dropdown-year-title');
-      if (yearTitle) {
-        yearTitle.innerHTML = `<span>${dropdownAnoFoco}</span>`;
-      }
-
-      const grid = document.getElementById('months-grid');
-      if (!grid) return;
-
-      const [anoSel, mesSel] = mesSelecionado ? mesSelecionado.split('-').map(Number) : [0, 0];
-      const anoReal = hoje.getFullYear();
-      const mesReal = hoje.getMonth() + 1;
-
-      grid.innerHTML = '';
-      for (let m = 1; m <= 12; m++) {
-        const isSelected = !modoGeral && anoSel === dropdownAnoFoco && mesSel === m;
-        const isReal = anoReal === dropdownAnoFoco && mesReal === m;
-
-        let classes = 'month-cell';
-        if (isSelected) classes += ' selected';
-        if (isReal && !isSelected) classes += ' current-real';
-
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = classes;
-        btn.innerHTML = `
-          <span>${SIGLAS_MESES[m - 1]}</span>
-          <span class="month-num">${String(m).padStart(2, '0')}</span>
-        `;
-        btn.onclick = () => selecionarMesDireto(dropdownAnoFoco, m);
-        grid.appendChild(btn);
-      }
-    }
-
-    function selecionarMesDireto(ano, mes) {
-      modoGeral = false;
-      mesSelecionado = formatarMesAno(ano, mes);
-      fecharMonthDropdown();
-      atualizarDisplayMes();
-      carregarDados();
-    }
-
-    function irParaMesCorrenteDropdown() {
-      voltarMesAtual();
-      fecharMonthDropdown();
-    }
-
-    // Fecha dropdown se clicar fora
-    document.addEventListener('click', (e) => {
-      const menu = document.getElementById('month-dropdown-menu');
-      const trigger = document.getElementById('month-pill-trigger');
-      if (menu && menu.classList.contains('active')) {
-        if (!menu.contains(e.target) && !trigger.contains(e.target)) {
-          fecharMonthDropdown();
-        }
-      }
-    });
-
-    // Fecha com tecla ESC
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        fecharMonthDropdown();
-      }
-    });
-
-    function atualizarDisplayMes() {
-      const displayEl = document.getElementById('month-display-text');
-      const btnAtual = document.getElementById('btn-mes-atual');
-      const btnGeral = document.getElementById('btn-todos-meses');
-
-      if (modoGeral) {
-        displayEl.innerText = 'Todos os Meses (Geral)';
-        btnAtual.classList.remove('active');
-        btnGeral.classList.add('active');
-      } else {
-        const [ano, mes] = mesSelecionado.split('-').map(Number);
-        displayEl.innerText = `${NOMES_MESES[mes - 1]} de ${ano}`;
-
-        const mesHojeStr = formatarMesAno(hoje.getFullYear(), hoje.getMonth() + 1);
-        if (mesSelecionado === mesHojeStr) {
-          btnAtual.classList.add('active');
-        } else {
-          btnAtual.classList.remove('active');
-        }
-        btnGeral.classList.remove('active');
-      }
-    }
-
-    function navegarMes(delta) {
-      modoGeral = false;
-      let [ano, mes] = mesSelecionado.split('-').map(Number);
-      mes += delta;
-      if (mes > 12) {
-        mes = 1;
-        ano += 1;
-      } else if (mes < 1) {
-        mes = 12;
-        ano -= 1;
-      }
-      mesSelecionado = formatarMesAno(ano, mes);
-      atualizarDisplayMes();
-      carregarDados();
-    }
-
-    function voltarMesAtual() {
-      modoGeral = false;
-      mesSelecionado = formatarMesAno(hoje.getFullYear(), hoje.getMonth() + 1);
-      atualizarDisplayMes();
-      carregarDados();
-    }
-
-    function alternarModoGeral() {
-      modoGeral = true;
-      atualizarDisplayMes();
-      carregarDados();
-    }
-
-    document.getElementById('data').valueAsDate = new Date();
-
-    function formatBRL(valor) {
-      const num = Number(valor) || 0;
-      return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    }
-
-    function formatDateBR(dateStr) {
-      if (!dateStr) return '-';
-      const parts = dateStr.split('-');
-      if (parts.length === 3) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-      }
-      return dateStr;
-    }
-
-    function badgeTipo(tipo) {
-      if (tipo === 'receita') {
-        return '<span class="badge badge-receita">Receita</span>';
-      } else if (tipo === 'despesa_fixa') {
-        return '<span class="badge badge-despesa_fixa">Conta Fixa</span>';
-      } else {
-        return '<span class="badge badge-despesa_variavel">Variável (Chat)</span>';
-      }
-    }
-
-    function classValor(tipo) {
-      if (tipo === 'receita') return 'val-receita';
-      if (tipo === 'despesa_fixa') return 'val-fixa';
-      return 'val-variavel';
-    }
-
-    function sinalValor(tipo) {
-      return tipo === 'receita' ? '+' : '-';
-    }
-
-    function aoMudarTipo() {
-      const tipo = document.getElementById('tipo').value;
-      const vencInput = document.getElementById('vencimento');
-      if (tipo === 'despesa_fixa') {
-        vencInput.placeholder = 'Ex: Dia 10';
-      } else {
-        vencInput.placeholder = 'Opcional';
-      }
-    }
-
-    function filtrarTabela(tipo) {
-      filtroAtual = tipo;
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      const buttons = Array.from(document.querySelectorAll('.tab-btn'));
-      const activeBtn = buttons.find(b => {
-        if (!tipo && b.innerText === 'Todos') return true;
-        if (tipo === 'receita' && b.innerText === 'Receitas') return true;
-        if (tipo === 'despesa_fixa' && b.innerText === 'Despesas Fixas') return true;
-        if (tipo === 'despesa_variavel' && b.innerText === 'Gastos Variáveis') return true;
-        return false;
-      });
-      if (activeBtn) activeBtn.classList.add('active');
-      carregarDados();
-    }
-
-    let _inicializacaoFeita = false;
-
-    async function carregarDados() {
-      try {
-        // Na primeira carga, se o mês atual não tiver dados, detecta automaticamente o mês ativo mais recente
-        if (!_inicializacaoFeita && !modoGeral) {
-          try {
-            const checkRes = await apiFetch(`${API_BASE}/transactions`);
-            if (checkRes.ok) {
-              const allT = await checkRes.json();
-              if (allT && allT.length > 0) {
-                // Filtra datas válidas e ordena para pegar a mais recente
-                const datasValidas = allT.map(t => t.data).filter(Boolean).sort().reverse();
-                if (datasValidas.length > 0) {
-                  const [anoRecente, mesRecente] = datasValidas[0].split('-');
-                  const mesMaisRecente = `${anoRecente}-${mesRecente}`;
-                  // Se o mês selecionado não tem registros mas a base tem, sincroniza com o mês ativo
-                  const temNoMesAtual = allT.some(t => t.data && t.data.startsWith(mesSelecionado));
-                  if (!temNoMesAtual) {
-                    mesSelecionado = mesMaisRecente;
-                    dropdownAnoFoco = Number(anoRecente);
-                  }
-                }
-              }
-            }
-          } catch (eInit) {
-            console.warn('Detecção de mês inicial padrão:', eInit);
-          } finally {
-            _inicializacaoFeita = true;
-          }
-        }
-
-        atualizarDisplayMes();
-
-        const params = new URLSearchParams();
-        if (filtroAtual) params.append('tipo', filtroAtual);
-        if (!modoGeral && mesSelecionado) params.append('mes', mesSelecionado);
-
-        const queryStr = params.toString() ? `?${params.toString()}` : '';
-        const metricsQuery = (!modoGeral && mesSelecionado) ? `?mes=${mesSelecionado}` : '';
-
-        const [resMetrics, resTrans] = await Promise.all([
-          apiFetch(`${API_BASE}/metrics${metricsQuery}`),
-          apiFetch(`${API_BASE}/transactions${queryStr}`)
-        ]);
-
-        if (!resMetrics.ok || !resTrans.ok) {
-          throw new Error('Falha ao comunicar com os endpoints da API');
-        }
-
-        const metrics = await resMetrics.json();
-        const trans = await resTrans.json();
-
-        // 1. Atualização dos Cards de Planejamento Doméstico
-        document.getElementById('card-receitas').innerText = formatBRL(metrics.receitas_totais || 0);
-        document.getElementById('card-fixas').innerText = formatBRL(metrics.contas_fixas || 0);
-        document.getElementById('card-whatsapp').innerText = formatBRL(metrics.gastos_whatsapp || 0);
-        document.getElementById('card-saldo-livre').innerText = formatBRL(metrics.saldo_livre || 0);
-
-        // Ajusta cor do saldo livre se negativo
-        const cardSaldoEl = document.getElementById('card-saldo-livre');
-        if (metrics.saldo_livre < 0) {
-          cardSaldoEl.style.color = '#F87171';
-        } else {
-          cardSaldoEl.style.color = '#60A5FA';
-        }
-
-        // 2. Renderização de Categorias
-        const catBox = document.getElementById('categorias-container');
-        if (metrics.categorias && metrics.categorias.length > 0) {
-          catBox.innerHTML = `
-            <div class="cat-bars">
-              ${metrics.categorias.map(c => `
-                <div>
-                  <div class="cat-item-header">
-                    <span><strong>${escapeHtml(c.categoria)}</strong> &middot; ${Number(c.percentual || 0)}%</span>
-                    <span>${escapeHtml(formatBRL(c.total))}</span>
-                  </div>
-                  <div class="cat-progress-bg">
-                    <div class="cat-progress-fill" style="width: ${Math.min(Number(c.percentual || 0), 100)}%;"></div>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          `;
-        } else {
-          catBox.innerHTML = `
-            <div class="empty-state" style="padding: 20px 0;">
-              <p>Nenhuma despesa cadastrada até o momento (0 despesas).</p>
-            </div>
-          `;
-        }
-
-        // Guarda cache local das transações para preenchimento fluído na edição
-        window._transacoesAtuais = trans || [];
-
-        // 3. Renderização dos Gráficos Chart.js
-        atualizarGraficos(metrics, trans);
-
-        // 4. Renderização da Tabela de Transações (com suporte a filtros de coluna modernos)
-        renderizarTabelaHistorico();
-
-        document.getElementById('status-text').innerText = 'Base Conectada';
-      } catch (err) {
-        console.error('Erro ao conectar à API:', err);
-        document.getElementById('status-text').innerText = 'Backend Desconectado';
-        document.getElementById('api-status').style.borderColor = 'rgba(239, 68, 68, 0.4)';
-        document.getElementById('api-status').style.color = '#F87171';
-      }
-    }
-
-    // =========================================================================
-    // SISTEMA MODERNO DE FILTROS FACETADOS POR COLUNA (LINEAR / NOTION STYLE)
-    // =========================================================================
-    const filtrosColuna = {
-      data: new Set(),
-      tipo: new Set(),
-      categoria: new Set(),
-      descricao: new Set(),
-      vencimento: new Set(),
-      author: new Set(),
-      channel: new Set(),
-      source: new Set(),
-      valor: new Set()
-    };
-
-    const NOMES_COLUNAS = {
-      data: 'Data',
-      tipo: 'Tipo',
-      categoria: 'Categoria',
-      descricao: 'Descrição',
-      vencimento: 'Vencimento',
-      author: 'Autor',
-      channel: 'Canal',
-      source: 'Origem',
-      valor: 'Valor'
-    };
-
-    let colunaPopoverAtual = null;
-
-    function formatChannelLabel(ch) {
-      switch (ch) {
-        case 'whatsapp_text': return '💬 WhatsApp';
-        case 'whatsapp_audio': return '🎙️ Áudio Zap';
-        case 'dashboard': return '💻 Painel';
-        case 'api': return '⚡ API';
-        case 'system': return '🤖 Sistema';
-        default: return 'Desconhecido';
-      }
-    }
-
-    function obterValorColuna(t, col) {
-      switch (col) {
-        case 'data':
-          return formatDateBR(t.data);
-        case 'tipo':
-          return t.tipo === 'receita' ? 'Receita' : (t.tipo === 'despesa_fixa' ? 'Conta Fixa' : 'Variável (Chat)');
-        case 'categoria':
-          return t.categoria || 'Outros';
-        case 'descricao': {
-          // Agrupa parcelas como "Carro (1/4)" sob "Carro" para permitir filtrar o item inteiro de uma vez, mantendo descrições normais intactas
-          const raw = (t.descricao || 'Sem descrição').trim();
-          const limpo = raw.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
-          return limpo || raw;
-        }
-        case 'vencimento':
-          return t.vencimento ? String(t.vencimento) : 'Sem vencimento';
-        case 'author':
-          return t.author || (t.source && t.source !== 'Manual' && t.source !== 'WhatsApp' ? t.source : 'Geral');
-        case 'channel':
-          return formatChannelLabel(t.channel || (t.source === 'Manual' ? 'dashboard' : 'whatsapp_text'));
-        case 'source':
-          return t.source || 'Manual';
-        case 'valor':
-          return formatBRL(t.valor);
-        default:
-          return '';
-      }
-    }
-
-    function abrirFiltroColuna(col, btnEl, event) {
-      if (event) event.stopPropagation();
-      const popover = document.getElementById('col-filter-popover');
-
-      if (colunaPopoverAtual === col && popover.classList.contains('open')) {
-        fecharPopoverColuna();
-        return;
-      }
-
-      colunaPopoverAtual = col;
-      const searchInput = document.getElementById('col-filter-search');
-      searchInput.placeholder = `Buscar em ${NOMES_COLUNAS[col] || col}...`;
-      searchInput.value = '';
-
-      renderizarOpcoesPopover(col, '');
-
-      // Posicionamento inteligente próximo ao cabeçalho clicado
-      popover.classList.add('open');
-      const rect = btnEl.getBoundingClientRect();
-      const popWidth = 265;
-      let left = rect.left;
-      if (left + popWidth > window.innerWidth - 16) {
-        left = Math.max(16, window.innerWidth - popWidth - 16);
-      }
-      let top = rect.bottom + 8;
-      if (top + 320 > window.innerHeight) {
-        top = Math.max(16, rect.top - 320);
-      }
-
-      popover.style.left = `${left}px`;
-      popover.style.top = `${top}px`;
-
-      setTimeout(() => searchInput.focus(), 40);
-    }
-
-    function renderizarOpcoesPopover(col, termoBusca = '') {
-      const listEl = document.getElementById('col-filter-list');
-      const trans = window._transacoesAtuais || [];
-
-      // Calcula contagem e soma de valor para cada opção única da coluna
-      // Considerando os filtros já ativos nas OUTRAS colunas para experiência facetada real
-      const baseFiltradaOutrasColunas = trans.filter(t => {
-        for (const [cKey, setValores] of Object.entries(filtrosColuna)) {
-          if (cKey === col || setValores.size === 0) continue;
-          if (!setValores.has(obterValorColuna(t, cKey))) return false;
-        }
-        return true;
-      });
-
-      const mapaOpcoes = new Map();
-      baseFiltradaOutrasColunas.forEach(t => {
-        const val = obterValorColuna(t, col);
-        if (!mapaOpcoes.has(val)) {
-          mapaOpcoes.set(val, { count: 0, sum: 0 });
-        }
-        const info = mapaOpcoes.get(val);
-        info.count += 1;
-        info.sum += Number(t.valor || 0);
-      });
-
-      // Garante que opções já selecionadas continuem visíveis mesmo se count=0
-      filtrosColuna[col].forEach(valSel => {
-        if (!mapaOpcoes.has(valSel)) {
-          mapaOpcoes.set(valSel, { count: 0, sum: 0 });
-        }
-      });
-
-      const termo = termoBusca.trim().toLowerCase();
-      let opcoes = Array.from(mapaOpcoes.entries())
-        .filter(([val]) => !termo || val.toLowerCase().includes(termo));
-
-      // Ordenação amigável: selecionados no topo, depois por maior frequência/data
-      opcoes.sort((a, b) => {
-        const aSel = filtrosColuna[col].has(a[0]);
-        const bSel = filtrosColuna[col].has(b[0]);
-        if (aSel !== bSel) return aSel ? -1 : 1;
-        return b[1].count - a[1].count;
-      });
-
-      if (opcoes.length === 0) {
-        listEl.innerHTML = `<div class="col-filter-empty">Nenhuma opção encontrada</div>`;
-        return;
-      }
-
-      listEl.innerHTML = opcoes.map(([val, info]) => {
-        const isSelected = filtrosColuna[col].has(val);
-        const escapedVal = escapeHtml(val);
-        const rawAttrVal = encodeURIComponent(val);
-        return `
-          <div class="col-filter-item ${isSelected ? 'selected' : ''}" data-col="${escapeHtml(col)}" data-val="${rawAttrVal}">
-            <div class="col-filter-item-left">
-              <div class="col-filter-check">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              </div>
-              <span class="col-filter-label" title="${escapedVal}">${escapedVal}</span>
-            </div>
-            <span class="col-filter-count" title="Soma desta opção: ${escapeHtml(formatBRL(info.sum))}">${Number(info.count || 0)}x &middot; ${escapeHtml(formatBRL(info.sum))}</span>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function filtrarOpcoesColuna(valorBusca) {
-      if (!colunaPopoverAtual) return;
-      renderizarOpcoesPopover(colunaPopoverAtual, valorBusca);
-    }
-
-    function alternarOpcaoFiltro(col, val) {
-      if (!filtrosColuna[col]) return;
-      if (filtrosColuna[col].has(val)) {
-        filtrosColuna[col].delete(val);
-      } else {
-        filtrosColuna[col].add(val);
-      }
-      const searchVal = document.getElementById('col-filter-search')?.value || '';
-      renderizarOpcoesPopover(col, searchVal);
-      renderizarTabelaHistorico();
-    }
-
-    function limparFiltroColunaAberta() {
-      if (!colunaPopoverAtual) return;
-      filtrosColuna[colunaPopoverAtual].clear();
-      const searchVal = document.getElementById('col-filter-search')?.value || '';
-      renderizarOpcoesPopover(colunaPopoverAtual, searchVal);
-      renderizarTabelaHistorico();
-    }
-
-    function removerFiltroIndividual(col, val) {
-      if (filtrosColuna[col]) {
-        filtrosColuna[col].delete(val);
-        renderizarTabelaHistorico();
-        if (colunaPopoverAtual === col) {
-          const searchVal = document.getElementById('col-filter-search')?.value || '';
-          renderizarOpcoesPopover(col, searchVal);
-        }
-      }
-    }
-
-    function limparTodosFiltrosColuna() {
-      Object.values(filtrosColuna).forEach(set => set.clear());
-      fecharPopoverColuna();
-      renderizarTabelaHistorico();
-    }
-
-    function fecharPopoverColuna() {
-      const popover = document.getElementById('col-filter-popover');
-      if (popover) popover.classList.remove('open');
-      colunaPopoverAtual = null;
-    }
-
-    // Fecha o popover ao clicar fora ou apertar ESC
-    document.addEventListener('click', (e) => {
-      const popover = document.getElementById('col-filter-popover');
-      if (popover && popover.classList.contains('open')) {
-        if (!popover.contains(e.target) && !e.target.closest('.th-filter-btn')) {
-          fecharPopoverColuna();
-        }
-      }
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        fecharPopoverColuna();
-        if (typeof fecharModalExclusao === 'function') fecharModalExclusao();
-      }
-    });
-
-    function renderizarTabelaHistorico() {
-      const trans = window._transacoesAtuais || [];
-      const tbody = document.getElementById('tabela-corpo');
-
-      // Atualiza estado visual dos botões de cabeçalho (badges e destaque azul)
-      let totalFiltrosAtivos = 0;
-      for (const [col, setValores] of Object.entries(filtrosColuna)) {
-        const btn = document.getElementById(`th-btn-${col}`);
-        const badge = document.getElementById(`th-badge-${col}`);
-        if (btn && badge) {
-          if (setValores.size > 0) {
-            totalFiltrosAtivos += setValores.size;
-            btn.classList.add('active');
-            badge.style.display = 'inline-flex';
-            badge.innerText = setValores.size;
-          } else {
-            btn.classList.remove('active');
-            badge.style.display = 'none';
-          }
-        }
-      }
-
-      // Filtra as transações conforme as seleções em cada coluna
-      const filtradas = trans.filter(t => {
-        for (const [col, setValores] of Object.entries(filtrosColuna)) {
-          if (setValores.size === 0) continue;
-          const valTrans = obterValorColuna(t, col);
-          if (!setValores.has(valTrans)) return false;
-        }
-        return true;
-      });
-
-      // Atualiza a barra de Chips de Filtros Ativos + Resumo Instantâneo (Quantas vezes e Valor Total)
-      const barEl = document.getElementById('active-filters-bar');
-      const chipsGroup = document.getElementById('active-chips-group');
-      const summaryPills = document.getElementById('filtered-summary-pills');
-
-      if (totalFiltrosAtivos > 0) {
-        barEl.classList.add('visible');
-        let chipsHtml = `<span class="active-filters-label">Filtros ativos:</span>`;
-
-        for (const [col, setValores] of Object.entries(filtrosColuna)) {
-          setValores.forEach(val => {
-            const rawAttrVal = encodeURIComponent(val);
-            chipsHtml += `
-              <span class="filter-chip">
-                <span class="filter-chip-col">${escapeHtml(NOMES_COLUNAS[col])}:</span>
-                <strong>${escapeHtml(val)}</strong>
-                <button type="button" class="filter-chip-remove" data-col="${escapeHtml(col)}" data-val="${rawAttrVal}" title="Remover filtro">&times;</button>
-              </span>
-            `;
-          });
-        }
-
-        chipsHtml += `<button type="button" class="btn-clear-all-filters" onclick="limparTodosFiltrosColuna()">Limpar todos</button>`;
-        chipsGroup.innerHTML = chipsHtml;
-
-        const somaFiltrada = filtradas.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-        summaryPills.innerHTML = `
-          <span class="summary-pill">Frequência: <strong>${Number(filtradas.length)}x</strong></span>
-          <span class="summary-pill highlight">Total filtrado: <strong>${escapeHtml(formatBRL(somaFiltrada))}</strong></span>
-        `;
-      } else {
-        barEl.classList.remove('visible');
-        chipsGroup.innerHTML = '';
-        summaryPills.innerHTML = '';
-      }
-
-      // Renderiza as linhas na tabela (Desktop) e cards em lista vertical (Mobile)
-      const mobileList = document.getElementById('mobile-tx-list');
-
-      if (filtradas.length > 0) {
-        tbody.innerHTML = filtradas.map(t => {
-          const tid = Number(t.id);
-          const vStr = t.vencimento ? `<strong>${escapeHtml(t.vencimento)}</strong>` : '-';
-          return `
-          <tr>
-            <td>${escapeHtml(formatDateBR(t.data))}</td>
-            <td>${badgeTipo(t.tipo)}</td>
-            <td>${escapeHtml(t.categoria)}</td>
-            <td>
-              ${escapeHtml(t.descricao || '-')}
-              ${(t.parcela_num && t.parcela_total) ? `<span class="chart-pill-badge" style="margin-left: 6px; font-size: 10px; background: rgba(59, 130, 246, 0.15); color: #93C5FD; border-color: rgba(59, 130, 246, 0.3); font-weight: 700;">${Number(t.parcela_num)}/${Number(t.parcela_total)}</span>` : ''}
-            </td>
-            <td>${vStr}</td>
-            <td>
-              <span class="badge-source" title="Canal: ${escapeHtml(formatChannelLabel(t.channel))}">
-                ${escapeHtml(t.author || (t.source && t.source !== 'Manual' && t.source !== 'WhatsApp' ? t.source : 'Geral'))}
-              </span>
-            </td>
-            <td>
-              <span style="font-size: 11.5px; color: var(--text-dim);" title="Canal de entrada: ${escapeHtml(t.channel || 'unknown')}">
-                ${escapeHtml(formatChannelLabel(t.channel || (t.source === 'Manual' ? 'dashboard' : 'whatsapp_text')))}
-              </span>
-            </td>
-            <td class="${classValor(t.tipo)}">
-              ${sinalValor(t.tipo)} ${escapeHtml(formatBRL(t.valor))}
-            </td>
-            <td style="text-align: right;">
-              <div class="actions-cell">
-                <button class="btn-edit" data-id="${tid}" title="Editar este lançamento">
-                  <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                  </svg>
-                  Editar
-                </button>
-                <button class="btn-delete" data-id="${tid}" title="Excluir este lançamento">Excluir</button>
-              </div>
-            </td>
-          </tr>
-        `;
-        }).join('');
-
-        if (mobileList) {
-          mobileList.innerHTML = filtradas.map(t => {
-            const tid = Number(t.id);
-            const vencMobile = t.vencimento ? `Venc: <strong>Dia ${escapeHtml(t.vencimento)}</strong>` : '';
-            return `
-            <div class="mobile-tx-card">
-              <div class="mobile-card-header">
-                <div class="mobile-card-meta">
-                  <span class="mobile-card-date">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                      <line x1="16" y1="2" x2="16" y2="6"></line>
-                      <line x1="8" y1="2" x2="8" y2="6"></line>
-                    </svg>
-                    ${escapeHtml(formatDateBR(t.data))}
-                  </span>
-                  ${badgeTipo(t.tipo)}
-                  <span class="badge-source" title="${escapeHtml(formatChannelLabel(t.channel))}">
-                    ${escapeHtml(t.author || (t.source && t.source !== 'Manual' && t.source !== 'WhatsApp' ? t.source : 'Geral'))}
-                  </span>
-                  <span style="font-size: 10px; opacity: 0.75;">${escapeHtml(formatChannelLabel(t.channel))}</span>
-                </div>
-                <span style="font-size: 11.5px; color: var(--text-dim);">${escapeHtml(t.categoria)}</span>
-              </div>
-              <div class="mobile-card-main">
-                <div class="mobile-card-desc">
-                  ${escapeHtml(t.descricao || '(Sem descrição)')}
-                  ${(t.parcela_num && t.parcela_total) ? `<span class="chart-pill-badge" style="margin-left: 6px; font-size: 10px; background: rgba(59, 130, 246, 0.15); color: #93C5FD; border-color: rgba(59, 130, 246, 0.3); font-weight: 700;">${Number(t.parcela_num)}/${Number(t.parcela_total)}</span>` : ''}
-                </div>
-                <div class="mobile-card-val ${classValor(t.tipo)}">
-                  ${sinalValor(t.tipo)} ${escapeHtml(formatBRL(t.valor))}
-                </div>
-              </div>
-              <div class="mobile-card-footer">
-                <div class="mobile-card-due">
-                  ${vencMobile}
-                </div>
-                <div class="mobile-card-actions">
-                  <button class="btn-edit" data-id="${tid}" title="Editar lançamento">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    Editar
-                  </button>
-                  <button class="btn-delete" data-id="${tid}" title="Excluir lançamento">Excluir</button>
-                </div>
-              </div>
-            </div>
-          `;
-          }).join('');
-        }
-      } else {
-        const emptyMsg = `
-          <div class="empty-state">
-            <svg class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="8" y1="12" x2="16" y2="12"></line>
-            </svg>
-            <h4>${totalFiltrosAtivos > 0 ? 'Nenhum registro corresponde aos filtros selecionados' : 'Nenhum registro encontrado'}</h4>
-            <p>${totalFiltrosAtivos > 0 ? 'Experimente remover um dos filtros ativos acima.' : 'A base está limpa. Adicione um lançamento para começar.'}</p>
-          </div>
-        `;
-        tbody.innerHTML = `<tr><td colspan="8">${emptyMsg}</td></tr>`;
-        if (mobileList) {
-          mobileList.innerHTML = emptyMsg;
-        }
-      }
-    }
-
-    // Gerenciamento e renderização dos Gráficos com Chart.js
-    let chartCategoriasInstance = null;
-    let chartBalancoInstance = null;
-    let chartCasalInstance = null;
-    let chartOfensoresInstance = null;
-    let chartDiasInstance = null;
-
-    // Paleta de cores moderna e refinada para o tema Dark
-    const PALETA_CATEGORIAS = [
-      '#3B82F6', // Azul elétrico
-      '#10B981', // Esmeralda
-      '#F59E0B', // Âmbar
-      '#EC4899', // Rosa
-      '#8B5CF6', // Roxo
-      '#06B6D4', // Ciano
-      '#F97316', // Laranja
-      '#14B8A6', // Teal
-      '#6366F1', // Índigo
-      '#64748B'  // Cinza ardósia
-    ];
-
-    function normalizarNomePessoa(source) {
-      if (!source) return 'Manual';
-      const s = String(source).trim();
-      const sLower = s.toLowerCase();
-      if (sLower.includes('let') || sLower.includes('tícia') || sLower.includes('ticia')) return 'Letícia';
-      if (sLower.includes('bruno')) return 'Bruno';
-      return s;
-    }
-
-    function atualizarGraficos(metrics, trans) {
-      if (typeof Chart === 'undefined') {
-        console.warn('Chart.js ainda não está carregado.');
-        return;
-      }
-
-      const listaTrans = trans || window._transacoesAtuais || [];
-
-      // Configuração padrão global para tema Dark
-      Chart.defaults.color = '#94A3B8';
-      Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
-
-      // -------------------------------------------------------------
-      // GRÁFICO A: Distribuição de Despesas por Categoria (Doughnut)
-      // -------------------------------------------------------------
-      const containerCat = document.getElementById('container-chart-categorias');
-      const categorias = metrics.categorias || [];
-      const totalDespesas = (metrics.contas_fixas || 0) + (metrics.gastos_whatsapp || 0);
-
-      const badgeTopCat = document.getElementById('badge-top-cat');
-      if (categorias && categorias.length > 0 && badgeTopCat) {
-        badgeTopCat.innerText = `Top: ${categorias[0].categoria} (${categorias[0].percentual}%)`;
-      } else if (badgeTopCat) {
-        badgeTopCat.innerText = 'Top: -';
-      }
-
-      if (!categorias || categorias.length === 0 || totalDespesas <= 0) {
-        if (chartCategoriasInstance) {
-          chartCategoriasInstance.destroy();
-          chartCategoriasInstance = null;
-        }
-        containerCat.innerHTML = `
-          <div class="chart-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="8" y1="12" x2="16" y2="12"></line>
-            </svg>
-            <div>Nenhuma despesa para exibir no gráfico</div>
-          </div>
-        `;
-      } else {
-        // Assegura canvas no container
-        let canvasCat = document.getElementById('chart-categorias');
-        if (!canvasCat) {
-          containerCat.innerHTML = '<canvas id="chart-categorias"></canvas>';
-          canvasCat = document.getElementById('chart-categorias');
-        }
-
-        const labelsCat = categorias.map(c => c.categoria);
-        const dataCat = categorias.map(c => Number(c.total) || 0);
-        const bgColors = categorias.map((_, i) => PALETA_CATEGORIAS[i % PALETA_CATEGORIAS.length]);
-
-        if (chartCategoriasInstance) {
-          chartCategoriasInstance.data.labels = labelsCat;
-          chartCategoriasInstance.data.datasets[0].data = dataCat;
-          chartCategoriasInstance.data.datasets[0].backgroundColor = bgColors;
-          chartCategoriasInstance.update();
-        } else {
-          const ctxCat = canvasCat.getContext('2d');
-          chartCategoriasInstance = new Chart(ctxCat, {
-            type: 'doughnut',
-            data: {
-              labels: labelsCat,
-              datasets: [{
-                data: dataCat,
-                backgroundColor: bgColors,
-                borderWidth: 2,
-                borderColor: '#121826',
-                hoverOffset: 6
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'bottom',
-                  labels: {
-                    boxWidth: 12,
-                    boxHeight: 12,
-                    padding: 14,
-                    color: '#CBD5E1',
-                    font: { size: 12, weight: 600 }
-                  }
-                },
-                tooltip: {
-                  backgroundColor: '#1E293B',
-                  titleColor: '#F8FAFC',
-                  bodyColor: '#E2E8F0',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  borderWidth: 1,
-                  padding: 10,
-                  boxPadding: 4,
-                  callbacks: {
-                    label: function(context) {
-                      const val = context.raw || 0;
-                      const pct = totalDespesas > 0 ? ((val / totalDespesas) * 100).toFixed(1) : 0;
-                      return ` ${context.label}: ${formatBRL(val)} (${pct}%)`;
-                    }
-                  }
-                }
-              },
-              cutout: '68%'
-            }
-          });
-        }
-      }
-
-      // -------------------------------------------------------------
-      // GRÁFICO B: Balanço Financeiro (Bar Chart)
-      // Receitas vs Contas Fixas vs Gastos WhatsApp
-      // -------------------------------------------------------------
-      const containerBalanco = document.getElementById('container-chart-balanco');
-      const rec = Number(metrics.receitas_totais) || 0;
-      const fix = Number(metrics.contas_fixas) || 0;
-      const zap = Number(metrics.gastos_whatsapp) || 0;
-      const temDados = (rec > 0 || fix > 0 || zap > 0);
-
-      if (!temDados) {
-        if (chartBalancoInstance) {
-          chartBalancoInstance.destroy();
-          chartBalancoInstance = null;
-        }
-        containerBalanco.innerHTML = `
-          <div class="chart-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <line x1="18" y1="20" x2="18" y2="10"></line>
-              <line x1="12" y1="20" x2="12" y2="4"></line>
-              <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
-            <div>Nenhuma movimentação para comparar no balanço</div>
-          </div>
-        `;
-      } else {
-        let canvasBalanco = document.getElementById('chart-balanco');
-        if (!canvasBalanco) {
-          containerBalanco.innerHTML = '<canvas id="chart-balanco"></canvas>';
-          canvasBalanco = document.getElementById('chart-balanco');
-        }
-
-        const labelsBalanco = ['Receitas', 'Contas Fixas', 'Gastos WhatsApp'];
-        const valuesBalanco = [rec, fix, zap];
-
-        if (chartBalancoInstance) {
-          chartBalancoInstance.data.datasets[0].data = valuesBalanco;
-          chartBalancoInstance.update();
-        } else {
-          const ctxBalanco = canvasBalanco.getContext('2d');
-          chartBalancoInstance = new Chart(ctxBalanco, {
-            type: 'bar',
-            data: {
-              labels: labelsBalanco,
-              datasets: [{
-                label: 'Total (R$)',
-                data: valuesBalanco,
-                backgroundColor: [
-                  'rgba(16, 185, 129, 0.85)', // Verde Esmeralda
-                  'rgba(245, 158, 11, 0.85)', // Âmbar Dourado
-                  'rgba(236, 72, 153, 0.85)'  // Rosa / Variável
-                ],
-                borderColor: [
-                  '#10B981',
-                  '#F59E0B',
-                  '#EC4899'
-                ],
-                borderWidth: 1.5,
-                borderRadius: 8,
-                borderSkipped: false,
-                barPercentage: 0.55
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  display: false
-                },
-                tooltip: {
-                  backgroundColor: '#1E293B',
-                  titleColor: '#F8FAFC',
-                  bodyColor: '#E2E8F0',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  borderWidth: 1,
-                  padding: 10,
-                  boxPadding: 4,
-                  callbacks: {
-                    label: function(context) {
-                      return ` Valor: ${formatBRL(context.raw)}`;
-                    }
-                  }
-                }
-              },
-              scales: {
-                x: {
-                  grid: {
-                    display: false,
-                    drawBorder: false
-                  },
-                  ticks: {
-                    color: '#CBD5E1',
-                    font: { weight: 600, size: 12 }
-                  }
-                },
-                y: {
-                  grid: {
-                    color: 'rgba(255, 255, 255, 0.05)',
-                    drawBorder: false
-                  },
-                  ticks: {
-                    color: '#94A3B8',
-                    callback: function(val) {
-                      return 'R$ ' + (val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val);
-                    }
-                  }
-                }
-              }
-            }
-          });
-        }
-      }
-
-      // -------------------------------------------------------------
-      // GRÁFICO C: Quem Gastou Mais (Bruno vs Letícia no WhatsApp)
-      // -------------------------------------------------------------
-      const containerCasal = document.getElementById('container-chart-casal');
-      const badgeCasal = document.getElementById('badge-comparativo-lider');
-
-      // Considera despesas de consumo do dia a dia inseridas via WhatsApp
-      const transCasal = listaTrans.filter(t => (t.tipo === 'despesa_variavel' || t.tipo === 'despesa_fixa') && (t.author || (t.source && t.source !== 'Manual')));
-
-      let totalBruno = 0;
-      let countBruno = 0;
-      let totalLeticia = 0;
-      let countLeticia = 0;
-
-      transCasal.forEach(t => {
-        const nome = normalizarNomePessoa(t.author || t.source);
-        const val = Number(t.valor || 0);
-        if (nome === 'Bruno') {
-          totalBruno += val;
-          countBruno += 1;
-        } else if (nome === 'Letícia') {
-          totalLeticia += val;
-          countLeticia += 1;
-        }
-      });
-
-      const totalCasal = totalBruno + totalLeticia;
-
-      if (badgeCasal) {
-        if (totalBruno > totalLeticia) {
-          badgeCasal.innerText = `Líder: Bruno (${formatBRL(totalBruno)})`;
-        } else if (totalLeticia > totalBruno) {
-          badgeCasal.innerText = `Líder: Letícia (${formatBRL(totalLeticia)})`;
-        } else if (totalCasal > 0) {
-          badgeCasal.innerText = 'Empatados!';
-        } else {
-          badgeCasal.innerText = 'Líder: -';
-        }
-      }
-
-      if (totalCasal <= 0) {
-        if (chartCasalInstance) {
-          chartCasalInstance.destroy();
-          chartCasalInstance = null;
-        }
-        containerCasal.innerHTML = `
-          <div class="chart-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            <div>Nenhum gasto registrado via WhatsApp pelo casal</div>
-          </div>
-        `;
-      } else {
-        let canvasCasal = document.getElementById('chart-casal');
-        if (!canvasCasal) {
-          containerCasal.innerHTML = '<canvas id="chart-casal"></canvas>';
-          canvasCasal = document.getElementById('chart-casal');
-        }
-
-        const labelsCasal = [
-          `Bruno (${countBruno} lançamentos)`,
-          `Letícia (${countLeticia} lançamentos)`
-        ];
-        const valuesCasal = [totalBruno, totalLeticia];
-
-        if (chartCasalInstance) {
-          chartCasalInstance.data.labels = labelsCasal;
-          chartCasalInstance.data.datasets[0].data = valuesCasal;
-          chartCasalInstance.update();
-        } else {
-          const ctxCasal = canvasCasal.getContext('2d');
-          chartCasalInstance = new Chart(ctxCasal, {
-            type: 'doughnut',
-            data: {
-              labels: labelsCasal,
-              datasets: [{
-                data: valuesCasal,
-                backgroundColor: [
-                  '#3B82F6', // Azul elétrico (Bruno)
-                  '#EC4899'  // Rosa vibrante (Letícia)
-                ],
-                borderColor: '#0B0F19',
-                borderWidth: 2.5,
-                hoverOffset: 6
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'bottom',
-                  labels: {
-                    boxWidth: 12,
-                    boxHeight: 12,
-                    padding: 14,
-                    color: '#CBD5E1',
-                    font: { size: 12, weight: 600 }
-                  }
-                },
-                tooltip: {
-                  backgroundColor: '#1E293B',
-                  titleColor: '#F8FAFC',
-                  bodyColor: '#E2E8F0',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  borderWidth: 1,
-                  padding: 10,
-                  boxPadding: 4,
-                  callbacks: {
-                    label: function(context) {
-                      const val = context.raw || 0;
-                      const pct = totalCasal > 0 ? ((val / totalCasal) * 100).toFixed(1) : 0;
-                      return ` ${context.label}: ${formatBRL(val)} (${pct}%)`;
-                    }
-                  }
-                }
-              },
-              cutout: '66%'
-            }
-          });
-        }
-      }
-
-      // -------------------------------------------------------------
-      // GRÁFICO D: Top Despesas Variáveis (Principais Ofensores)
-      // -------------------------------------------------------------
-      const containerOfensores = document.getElementById('container-chart-ofensores');
-      const badgeTopGasto = document.getElementById('badge-top-gasto');
-
-      // Agrupa gastos de despesa_variavel por descrição normalizada (remove parcela)
-      const mapaGastosVar = new Map();
-      listaTrans
-        .filter(t => t.tipo === 'despesa_variavel')
-        .forEach(t => {
-          const raw = (t.descricao || t.categoria || 'Gasto sem nome').trim();
-          const nomeLimpo = raw.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim() || raw;
-          const val = Number(t.valor || 0);
-          if (!mapaGastosVar.has(nomeLimpo)) {
-            mapaGastosVar.set(nomeLimpo, { total: 0, count: 0 });
-          }
-          const item = mapaGastosVar.get(nomeLimpo);
-          item.total += val;
-          item.count += 1;
-        });
-
-      const rankingOfensores = Array.from(mapaGastosVar.entries())
-        .sort((a, b) => b[1].total - a[1].total)
-        .slice(0, 6);
-
-      if (rankingOfensores.length > 0 && badgeTopGasto) {
-        badgeTopGasto.innerText = `Maior: ${rankingOfensores[0][0]} (${formatBRL(rankingOfensores[0][1].total)})`;
-      } else if (badgeTopGasto) {
-        badgeTopGasto.innerText = 'Maior: -';
-      }
-
-      if (rankingOfensores.length === 0) {
-        if (chartOfensoresInstance) {
-          chartOfensoresInstance.destroy();
-          chartOfensoresInstance = null;
-        }
-        containerOfensores.innerHTML = `
-          <div class="chart-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-            </svg>
-            <div>Nenhuma despesa variável encontrada</div>
-          </div>
-        `;
-      } else {
-        let canvasOfensores = document.getElementById('chart-ofensores');
-        if (!canvasOfensores) {
-          containerOfensores.innerHTML = '<canvas id="chart-ofensores"></canvas>';
-          canvasOfensores = document.getElementById('chart-ofensores');
-        }
-
-        const labelsOfensores = rankingOfensores.map(([desc, info]) => `${desc} (${info.count}x)`);
-        const valuesOfensores = rankingOfensores.map(([_, info]) => info.total);
-
-        if (chartOfensoresInstance) {
-          chartOfensoresInstance.data.labels = labelsOfensores;
-          chartOfensoresInstance.data.datasets[0].data = valuesOfensores;
-          chartOfensoresInstance.update();
-        } else {
-          const ctxOfensores = canvasOfensores.getContext('2d');
-          chartOfensoresInstance = new Chart(ctxOfensores, {
-            type: 'bar',
-            data: {
-              labels: labelsOfensores,
-              datasets: [{
-                label: 'Total Gasto (R$)',
-                data: valuesOfensores,
-                backgroundColor: 'rgba(245, 158, 11, 0.85)', // Âmbar / Laranja
-                borderColor: '#F59E0B',
-                borderWidth: 1.5,
-                borderRadius: 7,
-                barPercentage: 0.6
-              }]
-            },
-            options: {
-              indexAxis: 'y', // Barra horizontal para leitura confortável de nomes longos
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false },
-                tooltip: {
-                  backgroundColor: '#1E293B',
-                  titleColor: '#F8FAFC',
-                  bodyColor: '#E2E8F0',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  borderWidth: 1,
-                  padding: 10,
-                  callbacks: {
-                    label: function(context) {
-                      return ` Gasto acumulado: ${formatBRL(context.raw)}`;
-                    }
-                  }
-                }
-              },
-              scales: {
-                x: {
-                  grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
-                  ticks: {
-                    color: '#94A3B8',
-                    callback: function(val) {
-                      return 'R$ ' + (val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val);
-                    }
-                  }
-                },
-                y: {
-                  grid: { display: false, drawBorder: false },
-                  ticks: {
-                    color: '#CBD5E1',
-                    font: { weight: 600, size: 11.5 }
-                  }
-                }
-              }
-            }
-          });
-        }
-      }
-
-      // -------------------------------------------------------------
-      // GRÁFICO E: Dias que Mais Gastou (Picos Diários de Consumo)
-      // -------------------------------------------------------------
-      const containerDias = document.getElementById('container-chart-dias');
-      const badgePicoDia = document.getElementById('badge-pico-dia');
-
-      // Agrupa todas as despesas (fixas + variáveis) por dia
-      const mapaDias = new Map();
-      listaTrans
-        .filter(t => t.tipo === 'despesa_variavel' || t.tipo === 'despesa_fixa')
-        .forEach(t => {
-          const diaFormatado = formatDateBR(t.data);
-          const val = Number(t.valor || 0);
-          mapaDias.set(diaFormatado, (mapaDias.get(diaFormatado) || 0) + val);
-        });
-
-      // Ordena por datas cronológicas
-      const listaDias = Array.from(mapaDias.entries()).sort((a, b) => {
-        const pA = a[0].split('/').reverse().join('-');
-        const pB = b[0].split('/').reverse().join('-');
-        return pA.localeCompare(pB);
-      });
-
-      // Identifica o dia de maior pico
-      let diaPico = null;
-      let maiorGastoDia = 0;
-      listaDias.forEach(([dia, total]) => {
-        if (total > maiorGastoDia) {
-          maiorGastoDia = total;
-          diaPico = dia;
-        }
-      });
-
-      if (diaPico && badgePicoDia) {
-        badgePicoDia.innerText = `Pico: ${diaPico} (${formatBRL(maiorGastoDia)})`;
-      } else if (badgePicoDia) {
-        badgePicoDia.innerText = 'Pico: -';
-      }
-
-      if (listaDias.length === 0) {
-        if (chartDiasInstance) {
-          chartDiasInstance.destroy();
-          chartDiasInstance = null;
-        }
-        containerDias.innerHTML = `
-          <div class="chart-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-            </svg>
-            <div>Nenhuma despesa diária para traçar o gráfico de consumo</div>
-          </div>
-        `;
-      } else {
-        let canvasDias = document.getElementById('chart-dias');
-        if (!canvasDias) {
-          containerDias.innerHTML = '<canvas id="chart-dias"></canvas>';
-          canvasDias = document.getElementById('chart-dias');
-        }
-
-        const labelsDias = listaDias.map(([dia]) => dia);
-        const valuesDias = listaDias.map(([_, val]) => val);
-
-        if (chartDiasInstance) {
-          chartDiasInstance.data.labels = labelsDias;
-          chartDiasInstance.data.datasets[0].data = valuesDias;
-          chartDiasInstance.update();
-        } else {
-          const ctxDias = canvasDias.getContext('2d');
-          chartDiasInstance = new Chart(ctxDias, {
-            type: 'line',
-            data: {
-              labels: labelsDias,
-              datasets: [{
-                label: 'Despesas no Dia (R$)',
-                data: valuesDias,
-                borderColor: '#06B6D4', // Ciano brilhante
-                backgroundColor: 'rgba(6, 182, 212, 0.12)',
-                borderWidth: 2.5,
-                fill: true,
-                tension: 0.35,
-                pointBackgroundColor: '#06B6D4',
-                pointBorderColor: '#0B0F19',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false },
-                tooltip: {
-                  backgroundColor: '#1E293B',
-                  titleColor: '#F8FAFC',
-                  bodyColor: '#E2E8F0',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  borderWidth: 1,
-                  padding: 10,
-                  callbacks: {
-                    label: function(context) {
-                      return ` Total no dia: ${formatBRL(context.raw)}`;
-                    }
-                  }
-                }
-              },
-              scales: {
-                x: {
-                  grid: { display: false, drawBorder: false },
-                  ticks: {
-                    color: '#CBD5E1',
-                    font: { weight: 600, size: 11.5 }
-                  }
-                },
-                y: {
-                  grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
-                  ticks: {
-                    color: '#94A3B8',
-                    callback: function(val) {
-                      return 'R$ ' + (val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val);
-                    }
-                  }
-                }
-              }
-            }
-          });
-        }
-      }
-    }
-
-    // Edição Fluida de Registro
-    function iniciarEdicao(id) {
-      const transacao = (window._transacoesAtuais || []).find(t => t.id === id);
-      if (!transacao) {
-        alert('Registro não encontrado.');
-        return;
-      }
-
-      document.getElementById('edit-id').value = transacao.id;
-      document.getElementById('tipo').value = transacao.tipo;
-      document.getElementById('valor').value = transacao.valor;
-      document.getElementById('categoria').value = transacao.categoria;
-      document.getElementById('data').value = transacao.data;
-      document.getElementById('vencimento').value = transacao.vencimento || '';
-      document.getElementById('author').value = transacao.author || '';
-      document.getElementById('descricao').value = transacao.descricao || '';
-
-      aoMudarTipo();
-
-      // Ajuste visual do formulário para modo edição
-      document.getElementById('form-title-text').innerText = `Editar Lançamento #${transacao.id}`;
-      document.getElementById('btn-submit').innerText = 'Atualizar Lançamento';
-      document.getElementById('btn-cancelar').style.display = 'inline-block';
-
-      const panel = document.getElementById('panel-form');
-      panel.classList.add('edit-mode-highlight');
-      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      document.getElementById('valor').focus();
-    }
-
-    function cancelarEdicao() {
-      document.getElementById('edit-id').value = '';
-      document.getElementById('form-transacao').reset();
-      document.getElementById('author').value = '';
-      document.getElementById('data').valueAsDate = new Date();
-      aoMudarTipo();
-
-      document.getElementById('form-title-text').innerText = 'Cadastrar Lançamento Doméstico';
-      document.getElementById('btn-submit').innerText = 'Salvar';
-      document.getElementById('btn-cancelar').style.display = 'none';
-
-      const panel = document.getElementById('panel-form');
-      panel.classList.remove('edit-mode-highlight');
-    }
-
-    // Formulário de Cadastro / Edição
-    document.getElementById('form-transacao').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const editId = document.getElementById('edit-id').value;
-      const isEditing = Boolean(editId);
-
-      const authorInput = document.getElementById('author').value;
-      const payload = {
-        tipo: document.getElementById('tipo').value,
-        valor: parseFloat(document.getElementById('valor').value),
-        categoria: document.getElementById('categoria').value,
-        data: document.getElementById('data').value,
-        author: authorInput || null,
-        channel: 'dashboard',
-        source: authorInput || 'Manual',
-        vencimento: document.getElementById('vencimento').value || null,
-        descricao: document.getElementById('descricao').value || null
-      };
-
-      const endpoint = isEditing ? `${API_BASE}/transactions/${editId}` : `${API_BASE}/transactions`;
-      const method = isEditing ? 'PUT' : 'POST';
-
-      try {
-        const res = await apiFetch(endpoint, {
-          method: method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-          cancelarEdicao();
-          await carregarDados();
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          alert(`Erro ao salvar lançamento: ${errData.detail || 'Verifique os dados informados'}`);
-        }
-      } catch (err) {
-        alert('Falha na comunicação com o servidor.');
-      }
-    });
-
-    // Exclusão de Lançamento (Inteligente para itens à vista ou parcelados)
-    let idExclusaoPendente = null;
-
-    function fecharModalExclusao() {
-      idExclusaoPendente = null;
-      const overlay = document.getElementById('delete-modal-overlay');
-      if (overlay) overlay.classList.remove('active');
-    }
-
-    async function executarExclusao(escopo = 'uma') {
-      if (!idExclusaoPendente) return;
-      const id = idExclusaoPendente;
-      fecharModalExclusao();
-
-      try {
-        const res = await apiFetch(`${API_BASE}/transactions/${id}?escopo=${escopo}`, { method: 'DELETE' });
-        if (res.ok) {
-          await carregarDados();
-        } else {
-          alert('Erro ao excluir lançamento.');
-        }
-      } catch (err) {
-        alert('Erro de comunicação ao excluir lançamento.');
-      }
-    }
-
-    async function deletar(id) {
-      const transacao = (window._transacoesAtuais || []).find(t => t.id === id);
-      const isParcelado = Boolean(transacao && (transacao.parcela_grupo_id || (transacao.parcela_num && transacao.parcela_total)));
-
-      if (isParcelado) {
-        const pNum = transacao.parcela_num || 1;
-        const pTot = transacao.parcela_total || 1;
-        const nomeBase = (transacao.descricao || 'Item parcelado').replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
-
-        idExclusaoPendente = id;
-        document.getElementById('delete-modal-title').innerText = `Excluir "${nomeBase}"`;
-        const modalDescEl = document.getElementById('delete-modal-desc');
-        modalDescEl.innerHTML = '';
-        const p1 = document.createElement('span');
-        p1.textContent = 'O lançamento ';
-        const strongDesc = document.createElement('strong');
-        strongDesc.textContent = transacao.descricao || nomeBase;
-        const p2 = document.createElement('span');
-        p2.textContent = ` é a parcela `;
-        const strongVal = document.createElement('strong');
-        strongVal.textContent = `${pNum}/${pTot} de ${formatBRL(transacao.valor)}`;
-        const br1 = document.createElement('br');
-        const br2 = document.createElement('br');
-        const p3 = document.createElement('span');
-        p3.textContent = `Escolha o escopo de exclusão desejado:`;
-        modalDescEl.appendChild(p1);
-        modalDescEl.appendChild(strongDesc);
-        modalDescEl.appendChild(p2);
-        modalDescEl.appendChild(strongVal);
-        modalDescEl.appendChild(br1);
-        modalDescEl.appendChild(br2);
-        modalDescEl.appendChild(p3);
-
-        document.getElementById('label-delete-single').innerText = `Só esta parcela (${pNum}/${pTot})`;
-        document.getElementById('label-delete-future').innerText = `Esta e as próximas (${pNum} a ${pTot})`;
-        document.getElementById('label-delete-all').innerText = `Todas as parcelas (1 a ${pTot})`;
-
-        document.getElementById('delete-modal-overlay').classList.add('active');
-        return;
-      }
-
-      if (!confirm('Deseja realmente excluir este lançamento?')) return;
-      try {
-        const res = await apiFetch(`${API_BASE}/transactions/${id}?escopo=uma`, { method: 'DELETE' });
-        if (res.ok) {
-          await carregarDados();
-        }
-      } catch (err) {
-        alert('Erro ao excluir lançamento.');
-      }
-    }
-
-
-    // Delegação de eventos segura (elimina interpolação de onclick inline com strings ou IDs de dados)
-    document.addEventListener('DOMContentLoaded', () => {
-      // 1. Tabela desktop (Editar / Excluir)
-      const tbody = document.getElementById('tabela-corpo');
-      if (tbody) {
-        tbody.addEventListener('click', (e) => {
-          const btnEdit = e.target.closest('.btn-edit');
-          if (btnEdit && btnEdit.dataset.id) {
-            iniciarEdicao(Number(btnEdit.dataset.id));
-            return;
-          }
-          const btnDelete = e.target.closest('.btn-delete');
-          if (btnDelete && btnDelete.dataset.id) {
-            deletar(Number(btnDelete.dataset.id));
-            return;
-          }
-        });
-      }
-
-      // 2. Mobile cards (Editar / Excluir)
-      const mobileList = document.getElementById('mobile-tx-list');
-      if (mobileList) {
-        mobileList.addEventListener('click', (e) => {
-          const btnEdit = e.target.closest('.btn-edit');
-          if (btnEdit && btnEdit.dataset.id) {
-            iniciarEdicao(Number(btnEdit.dataset.id));
-            return;
-          }
-          const btnDelete = e.target.closest('.btn-delete');
-          if (btnDelete && btnDelete.dataset.id) {
-            deletar(Number(btnDelete.dataset.id));
-            return;
-          }
-        });
-      }
-
-      // 3. Popover de opções de filtro por coluna
-      const colFilterList = document.getElementById('col-filter-list');
-      if (colFilterList) {
-        colFilterList.addEventListener('click', (e) => {
-          const item = e.target.closest('.col-filter-item');
-          if (item && item.dataset.col && item.dataset.val !== undefined) {
-            const col = item.dataset.col;
-            const val = decodeURIComponent(item.dataset.val);
-            alternarOpcaoFiltro(col, val);
-          }
-        });
-      }
-
-      // 4. Barra de chips de filtros ativos
-      const activeChipsGroup = document.getElementById('active-chips-group');
-      if (activeChipsGroup) {
-        activeChipsGroup.addEventListener('click', (e) => {
-          const btnRemove = e.target.closest('.filter-chip-remove');
-          if (btnRemove && btnRemove.dataset.col && btnRemove.dataset.val !== undefined) {
-            const col = btnRemove.dataset.col;
-            const val = decodeURIComponent(btnRemove.dataset.val);
-            removerFiltroIndividual(col, val);
-            return;
-          }
-        });
-      }
-    });
-
-    // Inicialização automática
-    carregarDados();
-  </script>
+  <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>
