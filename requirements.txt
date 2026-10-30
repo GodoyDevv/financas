@@ -53,7 +53,7 @@ pydantic==2.8.2
     #   fastapi
     #   financas
     #   pydantic-settings
-pydantic-core==2.20.1
+pydantic-core==2.50.1
     # via pydantic
 pydantic-settings==2.16.1
     # via financas
