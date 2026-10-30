@@ -59,6 +59,9 @@ RUN groupadd -g 1000 appgroup && \
 
 WORKDIR /app
 
+# Cria diretório de trabalho com permissão total de escrita para o appuser
+RUN chown -R appuser:appgroup /app
+
 # Copia ambiente virtual construído pelo builder Python
 COPY --from=builder --chown=appuser:appgroup /app/.venv /app/.venv
 
