@@ -8,7 +8,7 @@ import { formatarMesAno } from "./format";
 import type { components } from "../api-types";
 
 export type TransactionResponse = components["schemas"]["TransactionResponse"];
-export type FinancialSummary = components["schemas"]["FinancialSummary"];
+export type MetricsResponse = components["schemas"]["MetricsResponse"];
 
 export interface AppState {
   anoAtual: number;
@@ -18,7 +18,7 @@ export interface AppState {
   anoDropdownAtual: number;
   filtroTipoAtual: string;
   transacoesAtuais: TransactionResponse[];
-  metricasAtuais: FinancialSummary | null;
+  metricasAtuais: MetricsResponse | null;
   filtrosColuna: {
     data: Set<string>;
     tipo: Set<string>;
