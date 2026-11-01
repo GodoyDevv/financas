@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     EVOLUTION_API_KEY: SecretStr = Field(default=SecretStr(""))
     EVOLUTION_INSTANCE: str = Field(default="fintrack-casal")
 
+    # Feature Flags
+    FEATURE_WA_CONFIRMATIONS: bool = Field(default=False)
+
     # CORS
     ALLOWED_ORIGINS: str = Field(default="")
 
@@ -80,7 +83,7 @@ class Settings(BaseSettings):
     SENTRY_TRACES_SAMPLE_RATE: float = Field(default=0.0, ge=0.0, le=1.0)
     RENDER_GIT_COMMIT: str = Field(default="")
 
-    @field_validator("DEV_INSECURE_COOKIES", "WEBHOOK_ALLOW_PATH_TOKEN", mode="before")
+    @field_validator("DEV_INSECURE_COOKIES", "WEBHOOK_ALLOW_PATH_TOKEN", "FEATURE_WA_CONFIRMATIONS", mode="before")
     @classmethod
     def parse_bool_from_str(cls, v: object) -> bool:
         if isinstance(v, bool):

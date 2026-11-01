@@ -23,7 +23,10 @@ from backend.dates_and_money import month_range, to_decimal, today_br
 from backend.db.models import Category, Recurrence, Transaction
 from backend.repositories.category_repo import CategoryRepository
 from backend.repositories.recurrence_repo import RecurrenceRepository
-from backend.repositories.transaction_repo import TransactionRepository
+from backend.repositories.transaction_repo import (
+    TransactionRepository,
+    active_transactions_filter,
+)
 
 logger = logging.getLogger("fintrack.recurrences")
 
@@ -229,13 +232,14 @@ class RecurrenceService:
                 self.cat_repo.add(cat_db)
             rec.category_id = cat_db.id
 
-        # Sincroniza instâncias do mês atual em diante que NÃO foram editadas manualmente
+        # Sincroniza instâncias do mês atual em diante que NÃO foram editadas manualmente e estão ativas
         instancias_futuras = (
             self.db.query(Transaction)
             .filter(
                 Transaction.recurrence_id == rec.id,
                 Transaction.competencia >= primeiro_dia_mes_atual,
                 Transaction.editado_manual.is_(False),
+                active_transactions_filter(),
             )
             .all()
         )
@@ -285,6 +289,7 @@ class RecurrenceService:
                 Transaction.recurrence_id == rec.id,
                 Transaction.competencia >= primeiro_dia_mes_atual,
                 Transaction.editado_manual.is_(False),
+                active_transactions_filter(),
             )
             .all()
         )

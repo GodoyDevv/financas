@@ -153,10 +153,10 @@ def test_two_identical_purchases_different_groups_independent_deletion(
     assert del_res.json()["deleted_count"] == 3
 
     # 4. Verifica que A foi apagado e B permaneceu intacto com todas as 3 parcelas
-    rows_a = db_session.query(Transaction).filter(Transaction.parcela_grupo_id == grupo_a).all()
+    rows_a = db_session.query(Transaction).filter(Transaction.parcela_grupo_id == grupo_a, Transaction.deleted_at.is_(None)).all()
     assert len(rows_a) == 0
 
-    rows_b = db_session.query(Transaction).filter(Transaction.parcela_grupo_id == grupo_b).all()
+    rows_b = db_session.query(Transaction).filter(Transaction.parcela_grupo_id == grupo_b, Transaction.deleted_at.is_(None)).all()
     assert len(rows_b) == 3
 
 
@@ -191,7 +191,7 @@ def test_delete_scopes_uma_futuras_grupo(auth_client: TestClient, db_session):
     assert del_uma.status_code == 200
     assert del_uma.json()["deleted_count"] == 1
 
-    sobraram = db_session.query(Transaction).filter(Transaction.parcela_grupo_id == grupo_id).all()
+    sobraram = db_session.query(Transaction).filter(Transaction.parcela_grupo_id == grupo_id, Transaction.deleted_at.is_(None)).all()
     assert len(sobraram) == 3
     assert all(p.id != p1.id for p in sobraram)
 
@@ -203,7 +203,7 @@ def test_delete_scopes_uma_futuras_grupo(auth_client: TestClient, db_session):
     assert del_futuras.json()["deleted_count"] == 2
 
     sobraram_apos_futuras = (
-        db_session.query(Transaction).filter(Transaction.parcela_grupo_id == grupo_id).all()
+        db_session.query(Transaction).filter(Transaction.parcela_grupo_id == grupo_id, Transaction.deleted_at.is_(None)).all()
     )
     assert len(sobraram_apos_futuras) == 1
     assert sobraram_apos_futuras[0].parcela_num == 2

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from backend.domain.money import to_decimal
 from backend.models import Transaction
+from backend.repositories.transaction_repo import active_transactions_filter
 
 
 def format_brl(valor: float | Decimal) -> str:
@@ -57,7 +58,11 @@ class ReportsService:
 
         transacoes = (
             self.db.query(Transaction)
-            .filter(Transaction.data == data_alvo, Transaction.tipo.in_(["despesa_variavel"]))
+            .filter(
+                Transaction.data == data_alvo,
+                Transaction.tipo.in_(["despesa_variavel"]),
+                active_transactions_filter(),
+            )
             .order_by(Transaction.id.asc())
             .all()
         )
@@ -69,6 +74,7 @@ class ReportsService:
                 Transaction.data >= primeiro_dia_mes,
                 Transaction.data <= data_alvo,
                 Transaction.tipo == "despesa_variavel",
+                active_transactions_filter(),
             )
             .all()
         )
@@ -142,6 +148,7 @@ class ReportsService:
                 Transaction.data >= data_inicio,
                 Transaction.data <= data_fim,
                 Transaction.tipo.in_(["despesa_variavel"]),
+                active_transactions_filter(),
             )
             .all()
         )

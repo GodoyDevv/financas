@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from backend.db.models import Category, Transaction
 from backend.domain.dates import month_range
 from backend.domain.money import to_decimal
+from backend.repositories.transaction_repo import active_transactions_filter
 from backend.services.recurrences import ensure_recurrences
 
 
@@ -27,8 +28,12 @@ class SummaryService:
         """
         Calcula o resumo consolidado de receitas, despesas fixas,
         despesas variáveis, despesa total e saldo livre para um mês específico ou geral.
+        Garante respeito estrito ao soft delete (deleted_at IS NULL).
         """
-        query = self.db.query(Transaction.tipo, func.sum(Transaction.valor).label("total"))
+        query = (
+            self.db.query(Transaction.tipo, func.sum(Transaction.valor).label("total"))
+            .filter(active_transactions_filter())
+        )
         if mes:
             inicio, fim = month_range(mes)
             ensure_recurrences(self.db, mes)
@@ -66,10 +71,13 @@ class SummaryService:
         Retorna métricas completas de planejamento financeiro doméstico,
         incluindo distribuição por categorias e percentuais de orçamento.
         """
-        query_totals = self.db.query(
-            Transaction.tipo,
-            func.sum(Transaction.valor).label("total"),
-            func.count(Transaction.id).label("qtd"),
+        query_totals = (
+            self.db.query(
+                Transaction.tipo,
+                func.sum(Transaction.valor).label("total"),
+                func.count(Transaction.id).label("qtd"),
+            )
+            .filter(active_transactions_filter())
         )
         if mes:
             inicio, fim = month_range(mes)
@@ -101,7 +109,7 @@ class SummaryService:
         total_despesas = contas_fixas + gastos_whatsapp
         saldo_livre = receitas_totais - total_despesas
 
-        # Distribuição de despesas por categoria
+        # Distribuição de despesas por categoria (respeitando soft delete)
         cat_query = (
             self.db.query(
                 Category.id.label("cat_id"),
@@ -110,7 +118,10 @@ class SummaryService:
                 func.sum(Transaction.valor).label("total"),
             )
             .join(Transaction, Transaction.category_id == Category.id)
-            .filter(Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"]))
+            .filter(
+                Transaction.tipo.in_(["despesa_fixa", "despesa_variavel", "despesa"]),
+                active_transactions_filter(),
+            )
         )
 
         if mes:

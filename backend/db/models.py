@@ -138,6 +138,13 @@ class Transaction(Base):
     # Chave de idempotência única com o webhook de origem
     source_message_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
+    # Soft Delete: data de remoção lógica (NULL = ativo)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+
+    events: Mapped[list["TransactionEvent"]] = relationship(
+        "TransactionEvent", back_populates="transaction_rel", cascade="all, delete-orphan"
+    )
+
     __table_args__ = (
         Index("ix_transactions_data_tipo", "data", "tipo"),
         Index("uq_transactions_grupo_num", "parcela_grupo_id", "parcela_num", unique=True),
@@ -151,6 +158,40 @@ class Transaction(Base):
             name="ck_transactions_parcelas_valid",
         ),
     )
+
+
+class OutboundMessage(Base):
+    __tablename__ = "outbound_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    message_id: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    kind: Mapped[str] = mapped_column(
+        String(30), nullable=False, index=True
+    )  # confirmation, alert, help, error, report
+    ref_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    ref_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    remote_jid: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utc_now_naive)
+
+    __table_args__ = (Index("ix_outbound_messages_ref", "ref_type", "ref_id"),)
+
+
+class TransactionEvent(Base):
+    __tablename__ = "transaction_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    transaction_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("transactions.id"), nullable=False, index=True
+    )
+    action: Mapped[str] = mapped_column(
+        String(20), nullable=False, index=True
+    )  # created, updated, deleted, restored
+    actor: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    channel: Mapped[str] = mapped_column(String(40), nullable=False, default="unknown")
+    diff: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utc_now_naive)
+
+    transaction_rel: Mapped["Transaction"] = relationship("Transaction", back_populates="events")
 
 
 class ProcessedMessage(Base):

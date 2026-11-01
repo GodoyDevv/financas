@@ -1,0 +1,27 @@
+{
+  "event": "messages.upsert",
+  "instance": "fintrack-casal",
+  "data": {
+    "key": {
+      "remoteJid": "120363000000000000@g.us",
+      "fromMe": false,
+      "id": "3EB0QUOTE000111222333",
+      "participant": "5511999998888@s.whatsapp.net"
+    },
+    "pushName": "Bruno",
+    "messageType": "extendedTextMessage",
+    "message": {
+      "extendedTextMessage": {
+        "text": "desfazer",
+        "contextInfo": {
+          "stanzaId": "3EB0ABC123DEF4567890",
+          "participant": "5511888880000@s.whatsapp.net",
+          "quotedMessage": {
+            "conversation": "Lançamento confirmado: Almoço R$ 45,00 (Alimentação). Para cancelar, responda a esta mensagem com *desfazer*."
+          }
+        }
+      }
+    },
+    "messageTimestamp": 1730000060
+  }
+}

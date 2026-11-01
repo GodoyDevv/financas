@@ -1,0 +1,14 @@
+{
+  "key": {
+    "remoteJid": "120363000000000000@g.us",
+    "fromMe": true,
+    "id": "3EB0ABC123DEF4567890"
+  },
+  "message": {
+    "extendedTextMessage": {
+      "text": "Lançamento confirmado: Almoço R$ 45,00 (Alimentação). Para cancelar, responda a esta mensagem com *desfazer*."
+    }
+  },
+  "messageTimestamp": 1730000000,
+  "status": "PENDING"
+}

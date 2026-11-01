@@ -67,8 +67,16 @@ def download_media_from_url(media_url: str) -> bytes | None:
     return None
 
 
-def send_whatsapp_message(remote_jid: str, text: str) -> bool:
-    """Envia uma mensagem de resposta ativa via Evolution API para o grupo do WhatsApp."""
+def send_whatsapp_message(
+    remote_jid: str,
+    text: str,
+    quoted_message_id: str | None = None,
+) -> str | None:
+    """
+    Envia uma mensagem de resposta ativa via Evolution API para o grupo do WhatsApp.
+    Retorna o ID da mensagem enviada (para anti-loop e rastreamento em outbound_messages)
+    ou None em caso de falha.
+    """
     s = get_settings()
     api_url = s.EVOLUTION_API_URL
     api_key = s.EVOLUTION_API_KEY.get_secret_value()
@@ -76,18 +84,25 @@ def send_whatsapp_message(remote_jid: str, text: str) -> bool:
 
     if not (api_url and api_key and instance):
         logger.debug("Evolution API não configurada para envio de mensagens ativas de resposta.")
-        return False
+        return None
 
     endpoint = f"{api_url}/message/sendText/{instance}"
     headers = {"apikey": api_key, "Content-Type": "application/json"}
-    payload = {"number": remote_jid, "text": text, "linkPreview": False}
+    payload: dict = {"number": remote_jid, "text": text, "linkPreview": False}
+    if quoted_message_id:
+        payload["quoted"] = {"key": {"id": quoted_message_id}}
 
     try:
         with httpx.Client(timeout=10.0) as client:
             res = client.post(endpoint, headers=headers, json=payload)
             if res.status_code in [200, 201]:
                 logger.info(f"Atlas enviou resposta para {remote_jid} com sucesso.")
-                return True
+                try:
+                    data = res.json()
+                    msg_id = data.get("key", {}).get("id") or data.get("id")
+                    return str(msg_id) if msg_id else "sent"
+                except Exception:
+                    return "sent"
             else:
                 logger.warning(
                     f"Erro ao enviar resposta via Evolution ({res.status_code}): {res.text}"
@@ -95,4 +110,4 @@ def send_whatsapp_message(remote_jid: str, text: str) -> bool:
     except Exception as e:
         logger.error(f"Exceção ao disparar resposta do Atlas via WhatsApp: {e}")
 
-    return False
+    return None

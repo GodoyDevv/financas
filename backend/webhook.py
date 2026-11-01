@@ -1,5 +1,6 @@
 import hmac
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -17,7 +18,12 @@ from backend.parser import (  # noqa: F401
     parse_financial_payload,
     parse_text_message,
 )
+from backend.repositories.outbound_message_repo import OutboundMessageRepository
 from backend.services.message_processor import process_message, reprocess_due
+from backend.services.whatsapp_commands import (
+    WhatsAppCommandService,
+    identify_whatsapp_command,
+)
 from backend.timeutils import utc_now_naive
 
 logger = logging.getLogger("fintrack.webhook")
@@ -87,7 +93,7 @@ def verify_webhook_secret(request: Request, token_in_path: str | None = None) ->
 
 
 async def extract_and_authorize_evolution_message(
-    payload: dict, request: Request
+    payload: dict, request: Request, db: Session | None = None
 ) -> tuple[
     str | None,
     str | None,
@@ -98,18 +104,20 @@ async def extract_and_authorize_evolution_message(
     str | None,
     str | None,
     str | None,
+    str | None,  # quoted_stanza_id
 ]:
     """
     Extrai, valida e autoriza a mensagem do webhook com:
     - Limite de corpo HTTP <= 1MB
     - Falha fechada para GROUP_JID (503)
     - Rejeição estrita se remoteJid != GROUP_JID
+    - Anti-loop robusto via outbound_messages (inclusive tratando corrida)
     - Autorização estrita por igualdade exata do número do remetente
     - Limites de tamanho em texto (500 chars) e áudio (2MB)
-    Retorna: (sender, user_name, raw_text, remote_jid, msg_id, is_audio, audio_base64, audio_mime, media_url)
+    Retorna: (sender, user_name, raw_text, remote_jid, msg_id, is_audio, audio_base64, audio_mime, media_url, quoted_stanza_id)
     """
     if not isinstance(payload, dict):
-        return None, None, None, None, None, False, None, None, None
+        return None, None, None, None, None, False, None, None, None, None
 
     # Validação do tamanho do payload HTTP em bytes (<= 1MB)
     content_length = request.headers.get("content-length")
@@ -126,7 +134,7 @@ async def extract_and_authorize_evolution_message(
     # Verifica tipo de evento da Evolution API
     event_type = payload.get("event")
     if event_type and event_type not in ["messages.upsert", "MESSAGES_UPSERT", "send.message"]:
-        return None, None, None, None, None, False, None, None, None
+        return None, None, None, None, None, False, None, None, None, None
 
     # Fail-closed estrito para WHATSAPP_GROUP_JID
     expected_group_jid = get_settings().WHATSAPP_GROUP_JID
@@ -160,12 +168,28 @@ async def extract_and_authorize_evolution_message(
     # Aceita exclusivamente mensagens vindas do grupo oficial configurado
     if remote_jid != expected_group_jid:
         logger.info(f"Mensagem fora do grupo oficial ({remote_jid}) ignorada.")
-        return None, None, None, None, None, False, None, None, None
+        return None, None, None, None, None, False, None, None, None, None
 
-    # Identificação do remetente real
-    is_from_me = False
-    if key and key.get("fromMe") is True:
-        is_from_me = True
+    is_from_me = bool(key and key.get("fromMe") is True)
+
+    # ANTI-LOOP ROBUSTO: Se o message_id constar em outbound_messages, descarta
+    if msg_id and db is not None:
+        outbound_repo = OutboundMessageRepository(db)
+        # Se for evento fromMe, verifica no outbound_messages
+        # Tratamento de corrida: se fromMe chegar milissegundos antes do registro,
+        # faz retry rápido de 300ms se ainda não encontrado
+        if is_from_me:
+            found = outbound_repo.exists(msg_id)
+            if not found:
+                time.sleep(0.3)
+                found = outbound_repo.exists(msg_id)
+            if found:
+                logger.info(f"Anti-loop: evento fromMe descartado com sucesso (msg_id={msg_id}).")
+                return None, None, None, None, None, False, None, None, None, None
+        else:
+            if outbound_repo.exists(msg_id):
+                logger.info(f"Anti-loop: mensagem do bot descartada (msg_id={msg_id}).")
+                return None, None, None, None, None, False, None, None, None, None
 
     sender_raw = None
     if key:
@@ -197,20 +221,21 @@ async def extract_and_authorize_evolution_message(
         logger.warning(
             f"Mensagem rejeitada de remetente não autorizado: {mask_phone(clean_sender)}"
         )
-        return None, None, None, None, None, False, None, None, None
+        return None, None, None, None, None, False, None, None, None, None
 
     instance_name = payload.get("instance") or data.get("instance")
     logger.info(
         f"Webhook autorizado | Instância: {instance_name} | Remetente: {user_name} ({mask_phone(clean_sender)})"
     )
 
-    # Extração de texto e mídia
+    # Extração de texto, mídia e quoted message (contextInfo)
     raw_text = None
     msg_obj = data.get("message")
     audio_base64 = None
     audio_mime = "audio/ogg"
     media_url = None
     is_audio = False
+    quoted_stanza_id = None
 
     if isinstance(msg_obj, dict):
         audio_msg = msg_obj.get("audioMessage")
@@ -220,10 +245,8 @@ async def extract_and_authorize_evolution_message(
             audio_base64 = audio_msg.get("base64") or data.get("base64")
             media_url = audio_msg.get("url") or audio_msg.get("mediaUrl") or data.get("mediaUrl")
 
-            # Validação rápida de tamanho se base64 estiver presente
             if audio_base64 and isinstance(audio_base64, str):
                 raw_b64 = audio_base64.split(",", 1)[1] if "," in audio_base64 else audio_base64
-                # Base64 length * 3/4 approximates byte size
                 approx_bytes = (len(raw_b64) * 3) // 4
                 if approx_bytes > MAX_AUDIO_BYTES:
                     logger.warning(
@@ -239,33 +262,31 @@ async def extract_and_authorize_evolution_message(
                         None,
                         None,
                         None,
+                        None,
                     )
 
-        raw_text = (
-            msg_obj.get("conversation")
-            or (
-                msg_obj.get("extendedTextMessage", {}).get("text")
-                if isinstance(msg_obj.get("extendedTextMessage"), dict)
-                else None
-            )
-            or (
-                msg_obj.get("imageMessage", {}).get("caption")
-                if isinstance(msg_obj.get("imageMessage"), dict)
-                else None
-            )
-            or (
-                msg_obj.get("videoMessage", {}).get("caption")
-                if isinstance(msg_obj.get("videoMessage"), dict)
-                else None
-            )
-        )
+        # Extração de quoted contextInfo
+        ext_msg = msg_obj.get("extendedTextMessage")
+        if isinstance(ext_msg, dict):
+            raw_text = ext_msg.get("text")
+            ctx_info = ext_msg.get("contextInfo")
+            if isinstance(ctx_info, dict):
+                quoted_stanza_id = ctx_info.get("stanzaId")
 
-    # Ignora mensagens automáticas do próprio Atlas
-    if raw_text and (
-        "*Atlas:*" in raw_text or "🎙️" in raw_text or "Teste de conexão Atlas" in raw_text
-    ):
-        logger.info("Ignorando mensagem automática gerada pelo próprio Atlas.")
-        return None, None, None, None, msg_id, False, None, None, None
+        if not raw_text:
+            raw_text = (
+                msg_obj.get("conversation")
+                or (
+                    msg_obj.get("imageMessage", {}).get("caption")
+                    if isinstance(msg_obj.get("imageMessage"), dict)
+                    else None
+                )
+                or (
+                    msg_obj.get("videoMessage", {}).get("caption")
+                    if isinstance(msg_obj.get("videoMessage"), dict)
+                    else None
+                )
+            )
 
     if not raw_text and not is_audio:
         raw_text = (
@@ -291,6 +312,7 @@ async def extract_and_authorize_evolution_message(
         audio_base64,
         audio_mime,
         media_url,
+        quoted_stanza_id,
     )
 
 
@@ -316,7 +338,8 @@ async def handle_webhook_event(
         audio_base64,
         audio_mime,
         media_url,
-    ) = await extract_and_authorize_evolution_message(payload, request)
+        quoted_stanza_id,
+    ) = await extract_and_authorize_evolution_message(payload, request, db=db)
 
     if not user_name:
         return {"status": "ignored", "detail": "Evento ignorado ou não autorizado"}
@@ -330,7 +353,65 @@ async def handle_webhook_event(
 
     logger.info("webhook_received", extra={"has_user": bool(user_name), "is_audio": is_audio})
 
-    # 3. Verificação de conteúdo financeiro
+    # 3. Comandos determinísticos WhatsApp (desfazer, todas, refazer, ajuda)
+    # Se FEATURE_WA_CONFIRMATIONS estiver ligada, processa comandos de forma idempotente
+    settings = get_settings()
+    identified_cmd = identify_whatsapp_command(raw_text) if not is_audio else None
+
+    if settings.FEATURE_WA_CONFIRMATIONS and identified_cmd:
+        cmd_record = ProcessedMessage(
+            message_id=msg_id,
+            status="done",
+            attempts=1,
+            received_at=utc_now_naive(),
+            processed_at=utc_now_naive(),
+            replied=True,
+            payload=None,
+        )
+        try:
+            db.add(cmd_record)
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            return {"status": "duplicate", "message_id": msg_id}
+
+        cmd_svc = WhatsAppCommandService(db)
+        reply_text = cmd_svc.handle_command(
+            command=identified_cmd,
+            user_name=user_name,
+            remote_jid=remote_jid or settings.WHATSAPP_GROUP_JID,
+            quoted_stanza_id=quoted_stanza_id,
+        )
+
+        from backend.atlas import send_whatsapp_message
+
+        try:
+            sent_id = send_whatsapp_message(
+                remote_jid or settings.WHATSAPP_GROUP_JID,
+                reply_text,
+                quoted_message_id=quoted_stanza_id,
+            )
+            if sent_id:
+                outbound_repo = OutboundMessageRepository(db)
+                outbound_repo.add(
+                    message_id=sent_id,
+                    kind="help" if identified_cmd == "ajuda" else "confirmation",
+                    ref_type="command",
+                    ref_id=identified_cmd,
+                    remote_jid=remote_jid or settings.WHATSAPP_GROUP_JID,
+                )
+                db.commit()
+        except Exception as e:
+            logger.warning(f"Erro ao responder comando via WhatsApp: {e}")
+
+        return {
+            "status": "command_executed",
+            "command": identified_cmd,
+            "user": user_name,
+            "response": reply_text,
+        }
+
+    # 4. Verificação de conteúdo financeiro
     cand_val, all_cands, _ = extract_money_values(raw_text or "")
     has_candidate_value = (cand_val is not None) or bool(all_cands)
 
@@ -359,7 +440,7 @@ async def handle_webhook_event(
             "user": user_name,
         }
 
-    # 4. Mensagem com potencial financeiro -> persistência recebida e agendamento
+    # 5. Mensagem com potencial financeiro -> persistência recebida e agendamento
     minimal_payload = {
         "raw_text": raw_text,
         "has_audio": is_audio,

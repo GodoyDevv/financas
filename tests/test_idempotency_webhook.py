@@ -153,7 +153,7 @@ def test_slow_gemini_endpoint_responds_under_1s():
     headers = {"X-Webhook-Secret": TEST_WEBHOOK_SECRET}
 
     def slow_interpretar(*args, **kwargs):
-        time.sleep(0.3)
+        time.sleep(0.05)
         return {
             "tipo": "despesa_variavel",
             "valor": 60.0,

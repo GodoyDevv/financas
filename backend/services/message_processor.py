@@ -165,6 +165,10 @@ class MessageProcessingService:
             else parsed_data["descricao"]
         )
 
+        from backend.config import get_settings
+
+        include_undo = get_settings().FEATURE_WA_CONFIRMATIONS
+
         atlas_reply = format_atlas_confirmation(
             user_name=user_name,
             item_desc=desc_feedback,
@@ -172,6 +176,10 @@ class MessageProcessingService:
             parcelas=parcelas,
             saldo_livre=saldo_atualizado,
             valor_total=float(total_geral) if parcelas > 1 else None,
+            categoria=cat_nome,
+            data_lancamento=base_data.strftime("%d/%m/%Y"),
+            transcricao=raw_text if channel_type == "whatsapp_audio" else None,
+            include_undo_instruction=include_undo,
         )
 
         if commit and remote_jid:
@@ -379,13 +387,27 @@ def _process_message_impl(session: Session, message_id: str) -> dict[str, Any] |
         msg_record.error_code = None
         session.commit()
 
-        # Envia confirmação WhatsApp pós-commit
+        # Envia confirmação WhatsApp pós-commit e registra em outbound_messages (anti-loop)
         atlas_reply = result.get("atlas_response")
         if remote_jid and atlas_reply:
             from backend.atlas import send_whatsapp_message
+            from backend.repositories.outbound_message_repo import OutboundMessageRepository
 
             try:
-                send_whatsapp_message(remote_jid, atlas_reply)
+                sent_msg_id = send_whatsapp_message(remote_jid, atlas_reply)
+                if sent_msg_id and sent_msg_id is not True:
+                    msg_id_str = str(sent_msg_id)
+                    outbound_repo = OutboundMessageRepository(session)
+                    tx_id_ref = result.get("id")
+                    if not outbound_repo.exists(msg_id_str):
+                        outbound_repo.add(
+                            message_id=msg_id_str,
+                            kind="confirmation",
+                            ref_type="transaction",
+                            ref_id=str(tx_id_ref) if tx_id_ref else None,
+                            remote_jid=remote_jid,
+                        )
+                        session.commit()
             except Exception as send_err:
                 logger.warning(f"Erro ao enviar confirmação WhatsApp pós-commit: {send_err}")
 
@@ -411,12 +433,24 @@ def _process_message_impl(session: Session, message_id: str) -> dict[str, Any] |
 
             if not msg_record.replied and remote_jid:
                 from backend.atlas import send_whatsapp_message
+                from backend.repositories.outbound_message_repo import OutboundMessageRepository
 
                 try:
-                    send_whatsapp_message(
+                    sent_msg_id = send_whatsapp_message(
                         remote_jid,
                         "Não consegui processar sua mensagem, tente novamente",
                     )
+                    if sent_msg_id and sent_msg_id is not True:
+                        msg_id_str = str(sent_msg_id)
+                        outbound_repo = OutboundMessageRepository(session)
+                        if not outbound_repo.exists(msg_id_str):
+                            outbound_repo.add(
+                                message_id=msg_id_str,
+                                kind="error",
+                                ref_type="processed_message",
+                                ref_id=message_id,
+                                remote_jid=remote_jid,
+                            )
                     msg_record.replied = True
                 except Exception as send_err:
                     logger.warning(f"Erro ao notificar grupo sobre falha: {send_err}")
@@ -496,7 +530,10 @@ def reprocess_due(db: Session | None = None) -> list[str]:
 
 
 def purge_old(db: Session | None = None) -> int:
-    """Expurga mensagens concluídas/ignoradas há mais de 30 dias e falhas há mais de 7 dias."""
+    """
+    Expurga mensagens concluídas/ignoradas há mais de 30 dias, falhas há mais de 7 dias,
+    e exclui definitivamente (hard delete) transações em soft delete há mais de 30 dias.
+    """
     from backend.db.session import SessionLocal
 
     now = utc_now_naive()
@@ -515,8 +552,16 @@ def purge_old(db: Session | None = None) -> int:
             ProcessedMessage.received_at <= seven_days_ago,
         )
         r2 = s.execute(stmt2)
+
+        # Expurga transações com soft delete há mais de 30 dias
+        stmt3 = delete(Transaction).where(
+            Transaction.deleted_at.is_not(None),
+            Transaction.deleted_at <= thirty_days_ago,
+        )
+        r3 = s.execute(stmt3)
+
         s.commit()
-        return (r1.rowcount or 0) + (r2.rowcount or 0)
+        return (r1.rowcount or 0) + (r2.rowcount or 0) + (r3.rowcount or 0)
 
     if db is not None:
         return _execute_purge(db)
