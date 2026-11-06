@@ -1,7 +1,7 @@
 # ==============================================================================
 # ESTÁGIO 1: FRONTEND BUILDER (Node.js LTS para compilar e empacotar Vite + TS)
 # ==============================================================================
-FROM node:20-slim AS frontend-builder
+FROM node:25-slim AS frontend-builder
 
 WORKDIR /app/frontend
 
