@@ -16,6 +16,7 @@ import {
 } from "../format";
 import { escapeHtml } from "../dom";
 import { obterValorColuna, NOMES_COLUNAS } from "./filters";
+import type { TransactionResponse } from "../state";
 
 export function renderTableAndCards(): void {
   const trans = state.transacoesAtuais || [];
@@ -23,26 +24,55 @@ export function renderTableAndCards(): void {
   const mobileList = document.getElementById("mobile-tx-list");
   const emptyState = document.getElementById("tabela-empty");
 
-  // Atualiza estado visual dos botões de cabeçalho
+  // Atualiza estado visual dos botões de cabeçalho e botões mobile
   let totalFiltrosAtivos = 0;
   for (const [col, setValores] of Object.entries(state.filtrosColuna)) {
     const btn = document.getElementById(`th-btn-${col}`);
     const badge = document.getElementById(`th-badge-${col}`);
-    if (btn && badge) {
-      if (setValores.size > 0) {
-        totalFiltrosAtivos += setValores.size;
-        btn.classList.add("active");
+    const mBtn = document.getElementById(`m-btn-${col}`);
+    const mBadge = document.getElementById(`m-badge-${col}`);
+
+    if (setValores.size > 0) {
+      totalFiltrosAtivos += setValores.size;
+      if (btn) btn.classList.add("active", "filtered");
+      if (badge) {
         badge.style.display = "inline-flex";
         badge.innerText = String(setValores.size);
-      } else {
-        btn.classList.remove("active");
-        badge.style.display = "none";
       }
+      if (mBtn) mBtn.classList.add("active", "filtered");
+      if (mBadge) {
+        mBadge.style.display = "inline-flex";
+        mBadge.innerText = String(setValores.size);
+      }
+    } else {
+      if (btn) btn.classList.remove("active", "filtered");
+      if (badge) badge.style.display = "none";
+      if (mBtn) mBtn.classList.remove("active", "filtered");
+      if (mBadge) mBadge.style.display = "none";
     }
+  }
+
+  // Atualiza botão "X" de limpar busca rápida
+  const btnClearSearch = document.getElementById("btn-clear-search-x");
+  if (btnClearSearch) {
+    btnClearSearch.style.display = state.termoBuscaTexto ? "inline-flex" : "none";
   }
 
   // Filtra as transações
   const filtradas = trans.filter((t) => {
+    // 1. Filtro de busca global por texto (descrição, categoria, autor)
+    if (state.termoBuscaTexto) {
+      const q = state.termoBuscaTexto.toLowerCase().trim();
+      const matchDesc = (t.descricao || "").toLowerCase().includes(q);
+      const matchCat = (t.categoria || "").toLowerCase().includes(q);
+      const matchAuthor = (t.author || "").toLowerCase().includes(q);
+      const matchValor = String(t.valor || "").includes(q);
+      if (!matchDesc && !matchCat && !matchAuthor && !matchValor) {
+        return false;
+      }
+    }
+
+    // 2. Filtros multifacetados por coluna
     for (const [col, setValores] of Object.entries(state.filtrosColuna)) {
       if (setValores.size === 0) continue;
       const valTrans = obterValorColuna(t, col);
@@ -51,10 +81,12 @@ export function renderTableAndCards(): void {
     return true;
   });
 
+  const temFiltroAtivo = totalFiltrosAtivos > 0 || !!state.termoBuscaTexto;
+
   // Atualiza contador de registros
   const countBadge = document.getElementById("total-records-count");
   if (countBadge) {
-    if (totalFiltrosAtivos > 0) {
+    if (temFiltroAtivo) {
       countBadge.innerText = `${filtradas.length} de ${trans.length} registros`;
       countBadge.classList.add("filtered");
     } else {
@@ -63,8 +95,8 @@ export function renderTableAndCards(): void {
     }
   }
 
-  // Renderiza a barra de chips de filtros ativos
-  renderActiveFilterChips(totalFiltrosAtivos);
+  // Renderiza a barra de chips de filtros ativos e soma consolidada
+  renderActiveFilterChips(totalFiltrosAtivos, filtradas);
 
   // Se vazio
   if (filtradas.length === 0) {
@@ -224,18 +256,70 @@ export function renderTableAndCards(): void {
   }
 }
 
-function renderActiveFilterChips(totalFiltrosAtivos: number): void {
-  const container = document.getElementById("active-filter-chips");
-  if (!container) return;
+function renderActiveFilterChips(totalFiltrosAtivos: number, filtradas: TransactionResponse[] = []): void {
+  const container =
+    document.getElementById("active-filter-chips") ||
+    document.getElementById("active-chips-group");
+  const barEl = document.getElementById("active-filters-bar");
+  const summaryPills = document.getElementById("filtered-summary-pills");
 
-  if (totalFiltrosAtivos === 0) {
-    container.style.display = "none";
-    container.innerHTML = "";
+  const temFiltroAtivo = totalFiltrosAtivos > 0 || !!state.termoBuscaTexto;
+
+  if (!temFiltroAtivo) {
+    if (barEl) {
+      barEl.style.display = "none";
+      barEl.classList.remove("visible");
+    }
+    if (container) {
+      container.style.display = "none";
+      container.innerHTML = "";
+    }
+    if (summaryPills) summaryPills.innerHTML = "";
     return;
   }
 
+  if (barEl) {
+    barEl.style.display = "flex";
+    barEl.classList.add("visible");
+  }
+
+  // Calcula total consolidado das despesas filtradas
+  const somaDespesas = filtradas.reduce((acc, t) => {
+    return acc + (t.tipo !== "receita" ? Number(t.valor || 0) : 0);
+  }, 0);
+
+  const somaReceitas = filtradas.reduce((acc, t) => {
+    return acc + (t.tipo === "receita" ? Number(t.valor || 0) : 0);
+  }, 0);
+
+  if (summaryPills) {
+    const totalExibido = somaDespesas > 0 ? somaDespesas : somaReceitas;
+    const labelExibido = somaDespesas > 0 ? "Total despesas:" : "Total receitas:";
+    summaryPills.innerHTML = `
+      <span class="summary-pill">${filtradas.length} registro${filtradas.length === 1 ? "" : "s"}</span>
+      <span class="summary-pill highlight" style="color: #93C5FD; font-weight: 700;">
+        ${labelExibido} <strong>${escapeHtml(formatBRL(totalExibido))}</strong>
+      </span>
+    `;
+  }
+
+  if (!container) return;
   container.style.display = "flex";
   let chipsHtml = "";
+
+  if (state.termoBuscaTexto) {
+    const safeBusca = escapeHtml(state.termoBuscaTexto);
+    chipsHtml += `
+      <div class="filter-chip">
+        <span><strong>Busca:</strong> "${safeBusca}"</span>
+        <button type="button" class="btn-chip-remove" data-action="clear-search-text" title="Remover busca por texto">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M18 6L6 18M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    `;
+  }
 
   for (const [col, setValores] of Object.entries(state.filtrosColuna)) {
     if (setValores.size === 0) continue;
@@ -257,8 +341,8 @@ function renderActiveFilterChips(totalFiltrosAtivos: number): void {
   }
 
   chipsHtml += `
-    <button type="button" class="btn-clear-all-chips" data-action="clear-all-filters">
-      Limpar todos os filtros (${totalFiltrosAtivos})
+    <button type="button" class="btn-clear-all-chips btn-clear-all-filters" data-action="clear-all-filters">
+      Limpar todos
     </button>
   `;
 

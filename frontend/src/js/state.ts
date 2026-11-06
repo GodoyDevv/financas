@@ -17,6 +17,7 @@ export interface AppState {
   modoGeral: boolean;
   anoDropdownAtual: number;
   filtroTipoAtual: string;
+  termoBuscaTexto: string;
   transacoesAtuais: TransactionResponse[];
   metricasAtuais: MetricsResponse | null;
   filtrosColuna: {
@@ -45,6 +46,7 @@ export const state: AppState = {
   modoGeral: false,
   anoDropdownAtual: anoInicial,
   filtroTipoAtual: "",
+  termoBuscaTexto: "",
   transacoesAtuais: [],
   metricasAtuais: null,
   filtrosColuna: {

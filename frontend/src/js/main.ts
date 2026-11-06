@@ -343,6 +343,13 @@ function setupEventDelegation(): void {
       case "clear-all-filters":
         limparTodosFiltros();
         break;
+      case "clear-search-text": {
+        state.termoBuscaTexto = "";
+        const inputSearch = document.getElementById("tx-search-input") as HTMLInputElement | null;
+        if (inputSearch) inputSearch.value = "";
+        renderTableAndCards();
+        break;
+      }
       case "edit-tx": {
         const id = Number(actionBtn.getAttribute("data-id"));
         if (!isNaN(id)) iniciarEdicao(id);
@@ -398,6 +405,15 @@ function setupEventDelegation(): void {
     colSearchInput.addEventListener("input", (e) => {
       const target = e.target as HTMLInputElement;
       filtrarOpcoesColuna(target.value);
+    });
+  }
+
+  const txSearchInput = document.getElementById("tx-search-input") as HTMLInputElement | null;
+  if (txSearchInput) {
+    txSearchInput.addEventListener("input", (e) => {
+      const target = e.target as HTMLInputElement;
+      state.termoBuscaTexto = target.value;
+      renderTableAndCards();
     });
   }
 

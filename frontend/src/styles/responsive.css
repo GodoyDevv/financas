@@ -177,6 +177,23 @@
         padding: 6px 12px;
       }
 
+      /* Exibe botões de filtro rápido no mobile */
+      .mobile-filter-buttons {
+        display: flex;
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .mobile-filter-btn {
+        flex-shrink: 0;
+      }
+
+      .search-input-wrapper {
+        min-width: 100%;
+      }
+
       /* No celular: Esconde tabela tradicional horizontal e exibe cards em lista vertical */
       .table-container {
         display: none !important;

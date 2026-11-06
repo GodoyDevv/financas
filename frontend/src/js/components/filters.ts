@@ -57,7 +57,7 @@ export function obterValorColuna(t: TransactionResponse, col: string): string {
   }
 }
 
-export function abrirFiltroColuna(coluna: string, triggerBtn: HTMLElement): void {
+export function abrirFiltroColuna(coluna: string, triggerBtn?: HTMLElement): void {
   const popover = document.getElementById("col-filter-popover");
   if (!popover) return;
 
@@ -68,19 +68,25 @@ export function abrirFiltroColuna(coluna: string, triggerBtn: HTMLElement): void
 
   state.colunaPopoverAtual = coluna;
 
-  const rect = triggerBtn.getBoundingClientRect();
-  const popWidth = 265;
-  let left = rect.left;
-  if (left + popWidth > window.innerWidth - 16) {
-    left = Math.max(16, window.innerWidth - popWidth - 16);
+  if (triggerBtn) {
+    const rect = triggerBtn.getBoundingClientRect();
+    const popWidth = Math.min(280, window.innerWidth - 32);
+    let left = rect.left;
+    if (left + popWidth > window.innerWidth - 16) {
+      left = Math.max(16, window.innerWidth - popWidth - 16);
+    }
+    let top = rect.bottom + 8;
+    if (top + 320 > window.innerHeight) {
+      top = Math.max(16, rect.top - 320);
+    }
+    popover.style.left = `${left}px`;
+    popover.style.top = `${top}px`;
+  } else {
+    // Abertura sem botão ancorado (ex: centralizado em mobile)
+    const popWidth = Math.min(290, window.innerWidth - 32);
+    popover.style.left = `${Math.max(16, (window.innerWidth - popWidth) / 2)}px`;
+    popover.style.top = "100px";
   }
-  let top = rect.bottom + 8;
-  if (top + 320 > window.innerHeight) {
-    top = Math.max(16, rect.top - 320);
-  }
-
-  popover.style.left = `${left}px`;
-  popover.style.top = `${top}px`;
 
   const searchInput = document.getElementById("col-filter-search") as HTMLInputElement | null;
   if (searchInput) searchInput.value = "";
@@ -131,9 +137,12 @@ export function renderOpcoesFiltroColuna(coluna: string, termoBusca: string = ""
       const isChecked = filtroAtivoSet.has(val);
       const safeVal = escapeHtml(val);
       return `
-      <label class="col-filter-item">
-        <input type="checkbox" data-col="${coluna}" data-val="${safeVal}" ${isChecked ? "checked" : ""}>
-        <span class="truncate">${safeVal}</span>
+      <label class="col-filter-item ${isChecked ? "selected" : ""}">
+        <div class="col-filter-item-left">
+          <input type="checkbox" data-col="${coluna}" data-val="${safeVal}" ${isChecked ? "checked" : ""} style="display:none;">
+          <span class="col-filter-check">${isChecked ? "✓" : ""}</span>
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeVal}</span>
+        </div>
       </label>
     `;
     })
@@ -151,6 +160,7 @@ export function renderOpcoesFiltroColuna(coluna: string, termoBusca: string = ""
       } else {
         state.filtrosColuna[col].delete(val);
       }
+      renderOpcoesFiltroColuna(coluna, termoBusca);
       renderTableAndCards();
     });
   });
@@ -169,6 +179,9 @@ export function limparTodosFiltros(): void {
   for (const setVal of Object.values(state.filtrosColuna)) {
     setVal.clear();
   }
+  state.termoBuscaTexto = "";
+  const inputSearch = document.getElementById("tx-search-input") as HTMLInputElement | null;
+  if (inputSearch) inputSearch.value = "";
   fecharFiltroColuna();
   renderTableAndCards();
 }
