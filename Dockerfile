@@ -14,7 +14,7 @@ RUN npm run build
 # ==============================================================================
 # ESTÁGIO 2: PYTHON BUILDER (Instalação e compilação de dependências via uv)
 # ==============================================================================
-FROM python:3.12.10-slim AS builder
+FROM python:3.15.1-slim AS builder
 
 # Instala ferramentas essenciais de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -39,7 +39,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 # ==============================================================================
 # ESTÁGIO 3: RUNTIME FINAL (Imagem enxuta e segura sem privilégios de root)
 # ==============================================================================
-FROM python:3.12.10-slim AS runtime
+FROM python:3.15.1-slim AS runtime
 
 # Instala apenas dependências dinâmicas de runtime (libpq para psycopg e curl para healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
